@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["node", "better-sqlite3"],
+    "baseUrl": ".",
+    "paths": {
+      "@main/*": ["src/main/*"],
+      "@main": ["src/main/index"],
+      "@shared/*": ["src/shared/*"],
+      "@db/*": ["src/database/*"],
+      "@db": ["src/database/index"],
+      "@importer/*": ["src/importer/*"],
+      "@importer": ["src/importer/index"],
+      "@search/*": ["src/search/*"],
+      "@search": ["src/search/index"],
+      "@sharing/*": ["src/sharing/*"],
+      "@sharing": ["src/sharing/index"],
+      "@ai/*": ["src/ai/*"],
+      "@ai": ["src/ai/index"]
+    }
+  },
+  "include": [
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*",
+    "src/database/**/*",
+    "src/importer/**/*",
+    "src/search/**/*",
+    "src/workspace/**/*",
+    "src/sharing/**/*",
+    "src/ai/**/*",
+    "src/mcp/**/*",
+    "electron.vite.config.ts"
+  ]
+}

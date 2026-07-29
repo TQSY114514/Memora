@@ -1,0 +1,19 @@
+node_modules/
+out/
+dist/
+.vite/
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.local
+
+# 数据库与运行时数据
+.data/
+aether.db
+aether.db-journal
+aether.db-wal
+aether.db-shm
+
+# TypeScript 构建缓存
+*.tsbuildinfo

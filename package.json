@@ -1,0 +1,51 @@
+{
+  "name": "aether",
+  "version": "0.1.0",
+  "description": "Aether - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
+  "author": "Aether",
+  "main": "out/main/index.js",
+  "license": "MIT",
+  "bin": {
+    "aether-mcp": "out/main/index.js"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "electron-vite preview",
+    "mcp": "electron out/main/index.js --mcp",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.0",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "rehype-highlight": "^7.0.1",
+    "remark-gfm": "^4.0.0",
+    "uuid": "^11.0.3",
+    "zustand": "^5.0.2"
+  },
+  "allowScripts": {
+    "better-sqlite3": true,
+    "electron": true,
+    "esbuild": true
+  }
+}

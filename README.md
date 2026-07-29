@@ -1,0 +1,348 @@
+<div align="center">
+
+<!-- SVG Hero：项目原生视觉，可编辑、GitHub-safe -->
+<svg width="480" height="160" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aether">
+  <defs>
+    <linearGradient id="aetherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#615ced"/>
+      <stop offset="100%" stop-color="#4d6bfe"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#615ced"/>
+      <stop offset="100%" stop-color="#4d6bfe"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Logo 标记 -->
+  <g transform="translate(40, 40)">
+    <rect width="80" height="80" rx="16" fill="url(#aetherGrad)" filter="url(#glow)"/>
+    <text x="40" y="58" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+          font-size="48" font-weight="700" fill="white" text-anchor="middle">Æ</text>
+  </g>
+
+  <!-- 标题 -->
+  <text x="160" y="80" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="42" font-weight="700" fill="url(#textGrad)">Aether</text>
+  <text x="160" y="108" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="14" fill="#6b7280">AI 对话时代的知识管理工具</text>
+</svg>
+
+<p>
+  <strong>Local-First 的 AI 对话知识工作台</strong><br/>
+  统一管理 · 搜索 · 分享 · 复用来自不同 AI 平台的聊天记录
+</p>
+
+<!-- 徽章 -->
+<p>
+  <img src="https://img.shields.io/badge/version-0.1.0-615ced" alt="version"/>
+  <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
+  <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
+  <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/SQLite-FTS5-003B57" alt="SQLite"/>
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
+  <img src="https://img.shields.io/badge/Local_First-✓-615ced" alt="Local First"/>
+</p>
+
+<p>
+  <a href="#核心功能">功能</a> ·
+  <a href="#支持平台">平台</a> ·
+  <a href="#安装与运行">安装</a> ·
+  <a href="#项目架构">架构</a> ·
+  <a href="#开发路线">路线</a>
+</p>
+
+</div>
+
+---
+
+## 为什么需要 Aether
+
+现代 AI 用户同时使用 10+ 个平台：ChatGPT、Claude、Gemini、DeepSeek、Kimi、通义、Cursor、Grok……每个平台都是一个**数据孤岛**。
+
+- 同一项目的 AI 讨论散落在 5 个平台，无法统一查看
+- 换账号、换平台时，历史对话无法带走
+- 三个月后想找回某段精彩讨论，翻遍几百条记录也找不到
+- 平台默认按时间线展示，没有项目维度的组织能力
+
+> 现有 AI 平台是「对话工具」，不是「知识管理工具」。Aether 要补上这一层。
+
+## Aether 是什么
+
+Aether 是一个 **Local-First 的 AI 对话知识工作台**。它不是另一个 AI Agent，也不是简单的聊天导出工具——它是一个跨平台的 **AI 对话聚合层 + 项目记忆系统**。
+
+- ✅ 跨平台聚合：ChatGPT / Claude / Gemini / DeepSeek / Kimi / 通义 / Cursor / Grok ……
+- ✅ 本地优先：数据存储在本地 SQLite，离线可用，隐私可控
+- ✅ 统一数据模型：屏蔽平台差异，所有对话归一为 `ChatSession`
+- ✅ 全文 + 语义搜索：FTS5 关键词搜索 + 向量语义检索
+- ✅ AI 增强：自动总结、knowledge.md 生成、Project Memory 智能问答
+- ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看
+
+## 核心功能
+
+### 跨平台导入器矩阵
+
+覆盖 11 个平台/格式的专用导入器，自动识别文件格式，统一转换为 `ChatSession`：
+
+| 平台 | 格式 | 特性 |
+|------|------|------|
+| ChatGPT | `conversations.json` | 官方导出，mapping 树结构解析 |
+| Claude | JSON / HTML | 官方导出 + 分享页面 |
+| DeepSeek | JSON | 分享 API + 直接导出，含 reasoning_content |
+| Kimi | JSON | 分享页面 HYDRATION_INIT_STATE 解析 |
+| 通义千问 | JSON | 分享 API + 导出 JSON |
+| Gemini | JSON | prompts/contents/messages 三种结构兼容 |
+| Grok | JSON | conversation 包裹 + 直接 messages |
+| Cursor | JSON | chats 数组 + 单对话结构 |
+| Markdown | `.md` | 通用 Markdown（含 frontmatter） |
+| JSON | `.json` | 通用 Aether schema |
+| HTML | `.html` | 通用 HTML 对话页面 |
+
+支持**拖拽导入**和**批量操作**：把文件直接拖入窗口即可导入，支持多选批量删除/移动。
+
+### 对话管理（Workspace）
+
+```
+Workspace（工作区）
+└── Folder（文件夹）
+    └── ChatSession（对话）
+        └── Message（消息）
+```
+
+- 创建 / 重命名 / 删除 Workspace、Folder
+- 标签（多对多）与收藏（星标）
+- 按 provider / 时间 / 收藏筛选
+- 拖拽移动对话
+
+### 全文搜索 + 语义搜索
+
+- **关键词搜索**：SQLite FTS5 全文索引，支持对话标题与消息内容
+- **语义搜索**：向量嵌入 + 余弦相似度，跨会话语义检索（需配置 AI API）
+
+### AI 增强（Phase 2）
+
+- **对话总结**：自动生成摘要、关键要点、待办事项
+- **knowledge.md**：把对话沉淀为可复用的知识文档
+- **向量索引**：为消息生成向量，增量索引，已索引的跳过
+
+### Project Memory 智能问答（Phase 3）
+
+基于 RAG（检索增强生成）的智能问答系统：
+
+1. 把问题向量化
+2. 从全库向量中检索 Top-K 相关消息
+3. 加载每条命中的上下文（前后各 1 条消息）
+4. 组装 context prompt，调用 LLM 生成答案
+5. 返回答案 + 引用来源（可点击跳转到原对话）
+
+**相关讨论推荐**：基于会话向量质心，自动推荐与当前对话相关的其他讨论。
+
+### MCP Server
+
+Aether 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等外部 AI 工具：
+
+```json
+{
+  "mcpServers": {
+    "aether": {
+      "command": "node",
+      "args": ["<aether-path>/out/main/index.js", "--mcp"]
+    }
+  }
+}
+```
+
+暴露 6 个工具：`search_sessions`、`get_session`、`list_sessions`、`list_workspaces`、`list_tags`、`get_session_summary`
+
+### 分享导出
+
+将对话导出为**自包含 HTML 文件**，内嵌所有内容与样式，任何人用浏览器打开即可查看，无需安装 Aether。
+
+## 支持平台
+
+<div align="center">
+
+| | | | | | |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ChatGPT | Claude | Gemini | DeepSeek | Kimi | 通义 |
+| Cursor | Grok | Markdown | JSON | HTML | |
+
+</div>
+
+## 安装与运行
+
+### 环境要求
+
+- Node.js ≥ 18
+- npm ≥ 9
+
+### 开发模式
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发模式（Electron + Vite HMR）
+npm run dev
+```
+
+### 生产构建
+
+```bash
+# 类型检查
+npm run typecheck
+
+# 打包
+npm run build
+
+# 预览生产版本
+npm run preview
+```
+
+### MCP Server 模式
+
+```bash
+# 以 MCP Server 运行（stdio 传输）
+npm run mcp
+```
+
+## 配置 AI
+
+在使用 AI 总结、语义搜索、Project Memory 之前，需要配置 OpenAI 兼容的 API：
+
+1. 启动 Aether，点击左上角「⚙ AI」
+2. 选择服务商（OpenAI / DeepSeek / 自定义）
+3. 填入 API Base URL、API Key、对话模型、嵌入模型、向量维度
+4. 点击「测试连接」验证配置
+
+配置仅保存在本地 localStorage，不会上传。支持 OpenAI、DeepSeek 及任何 OpenAI 兼容接口。
+
+## 项目架构
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Renderer Process (React UI)                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
+│  │ Sidebar  │  │ ChatList │  │ChatViewer│               │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘               │
+│       └─────────────┴─────────────┘                      │
+│                     │ window.aether.* (preload bridge)   │
+└─────────────────────┼────────────────────────────────────┘
+                      │ IPC (contextBridge)
+┌─────────────────────┼────────────────────────────────────┐
+│  Main Process       ▼                                    │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│  │ importer │  │ database │  │  search  │  │   ai     │ │
+│  └──────────┘  └────┬─────┘  └──────────┘  └──────────┘ │
+│                     │                                    │
+│                     ▼                                    │
+│              ┌─────────────┐                             │
+│              │  SQLite DB  │  (用户数据目录)             │
+│              └─────────────┘                             │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 技术栈
+
+| 层 | 技术 | 选型理由 |
+|----|------|----------|
+| 前端 | React 18 + TypeScript 5.7 | 生态成熟、类型安全 |
+| 桌面 | Electron 33 | 跨平台、better-sqlite3 集成成熟 |
+| 构建 | Vite + electron-vite | 快速 HMR |
+| 存储 | SQLite (better-sqlite3) | 嵌入式、高性能、支持 FTS5 |
+| 搜索 | SQLite FTS5 + 向量检索 | 关键词 + 语义双层 |
+| 状态 | Zustand | 轻量、TypeScript 友好 |
+| 样式 | Tailwind CSS | 暗色优先、CSS 变量驱动 |
+
+### 目录结构
+
+```
+aether/
+├── src/
+│   ├── main/              # Electron 主进程
+│   │   ├── ipc/           # IPC 处理器
+│   │   └── index.ts       # 主进程入口（含 MCP 模式）
+│   ├── preload/           # contextBridge 安全 API
+│   ├── renderer/          # React UI
+│   │   └── src/components/
+│   │       ├── Sidebar/   # 工作区导航 + 搜索
+│   │       ├── ChatList/  # 对话列表（多选/批量）
+│   │       ├── ChatViewer/# 对话查看 + AI 工具栏
+│   │       ├── ProjectMemory/ # RAG 问答面板
+│   │       └── AiSettings/# AI 配置弹窗
+│   ├── importer/          # 导入器（11 个平台）
+│   ├── database/          # SQLite + 6 个 Repository
+│   ├── search/            # FTS5 + 语义搜索
+│   ├── ai/                # 总结 + 嵌入 + Project Memory
+│   ├── mcp/               # MCP Server
+│   ├── sharing/           # HTML 导出
+│   └── shared/            # 跨进程类型与常量
+├── resources/             # 静态资源（logo）
+└── package.json
+```
+
+## 开发路线
+
+### Phase 1：MVP（v0.1）✅
+
+- [x] Electron + Vite + React 工程脚手架
+- [x] SQLite 数据层 + Schema + 迁移
+- [x] 统一数据模型 + 类型定义
+- [x] ChatGPT / Claude / Markdown / JSON 导入器
+- [x] Workspace / Folder 树形管理
+- [x] 对话列表 + 查看器 UI
+- [x] FTS5 全文搜索
+- [x] 自包含 HTML 分享导出
+- [x] 拖拽导入 + 批量操作
+- [x] DeepSeek / Kimi / 通义导入器
+
+### Phase 2：AI 增强（v0.5）✅
+
+- [x] 聊天自动总结（摘要 / 关键决定 / 待办）
+- [x] 自动生成 knowledge.md
+- [x] 语义搜索（向量嵌入 + 相似度检索）
+- [x] 可配置 AI API Key（OpenAI/DeepSeek/自定义）
+
+### Phase 3：生态（v1.0）✅
+
+- [x] Project Memory 智能问答（RAG）
+- [x] 相关讨论推荐（基于向量相似度）
+- [x] MCP Server（暴露对话数据给外部工具）
+- [x] Gemini / Grok / Cursor 导入器
+
+### 后续规划
+
+- [ ] `aether.chat` 在线分享托管（可选上传）
+- [ ] 账号系统 + 云端同步（端到端加密）
+- [ ] 浏览器插件（一键采集网页对话）
+- [ ] Cursor / VSCode 插件（IDE 内查看项目记忆）
+- [ ] 协作 Workspace（团队共享）
+
+## 核心原则
+
+> **你的 AI 对话，应当像代码一样被版本化、被搜索、被分享、被复用。**
+> **数据归你所有，工具为你服务。**
+
+- **Local-First**：数据存储在本地，优先保证离线可用和用户数据所有权
+- **Privacy-First**：数据不离开本地，分享由用户主动选择
+- **跨平台**：不锁死单一平台，数据可迁移
+- **AI 原生**：为 AI 对话量身设计的数据模型，理解 provider/model/role/timestamp
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+<div align="center">
+
+<sub>Built with Electron · React · TypeScript · SQLite</sub><br/>
+<sub>© 2026 Aether</sub>
+
+</div>
