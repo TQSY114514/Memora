@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useStore } from '../../stores/appStore'
@@ -59,15 +59,15 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setShowRelated(false)
 
     if (!session) return
-    window.aether.ai.getSummary(session.id).then(setSummary).catch(() => {})
-    window.aether.ai.getEmbedStatus(session.id).then(setEmbedStatus).catch(() => {})
+    window.Memora.ai.getSummary(session.id).then(setSummary).catch(() => {})
+    window.Memora.ai.getEmbedStatus(session.id).then(setEmbedStatus).catch(() => {})
   }, [session?.id])
 
   async function handleShare() {
     if (!session) return
-    const html = await window.aether.share.exportHtml(session.id)
+    const html = await window.Memora.share.exportHtml(session.id)
     if (!html) return
-    await window.aether.saveFileDialog({
+    await window.Memora.saveFileDialog({
       defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.html`,
       content: html
     })
@@ -75,8 +75,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
 
   async function handleToggleFavorite() {
     if (!session) return
-    await window.aether.session.toggleFavorite(session.id)
-    const updated = await window.aether.session.get(session.id, true)
+    await window.Memora.session.toggleFavorite(session.id)
+    const updated = await window.Memora.session.get(session.id, true)
     setActiveSessionData(updated)
   }
 
@@ -89,7 +89,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setSummaryLoading(true)
     setSummaryError(null)
     try {
-      const result = await window.aether.ai.generateSummary(session.id, config)
+      const result = await window.Memora.ai.generateSummary(session.id, config)
       setSummary(result)
       setShowSummary(true)
     } catch (e) {
@@ -108,8 +108,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setEmbedLoading(true)
     setEmbedError(null)
     try {
-      await window.aether.ai.embedSession(session.id, config)
-      const status = await window.aether.ai.getEmbedStatus(session.id)
+      await window.Memora.ai.embedSession(session.id, config)
+      const status = await window.Memora.ai.getEmbedStatus(session.id)
       setEmbedStatus(status)
     } catch (e) {
       setEmbedError(e instanceof Error ? e.message : String(e))
@@ -120,8 +120,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
 
   async function handleExportKnowledge() {
     if (!session) return
-    const md = await window.aether.ai.generateKnowledgeMd(session.id)
-    await window.aether.saveFileDialog({
+    const md = await window.Memora.ai.generateKnowledgeMd(session.id)
+    await window.Memora.saveFileDialog({
       defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.md`,
       content: md
     })
@@ -140,7 +140,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     // 动态加载
     setShowRelated(true)
     try {
-      const related = await window.aether.memory.findRelated(session.id, { limit: 5 })
+      const related = await window.Memora.memory.findRelated(session.id, { limit: 5 })
       setRelatedSessions(related)
     } catch {
       setRelatedSessions([])
@@ -156,14 +156,14 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={handleToggleFavorite}
-              className="aether-btn aether-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost text-xs"
               title={session.isFavorite ? '取消收藏' : '收藏'}
             >
               {session.isFavorite ? '★ 已收藏' : '☆ 收藏'}
             </button>
             <button
               onClick={handleShare}
-              className="aether-btn aether-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost text-xs"
               title="导出为自包含 HTML 分享"
             >
               ⤴ 分享
@@ -197,7 +197,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           <button
             onClick={handleGenerateSummary}
             disabled={summaryLoading}
-            className="aether-btn aether-btn-ghost text-xs"
+            className="Memora-btn Memora-btn-ghost text-xs"
             title="生成 AI 总结"
           >
             {summaryLoading ? '⏳ 总结中…' : summary ? '↻ 重新总结' : '✨ AI 总结'}
@@ -205,7 +205,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           <button
             onClick={handleEmbed}
             disabled={embedLoading}
-            className="aether-btn aether-btn-ghost text-xs"
+            className="Memora-btn Memora-btn-ghost text-xs"
             title="建立向量索引（用于语义搜索）"
           >
             {embedLoading
@@ -217,7 +217,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           {summary && (
             <button
               onClick={() => setShowSummary(!showSummary)}
-              className="aether-btn aether-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost text-xs"
             >
               {showSummary ? '▼ 隐藏总结' : '▶ 显示总结'}
             </button>
@@ -225,7 +225,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           {summary && (
             <button
               onClick={handleExportKnowledge}
-              className="aether-btn aether-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost text-xs"
               title="导出 knowledge.md"
             >
               ⬇ knowledge.md
@@ -233,7 +233,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           )}
           <button
             onClick={handleLoadRelated}
-            className="aether-btn aether-btn-ghost text-xs"
+            className="Memora-btn Memora-btn-ghost text-xs"
             title="基于向量相似度推荐相关对话"
           >
             {showRelated ? '▼ 相关讨论' : '▶ 相关讨论'}
@@ -318,7 +318,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
                       key={i}
                       onClick={async () => {
                         setActiveSession(r.session.id)
-                        const s = await window.aether.session.get(r.session.id, true)
+                        const s = await window.Memora.session.get(r.session.id, true)
                         setActiveSessionData(s)
                       }}
                       className="w-full text-left p-2 rounded-md border border-border hover:bg-bg-hover transition-colors flex items-start gap-2"

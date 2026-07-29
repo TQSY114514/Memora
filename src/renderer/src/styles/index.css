@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -73,15 +73,15 @@ body {
 }
 
 /* 通用工具类 */
-.aether-btn {
+.Memora-btn {
   @apply px-3 py-1.5 rounded-md text-sm font-medium transition-colors;
 }
-.aether-btn-primary {
+.Memora-btn-primary {
   @apply bg-accent text-white hover:bg-accent-hover;
 }
-.aether-btn-ghost {
+.Memora-btn-ghost {
   @apply text-fg-secondary hover:bg-bg-hover hover:text-fg-primary;
 }
-.aether-input {
+.Memora-input {
   @apply bg-bg-tertiary border border-border rounded-md px-3 py-1.5 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent transition-colors;
 }

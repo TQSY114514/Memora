@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
@@ -16,9 +16,9 @@ export default function App() {
   // 初始化时确保有默认工作区
   useEffect(() => {
     async function ensureDefaultWorkspace() {
-      const workspaces = await window.aether.workspace.list()
+      const workspaces = await window.Memora.workspace.list()
       if (workspaces.length === 0) {
-        await window.aether.workspace.create({
+        await window.Memora.workspace.create({
           name: '默认工作区',
           description: '所有未分类的对话'
         })
@@ -46,7 +46,7 @@ export default function App() {
       if (!e.dataTransfer?.files?.length) return
       e.preventDefault()
       e.stopPropagation()
-      const files = Array.from(e.dataTransfer.files).map((f) => window.aether.getPathForFile(f))
+      const files = Array.from(e.dataTransfer.files).map((f) => window.Memora.getPathForFile(f))
       runImport(files)
     }
 
@@ -138,7 +138,7 @@ function ImportProgress() {
           )}
           <button
             onClick={clear}
-            className="mt-2 aether-btn aether-btn-ghost text-xs w-full"
+            className="mt-2 Memora-btn Memora-btn-ghost text-xs w-full"
           >
             关闭
           </button>

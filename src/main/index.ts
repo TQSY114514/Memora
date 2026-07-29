@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+﻿import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { initDatabase, closeDatabase } from '../database/connection'
 import { registerIpcHandlers } from './ipc'
@@ -38,7 +38,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    title: 'Aether',
+    title: 'Memora',
     backgroundColor: '#0f0f0f',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

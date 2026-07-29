@@ -1,7 +1,7 @@
-import type { Provider } from './types'
+﻿import type { Provider } from './types'
 
 /** 应用元信息 */
-export const APP_NAME = 'Aether'
+export const APP_NAME = 'Memora'
 export const APP_VERSION = '0.1.0'
 
 /** IPC 通道命名空间 */

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useAiConfigStore, PROVIDER_PRESETS, isAiConfigured } from '../../stores/aiConfigStore'
 import type { AiConfig } from '@shared/types'
 
@@ -79,7 +79,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
               用于生成对话总结和语义搜索向量。配置仅保存在本地。
             </p>
           </div>
-          <button onClick={onClose} className="aether-btn aether-btn-ghost text-sm">
+          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
             ✕
           </button>
         </div>
@@ -117,7 +117,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
               value={config.baseUrl}
               onChange={(e) => setConfig({ baseUrl: e.target.value })}
               placeholder="https://api.openai.com/v1"
-              className="aether-input w-full"
+              className="Memora-input w-full"
             />
           </div>
 
@@ -132,11 +132,11 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                 value={config.apiKey}
                 onChange={(e) => setConfig({ apiKey: e.target.value })}
                 placeholder="sk-..."
-                className="aether-input flex-1"
+                className="Memora-input flex-1"
               />
               <button
                 onClick={() => setShowKey(!showKey)}
-                className="aether-btn aether-btn-ghost text-xs"
+                className="Memora-btn Memora-btn-ghost text-xs"
               >
                 {showKey ? '隐藏' : '显示'}
               </button>
@@ -153,7 +153,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
               value={config.chatModel}
               onChange={(e) => setConfig({ chatModel: e.target.value })}
               placeholder="gpt-4o-mini"
-              className="aether-input w-full"
+              className="Memora-input w-full"
             />
           </div>
 
@@ -168,7 +168,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                 value={config.embeddingModel}
                 onChange={(e) => setConfig({ embeddingModel: e.target.value })}
                 placeholder="text-embedding-3-small"
-                className="aether-input w-full"
+                className="Memora-input w-full"
               />
             </div>
             <div>
@@ -180,7 +180,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                 value={config.embeddingDim}
                 onChange={(e) => setConfig({ embeddingDim: Number(e.target.value) || 0 })}
                 placeholder="1536"
-                className="aether-input w-full"
+                className="Memora-input w-full"
               />
             </div>
           </div>
@@ -190,7 +190,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
             <button
               onClick={handleTest}
               disabled={!configured || testStatus === 'testing'}
-              className="aether-btn aether-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost text-xs"
             >
               {testStatus === 'testing' ? '测试中…' : '测试连接'}
             </button>
@@ -204,7 +204,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
         </div>
 
         <div className="px-6 py-4 border-t border-border flex justify-end gap-2">
-          <button onClick={onClose} className="aether-btn aether-btn-primary text-sm">
+          <button onClick={onClose} className="Memora-btn Memora-btn-primary text-sm">
             完成
           </button>
         </div>

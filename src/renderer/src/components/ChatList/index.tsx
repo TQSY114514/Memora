@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider } from '@shared/types'
@@ -46,13 +46,13 @@ export function ChatList() {
     setSelectedIds(new Set())
     setShowBatchBar(false)
     setActiveSession(sessionId)
-    const session = await window.aether.session.get(sessionId, true)
+    const session = await window.Memora.session.get(sessionId, true)
     setActiveSessionData(session)
   }
 
   async function handleToggleFavorite(e: React.MouseEvent, sessionId: string) {
     e.stopPropagation()
-    await window.aether.session.toggleFavorite(sessionId)
+    await window.Memora.session.toggleFavorite(sessionId)
     const idx = sessions.findIndex((s) => s.id === sessionId)
     if (idx >= 0) {
       const updated = [...sessions]
@@ -64,17 +64,17 @@ export function ChatList() {
   async function handleBatchDelete() {
     const ids = Array.from(selectedIds)
     if (!confirm(`确定删除 ${ids.length} 个对话？此操作不可撤销。`)) return
-    await window.aether.batch.deleteSessions(ids)
+    await window.Memora.batch.deleteSessions(ids)
     setSelectedIds(new Set())
     setShowBatchBar(false)
     // 刷新列表
     if (activeFolderId) {
-      const sessions = await window.aether.session.list({ folderId: activeFolderId })
+      const sessions = await window.Memora.session.list({ folderId: activeFolderId })
       setSessions(sessions)
     } else {
       const ws = useStore.getState().activeWorkspaceId
       if (ws) {
-        const tree = await window.aether.workspace.tree(ws)
+        const tree = await window.Memora.workspace.tree(ws)
         if (tree) setSessions(tree.sessions)
       }
     }
@@ -83,11 +83,11 @@ export function ChatList() {
   async function handleBatchExport() {
     const ids = Array.from(selectedIds)
     for (const id of ids) {
-      const html = await window.aether.share.exportHtml(id)
+      const html = await window.Memora.share.exportHtml(id)
       if (html) {
         const session = sessions.find((s) => s.id === id)
         const name = session?.title.replace(/[^\w\u4e00-\u9fa5]/g, '_') ?? id
-        await window.aether.saveFileDialog({ defaultName: `${name}.html`, content: html })
+        await window.Memora.saveFileDialog({ defaultName: `${name}.html`, content: html })
       }
     }
     setSelectedIds(new Set())
@@ -113,13 +113,13 @@ export function ChatList() {
       {showBatchBar && (
         <div className="px-3 py-2 border-b border-border bg-bg-secondary flex items-center gap-1">
           <span className="text-xs text-fg-muted mr-2">已选 {selectedIds.size}</span>
-          <button onClick={handleBatchExport} className="aether-btn aether-btn-ghost text-xs">
+          <button onClick={handleBatchExport} className="Memora-btn Memora-btn-ghost text-xs">
             ⤴ 导出
           </button>
-          <button onClick={handleBatchDelete} className="aether-btn text-xs text-red-500 hover:bg-red-500/10">
+          <button onClick={handleBatchDelete} className="Memora-btn text-xs text-red-500 hover:bg-red-500/10">
             🗑 删除
           </button>
-          <button onClick={handleClearSelection} className="aether-btn aether-btn-ghost text-xs ml-auto">
+          <button onClick={handleClearSelection} className="Memora-btn Memora-btn-ghost text-xs ml-auto">
             取消
           </button>
         </div>

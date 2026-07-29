@@ -1,9 +1,9 @@
-import type { Importer, ParsedSession, ParsedMessage } from '../types'
+﻿import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
 
 /**
  * 通用 JSON 导入器
- * 接受符合 Aether schema 的 JSON 文件（单个或数组）
+ * 接受符合 Memora schema 的 JSON 文件（单个或数组）
  * 也兼容简单的 { title, messages: [{role, content}] } 结构
  */
 interface SimpleMessage {

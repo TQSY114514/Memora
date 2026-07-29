@@ -1,5 +1,5 @@
-/**
- * MCP Server — 把 Aether 的对话数据暴露给外部 AI 工具
+﻿/**
+ * MCP Server — 把 Memora 的对话数据暴露给外部 AI 工具
  *
  * 实现 Model Context Protocol (MCP) 的子集：
  * - JSON-RPC 2.0 over stdio
@@ -19,9 +19,9 @@
  *   在 Claude Desktop 的 config 中添加：
  *   {
  *     "mcpServers": {
- *       "aether": {
+ *       "Memora": {
  *         "command": "node",
- *         "args": ["<aether-path>/out/mcp/index.js"]
+ *         "args": ["<Memora-path>/out/mcp/index.js"]
  *       }
  *     }
  *   }
@@ -62,7 +62,7 @@ interface McpTool {
 const TOOLS: McpTool[] = [
   {
     name: 'search_sessions',
-    description: '全文搜索 Aether 中的 AI 对话。支持搜索对话标题和消息内容。',
+    description: '全文搜索 Memora 中的 AI 对话。支持搜索对话标题和消息内容。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -85,7 +85,7 @@ const TOOLS: McpTool[] = [
   },
   {
     name: 'list_sessions',
-    description: '列出 Aether 中的对话。可按工作区/文件夹筛选，支持分页。',
+    description: '列出 Memora 中的对话。可按工作区/文件夹筛选，支持分页。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -240,7 +240,7 @@ export async function startMcpServer(): Promise<void> {
               protocolVersion: '2024-11-05',
               capabilities: { tools: {} },
               serverInfo: {
-                name: 'aether',
+                name: 'Memora',
                 version: '0.1.0'
               }
             }

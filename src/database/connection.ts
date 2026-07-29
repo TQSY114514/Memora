@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+﻿import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
@@ -13,7 +13,7 @@ export function getDbPath(): string {
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true })
   }
-  return join(dataDir, 'aether.db')
+  return join(dataDir, 'Memora.db')
 }
 
 /** 初始化数据库（建表 + 开启外键 + WAL） */

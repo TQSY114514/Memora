@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import type { ImportResult } from '@shared/types'
 import { useStore } from './appStore'
 
@@ -35,7 +35,7 @@ export const useImportStore = create<ImportState>((set, get) => ({
     for (let i = 0; i < filePaths.length; i++) {
       const path = filePaths[i]
       try {
-        const result = await window.aether.import.file(path, { folderId })
+        const result = await window.Memora.import.file(path, { folderId })
         const current = get().dragFiles
         const updated = [...current]
         updated[i] = { file: path, result }
@@ -60,10 +60,10 @@ export const useImportStore = create<ImportState>((set, get) => ({
     // 刷新当前列表
     const store = useStore.getState()
     if (store.activeFolderId) {
-      const sessions = await window.aether.session.list({ folderId: store.activeFolderId })
+      const sessions = await window.Memora.session.list({ folderId: store.activeFolderId })
       store.setSessions(sessions)
     } else if (store.activeWorkspaceId) {
-      const tree = await window.aether.workspace.tree(store.activeWorkspaceId)
+      const tree = await window.Memora.workspace.tree(store.activeWorkspaceId)
       if (tree) store.setSessions(tree.sessions)
     }
   },

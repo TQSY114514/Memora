@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- SVG Hero：项目原生视觉，可编辑、GitHub-safe -->
-<svg width="480" height="160" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aether">
+<svg width="480" height="160" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Memora">
   <defs>
     <linearGradient id="aetherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#615ced"/>
@@ -29,13 +29,13 @@
 
   <!-- 标题 -->
   <text x="160" y="80" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="42" font-weight="700" fill="url(#textGrad)">Aether</text>
+        font-size="42" font-weight="700" fill="url(#textGrad)">Memora</text>
   <text x="160" y="108" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="14" fill="#6b7280">AI 对话时代的知识管理工具</text>
+        font-size="14" fill="#6b7280">Your AI memory workspace — Memory + Aura</text>
 </svg>
 
 <p>
-  <strong>Local-First 的 AI 对话知识工作台</strong><br/>
+  <strong>Local-First 的 AI 记忆工作台</strong><br/>
   统一管理 · 搜索 · 分享 · 复用来自不同 AI 平台的聊天记录
 </p>
 
@@ -62,7 +62,7 @@
 
 ---
 
-## 为什么需要 Aether
+## 为什么需要 Memora
 
 现代 AI 用户同时使用 10+ 个平台：ChatGPT、Claude、Gemini、DeepSeek、Kimi、通义、Cursor、Grok……每个平台都是一个**数据孤岛**。
 
@@ -71,11 +71,11 @@
 - 三个月后想找回某段精彩讨论，翻遍几百条记录也找不到
 - 平台默认按时间线展示，没有项目维度的组织能力
 
-> 现有 AI 平台是「对话工具」，不是「知识管理工具」。Aether 要补上这一层。
+> 现有 AI 平台是「对话工具」，不是「知识管理工具」。Memora 要补上这一层。
 
-## Aether 是什么
+## Memora 是什么
 
-Aether 是一个 **Local-First 的 AI 对话知识工作台**。它不是另一个 AI Agent，也不是简单的聊天导出工具——它是一个跨平台的 **AI 对话聚合层 + 项目记忆系统**。
+Memora 是一个 **Local-First 的 AI 记忆工作台**。它不是另一个 AI Agent，也不是简单的聊天导出工具——它是一个跨平台的 **AI 对话聚合层 + 项目记忆系统**。
 
 - ✅ 跨平台聚合：ChatGPT / Claude / Gemini / DeepSeek / Kimi / 通义 / Cursor / Grok ……
 - ✅ 本地优先：数据存储在本地 SQLite，离线可用，隐私可控
@@ -101,7 +101,7 @@ Aether 是一个 **Local-First 的 AI 对话知识工作台**。它不是另一�
 | Grok | JSON | conversation 包裹 + 直接 messages |
 | Cursor | JSON | chats 数组 + 单对话结构 |
 | Markdown | `.md` | 通用 Markdown（含 frontmatter） |
-| JSON | `.json` | 通用 Aether schema |
+| JSON | `.json` | 通用 Memora schema |
 | HTML | `.html` | 通用 HTML 对话页面 |
 
 支持**拖拽导入**和**批量操作**：把文件直接拖入窗口即可导入，支持多选批量删除/移动。
@@ -145,12 +145,12 @@ Workspace（工作区）
 
 ### MCP Server
 
-Aether 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等外部 AI 工具：
+Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等外部 AI 工具：
 
 ```json
 {
   "mcpServers": {
-    "aether": {
+    "memora": {
       "command": "node",
       "args": ["<aether-path>/out/main/index.js", "--mcp"]
     }
@@ -162,7 +162,7 @@ Aether 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 
 ### 分享导出
 
-将对话导出为**自包含 HTML 文件**，内嵌所有内容与样式，任何人用浏览器打开即可查看，无需安装 Aether。
+将对话导出为**自包含 HTML 文件**，内嵌所有内容与样式，任何人用浏览器打开即可查看，无需安装 Memora。
 
 ## 支持平台
 
@@ -216,7 +216,7 @@ npm run mcp
 
 在使用 AI 总结、语义搜索、Project Memory 之前，需要配置 OpenAI 兼容的 API：
 
-1. 启动 Aether，点击左上角「⚙ AI」
+1. 启动 Memora，点击左上角「⚙ AI」
 2. 选择服务商（OpenAI / DeepSeek / 自定义）
 3. 填入 API Base URL、API Key、对话模型、嵌入模型、向量维度
 4. 点击「测试连接」验证配置
@@ -232,7 +232,7 @@ npm run mcp
 │  │ Sidebar  │  │ ChatList │  │ChatViewer│               │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘               │
 │       └─────────────┴─────────────┘                      │
-│                     │ window.aether.* (preload bridge)   │
+│                     │ window.memora.* (preload bridge)   │
 └─────────────────────┼────────────────────────────────────┘
                       │ IPC (contextBridge)
 ┌─────────────────────┼────────────────────────────────────┐
@@ -263,7 +263,7 @@ npm run mcp
 ### 目录结构
 
 ```
-aether/
+memora/
 ├── src/
 │   ├── main/              # Electron 主进程
 │   │   ├── ipc/           # IPC 处理器
@@ -318,7 +318,7 @@ aether/
 
 ### 后续规划
 
-- [ ] `aether.chat` 在线分享托管（可选上传）
+- [ ] `memora.chat` 在线分享托管（可选上传）
 - [ ] 账号系统 + 云端同步（端到端加密）
 - [ ] 浏览器插件（一键采集网页对话）
 - [ ] Cursor / VSCode 插件（IDE 内查看项目记忆）
@@ -343,6 +343,6 @@ aether/
 <div align="center">
 
 <sub>Built with Electron · React · TypeScript · SQLite</sub><br/>
-<sub>© 2026 Aether</sub>
+<sub>© 2026 Memora</sub>
 
 </div>

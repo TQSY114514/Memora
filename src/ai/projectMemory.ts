@@ -1,4 +1,4 @@
-import type { AiConfig, ProjectMemoryAnswer, MemoryCitation, RelatedSession } from '@shared/types'
+﻿import type { AiConfig, ProjectMemoryAnswer, MemoryCitation, RelatedSession } from '@shared/types'
 import { getDatabase } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
 import { getAllEmbeddings } from '../database/repositories/embeddingRepo'
@@ -13,7 +13,7 @@ import { getAllEmbeddings } from '../database/repositories/embeddingRepo'
  * 4. 组装 context prompt，调用 LLM 生成答案
  * 5. 返回答案 + 引用来源
  *
- * 这是 Aether 的核心价值：让 AI 基于用户的历史对话回答项目问题
+ * 这是 Memora 的核心价值：让 AI 基于用户的历史对话回答项目问题
  */
 
 interface EmbeddingResponse {
@@ -109,7 +109,7 @@ async function callChat(config: AiConfig, systemPrompt: string, userPrompt: stri
   return content
 }
 
-const SYSTEM_PROMPT = `你是 Aether 的 Project Memory 助手。用户会基于自己过去的 AI 对话记录提问，你需要根据提供的对话片段回答问题。
+const SYSTEM_PROMPT = `你是 Memora 的 Project Memory 助手。用户会基于自己过去的 AI 对话记录提问，你需要根据提供的对话片段回答问题。
 
 要求：
 - 基于提供的对话片段回答，不要编造未提及的内容

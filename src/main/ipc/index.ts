@@ -1,4 +1,4 @@
-import { ipcMain, dialog, app } from 'electron'
+﻿import { ipcMain, dialog, app } from 'electron'
 import { writeFileSync } from 'fs'
 import { basename } from 'path'
 import { IPC } from '@shared/constants'
@@ -62,7 +62,7 @@ export function registerIpcHandlers(): void {
     IPC.DIALOG_SAVE_FILE,
     async (_e, options: { defaultName?: string; content: string }) => {
       const result = await dialog.showSaveDialog({
-        defaultPath: options.defaultName || 'aether-export.html',
+        defaultPath: options.defaultName || 'Memora-export.html',
         filters: [{ name: 'HTML 文件', extensions: ['html'] }]
       })
       if (result.canceled || !result.filePath) return null

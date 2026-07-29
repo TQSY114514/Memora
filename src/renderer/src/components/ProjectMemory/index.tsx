@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAiConfigStore, isAiConfigured } from '../../stores/aiConfigStore'
@@ -45,7 +45,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
     setQuestion('')
 
     try {
-      const result = await window.aether.memory.ask(q, config, { topK: 8, threshold: 0.2 })
+      const result = await window.Memora.memory.ask(q, config, { topK: 8, threshold: 0.2 })
       setAnswer(result)
       setHistory((h) => [result, ...h].slice(0, 20))
     } catch (err) {
@@ -57,7 +57,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
 
   async function handleOpenSession(sessionId: string) {
     setActiveSession(sessionId)
-    const session = await window.aether.session.get(sessionId, true)
+    const session = await window.Memora.session.get(sessionId, true)
     setActiveSessionData(session)
     onClose()
   }
@@ -73,7 +73,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
             <p className="text-[10px] text-fg-muted">基于历史对话的智能问答</p>
           </div>
         </div>
-        <button onClick={onClose} className="aether-btn aether-btn-ghost text-sm">
+        <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
           ✕
         </button>
       </header>
@@ -87,7 +87,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
               <div className="text-4xl mb-3 opacity-40">🧠</div>
               <p className="text-sm text-fg-secondary mb-1">问任何关于你项目的问题</p>
               <p className="text-xs text-fg-muted mb-6">
-                Aether 会从你的历史 AI 对话中检索相关内容并回答
+                Memora 会从你的历史 AI 对话中检索相关内容并回答
               </p>
               <div className="flex flex-col gap-2 max-w-md mx-auto">
                 {[
@@ -158,12 +158,12 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="问一个关于你项目的问题..."
             disabled={loading}
-            className="aether-input flex-1"
+            className="Memora-input flex-1"
           />
           <button
             type="submit"
             disabled={loading || !question.trim()}
-            className="aether-btn aether-btn-primary text-sm"
+            className="Memora-btn Memora-btn-primary text-sm"
           >
             {loading ? '...' : '提问'}
           </button>

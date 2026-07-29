@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured } from '../../stores/aiConfigStore'
 import type { Folder } from '@shared/types'
@@ -32,14 +32,14 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
   // 工作区变化时加载其文件夹
   useEffect(() => {
     if (activeWorkspaceId) {
-      window.aether.folder.list(activeWorkspaceId).then(setLocalFolders)
+      window.Memora.folder.list(activeWorkspaceId).then(setLocalFolders)
     } else {
       setLocalFolders([])
     }
   }, [activeWorkspaceId])
 
   async function refreshWorkspaces() {
-    const ws = await window.aether.workspace.list()
+    const ws = await window.Memora.workspace.list()
     setWorkspaces(ws)
     if (ws.length > 0 && !activeWorkspaceId) {
       handleSelectWorkspace(ws[0].id)
@@ -50,7 +50,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
     clearSearch()
     setActiveWorkspace(id)
     setActiveFolder(null)
-    const tree = await window.aether.workspace.tree(id)
+    const tree = await window.Memora.workspace.tree(id)
     if (tree) {
       setLocalFolders(tree.rootFolders)
       setSessions(tree.sessions)
@@ -59,7 +59,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
 
   async function handleSelectFolder(folderId: string | null) {
     setActiveFolder(folderId)
-    const sessions = await window.aether.session.list(
+    const sessions = await window.Memora.session.list(
       folderId ? { folderId } : undefined
     )
     setSessions(sessions)
@@ -68,7 +68,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
   async function handleCreateWorkspace() {
     const name = prompt('工作区名称')
     if (!name) return
-    const ws = await window.aether.workspace.create({ name })
+    const ws = await window.Memora.workspace.create({ name })
     setWorkspaces([...workspaces, ws])
     handleSelectWorkspace(ws.id)
   }
@@ -77,7 +77,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
     if (!activeWorkspaceId) return
     const name = prompt('文件夹名称')
     if (!name) return
-    const folder = await window.aether.folder.create({
+    const folder = await window.Memora.folder.create({
       workspaceId: activeWorkspaceId,
       name
     })
@@ -85,7 +85,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
   }
 
   async function handleImport() {
-    const filePaths = await window.aether.openFileDialog({
+    const filePaths = await window.Memora.openFileDialog({
       multiple: true,
       filters: [
         { name: 'AI 对话文件', extensions: ['json', 'md', 'markdown', 'txt'] }
@@ -95,7 +95,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
 
     const folderId = activeFolderId ?? undefined
     for (const path of filePaths) {
-      const result = await window.aether.import.file(path, { folderId })
+      const result = await window.Memora.import.file(path, { folderId })
       if (result.errors.length > 0) {
         alert(`导入完成，但有错误：\n${result.errors.join('\n')}`)
       }
@@ -118,7 +118,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
           <div className="w-6 h-6 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">
             Æ
           </div>
-          <span className="font-semibold text-sm">Aether</span>
+          <span className="font-semibold text-sm">Memora</span>
         </div>
         <button
           onClick={onOpenAiSettings}
@@ -206,7 +206,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
         {workspaces.length === 0 && (
           <div className="px-3 py-8 text-center">
             <p className="text-sm text-fg-muted mb-3">还没有工作区</p>
-            <button onClick={handleCreateWorkspace} className="aether-btn aether-btn-primary text-xs">
+            <button onClick={handleCreateWorkspace} className="Memora-btn Memora-btn-primary text-xs">
               创建第一个工作区
             </button>
           </div>
@@ -217,14 +217,14 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
       <div className="border-t border-border p-2 space-y-1">
         <button
           onClick={onOpenMemory}
-          className="aether-btn aether-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
           title="基于历史对话的智能问答"
         >
           🧠 Project Memory
         </button>
         <button
           onClick={handleImport}
-          className="aether-btn aether-btn-ghost w-full text-xs"
+          className="Memora-btn Memora-btn-ghost w-full text-xs"
           title="导入 AI 对话"
         >
           ⬆ 导入
@@ -263,14 +263,14 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
     setSearchError(null)
     try {
       if (useSemantic) {
-        const results = await window.aether.semanticSearch(q, config, { limit: 20 })
+        const results = await window.Memora.semanticSearch(q, config, { limit: 20 })
         if (results.length === 0) {
           setSearchError('未找到语义相关结果（可能需要先建立向量索引）')
         }
         setSearch(q, null)
         setSessions(results.map((r) => r.session))
       } else {
-        const results = await window.aether.search(q)
+        const results = await window.Memora.search(q)
         setSearch(q, results)
         setSessions(results.map((r) => r.session))
       }
@@ -299,7 +299,7 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleSearch}
           placeholder={useSemantic ? '语义搜索... (Enter)' : '搜索对话... (Enter)'}
-          className="aether-input w-full text-xs pr-7"
+          className="Memora-input w-full text-xs pr-7"
         />
         {searching && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2">

@@ -1,9 +1,9 @@
-/// <reference types="vite/client" />
-import type { AetherApi } from '../../preload'
+﻿/// <reference types="vite/client" />
+import type { MemoraApi } from '../../preload'
 
 declare global {
   interface Window {
-    aether: AetherApi
+    Memora: MemoraApi
   }
 }
 

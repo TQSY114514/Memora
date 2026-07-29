@@ -1,5 +1,5 @@
-/**
- * Aether 统一数据模型
+﻿/**
+ * Memora 统一数据模型
  * 跨平台 AI 对话的抽象层，所有 importer 输出、database 存储、UI 展示都基于此模型
  */
 

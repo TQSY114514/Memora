@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webUtils } from 'electron'
+﻿import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '../shared/constants'
 import type {
   Workspace,
@@ -182,7 +182,7 @@ const api = {
   }
 }
 
-contextBridge.exposeInMainWorld('aether', api)
+contextBridge.exposeInMainWorld('Memora', api)
 
 // TypeScript 全局类型声明（供 renderer 使用）
-export type AetherApi = typeof api
+export type MemoraApi = typeof api

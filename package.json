@@ -1,12 +1,12 @@
-{
-  "name": "aether",
+﻿{
+  "name": "Memora",
   "version": "0.1.0",
-  "description": "Aether - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
-  "author": "Aether",
+  "description": "Memora - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
+  "author": "Memora",
   "main": "out/main/index.js",
   "license": "MIT",
   "bin": {
-    "aether-mcp": "out/main/index.js"
+    "Memora-mcp": "out/main/index.js"
   },
   "scripts": {
     "dev": "electron-vite dev",

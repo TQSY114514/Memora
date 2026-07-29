@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import type { AiConfig } from '@shared/types'
 
 /**
@@ -6,7 +6,7 @@ import type { AiConfig } from '@shared/types'
  * 持久化到 localStorage（含 API Key，仅本地保存，不上传）
  */
 
-const STORAGE_KEY = 'aether.aiConfig'
+const STORAGE_KEY = 'Memora.aiConfig'
 
 const DEFAULT_CONFIG: AiConfig = {
   provider: 'openai',
