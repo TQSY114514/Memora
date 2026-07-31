@@ -1,16 +1,16 @@
 <div align="center">
 
 <!-- Hero：书架 M 品牌视觉 -->
-<img src="assets/banner.svg" width="600" alt="Memora - AI Memory Workspace"/>
+<img src="assets/banner.svg" width="600" alt="Memora - Personal AI Knowledge Vault"/>
 
 <p>
-  <strong>Local-First 的 AI 记忆工作台</strong><br/>
-  统一管理 · 搜索 · 分享 · 复用来自不同 AI 平台的聊天记录
+  <strong>Your Personal AI Knowledge Vault</strong><br/>
+  本地优先 · 聚合全平台 AI 对话 · 蒸馏为可复用的个人知识库
 </p>
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-0.1.0-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.0.1-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -43,15 +43,29 @@
 
 > 现有 AI 平台是「对话工具」，不是「知识管理工具」。Memora 要补上这一层。
 
+## Before / After
+
+```
+Before:                              After:
+
+ChatGPT   ─┐                        ┌─ Memora ──────────────────┐
+Claude    ─┤   各自为政             │  📁 Aether 项目           │
+DeepSeek  ─┤   搜索靠翻记录         │  ├─ Claude 架构讨论       │
+Cursor    ─┤   换平台丢上下文       │  ├─ DeepSeek Bug 分析     │
+Kimi      ─┘                        │  ├─ Cursor 代码方案       │
+                                    │  └─ ✨ 蒸馏出的知识要点   │
+                                    └──────────────────────────┘
+```
+
 ## Memora 是什么
 
-Memora 是一个 **Local-First 的 AI 记忆工作台**。它不是另一个 AI Agent，也不是简单的聊天导出工具——它是一个跨平台的 **AI 对话聚合层 + 项目记忆系统**。
+Memora 是一个 **Local-First 的个人 AI 知识库**。它不是另一个 AI Agent，也不是简单的聊天导出工具——它是一个跨平台的 **AI 对话聚合层 + 知识蒸馏系统**，把分散在各处的 AI 对话沉淀为可搜索、可复用的长期知识资产。
 
 - ✅ 跨平台聚合：ChatGPT / Claude / Gemini / DeepSeek / Kimi / 通义 / Cursor / Grok ……
 - ✅ 本地优先：数据存储在本地 SQLite，离线可用，隐私可控
 - ✅ 统一数据模型：屏蔽平台差异，所有对话归一为 `ChatSession`
 - ✅ 全文 + 语义搜索：FTS5 关键词搜索 + 向量语义检索
-- ✅ AI 增强：自动总结、knowledge.md 生成、Project Memory 智能问答
+- ✅ 记忆蒸馏：自动总结、knowledge.md 生成、Project Memory 智能问答
 - ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看
 - ✅ **智能导入中心**：自动检测已安装的 AI 应用，一键扒取本地记录
 
@@ -182,11 +196,40 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 }
 ```
 
-暴露 6 个工具：`search_sessions`、`get_session`、`list_sessions`、`list_workspaces`、`list_tags`、`get_session_summary`
+暴露 10 个工具：
+
+| 工具 | 用途 |
+|------|------|
+| `search_sessions` | 全文搜索对话 |
+| `get_session` | 获取对话完整内容 |
+| `list_sessions` | 列出对话（分页/筛选） |
+| `list_workspaces` | 列出工作区 |
+| `list_tags` | 列出标签 |
+| `get_session_summary` | 获取对话蒸馏 |
+| `add_session` | 创建新对话 |
+| `add_message` | 追加消息 |
+| `memory_recall` | **语义召回**：让 AI 查询「我以前有没有讨论过 X」 |
+| `memory_write` | **知识沉淀**：让 AI 自动保存重要决定/经验 |
+
+`memory_recall` 和 `memory_write` 让 Memora 从「对话管理器」升级为真正的 **AI Memory 层**——AI Agent 可主动召回历史知识、沉淀新知识。
 
 ### 分享导出
 
 将对话导出为**自包含 HTML 文件**，内嵌所有内容与样式，任何人用浏览器打开即可查看，无需安装 Memora。
+
+## 性能 Benchmark
+
+`npm run benchmark` 在临时 SQLite + FTS5 索引上测量搜索性能（不启动 Electron GUI，不依赖 API Key）：
+
+| 对话数 | 索引构建 | AND 搜索平均延迟 | OR 搜索平均延迟 |
+|-------:|--------:|----------------:|---------------:|
+| 1,000  | 114 ms  | 0.22 ms         | 0.20 ms        |
+| 5,000  | 360 ms  | 0.41 ms         | 0.23 ms        |
+| 10,000 | 837 ms  | 0.21 ms         | 0.16 ms        |
+
+- 测试查询：5 个中文关键词（"SQLite 性能" / "Electron 项目" / "向量检索" / "React 渲染" / "索引原理"）
+- 语义/向量搜索召回率需真实 Embedding API，不在此 benchmark 范围
+- 实际应用受磁盘 I/O 和并发影响，延迟会有波动
 
 ## 支持平台
 
@@ -241,7 +284,7 @@ npm run mcp
 
 ## 配置 AI
 
-在使用 AI 总结、语义搜索、Project Memory 之前，需要配置 OpenAI 兼容的 API：
+在使用记忆蒸馏、语义搜索、Project Memory 之前，需要配置 OpenAI 兼容的 API：
 
 1. 启动 Memora，点击侧边栏「⚙ 设置」→ AI 配置
 2. 选择供应商（OpenAI / DeepSeek / 自定义），各供应商独立配置
@@ -334,7 +377,7 @@ memora/
 
 ### Phase 2：AI 增强（v0.5）✅
 
-- [x] 聊天自动总结（摘要 / 关键决定 / 待办）
+- [x] 记忆蒸馏（摘要 / 关键决定 / 待办）
 - [x] 自动生成 knowledge.md
 - [x] 语义搜索（向量嵌入 + 相似度检索）
 - [x] 可配置 AI API Key（OpenAI/DeepSeek/自定义）

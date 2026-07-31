@@ -151,8 +151,10 @@ function importLargeJsonFile(
 /**
  * 从 JSON 字符串中提取顶层数组的每个元素（返回元素 JSON 字符串数组）
  * 状态机解析，避免 JSON.parse 构建完整语法树
+ *
+ * 导出以供单元测试覆盖状态机分支。
  */
-function extractTopLevelArrayItems(json: string): string[] {
+export function extractTopLevelArrayItems(json: string): string[] {
   const items: string[] = []
   let i = 0
   const len = json.length

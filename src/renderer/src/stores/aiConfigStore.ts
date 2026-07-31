@@ -194,11 +194,20 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
 
       const nextConfigs = { ...state.configs, [state.activeProvider]: nextConfig }
       saveConfigs(nextConfigs) // localStorage 不含 apiKey 明文
+      // 同步非敏感字段到主进程文件（供 MCP 进程读取）
+      window.Memora?.ai?.saveConfigFile?.(state.activeProvider, {
+        baseUrl: nextConfig.baseUrl,
+        chatModel: nextConfig.chatModel,
+        embeddingModel: nextConfig.embeddingModel,
+        embeddingDim: nextConfig.embeddingDim,
+        hasApiKey: nextConfig.hasApiKey
+      }).catch(() => {})
       set({ configs: nextConfigs, config: nextConfig })
     },
 
     setActiveProvider: (provider) => {
       saveActiveProvider(provider)
+      window.Memora?.ai?.setActiveProviderFile?.(provider).catch(() => {})
       const state = get()
       set({ activeProvider: provider, config: state.configs[provider] })
     },
@@ -217,6 +226,7 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
       const nextConfigs = { ...state.configs, [provider]: resetConfig }
       saveConfigs(nextConfigs)
       window.Memora?.secret?.delete(provider).catch(() => {})
+      window.Memora?.ai?.deleteConfigFile?.(provider).catch(() => {})
       if (provider === state.activeProvider) {
         set({ configs: nextConfigs, config: resetConfig })
       } else {

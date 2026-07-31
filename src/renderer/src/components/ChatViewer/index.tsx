@@ -153,7 +153,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
 
   async function handleDeleteSummary() {
     if (!session) return
-    if (!confirm('确定删除这个 AI 总结？')) return
+    if (!confirm('确定删除这份蒸馏记录？')) return
     try {
       await window.Memora.ai.deleteSummary(session.id)
       setSummary(null)
@@ -227,9 +227,9 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             onClick={handleGenerateSummary}
             disabled={summaryLoading}
             className="Memora-btn Memora-btn-ghost text-xs"
-            title="生成 AI 总结"
+            title="蒸馏对话为知识要点"
           >
-            {summaryLoading ? '⏳ 总结中…' : summary ? '↻ 重新总结' : '✨ AI 总结'}
+            {summaryLoading ? '⏳ 蒸馏中…' : summary ? '↻ 重新蒸馏' : '✨ 记忆蒸馏'}
           </button>
           <button
             onClick={handleEmbed}
@@ -248,7 +248,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               onClick={() => setShowSummary(!showSummary)}
               className="Memora-btn Memora-btn-ghost text-xs"
             >
-              {showSummary ? '▼ 隐藏总结' : '▶ 显示总结'}
+              {showSummary ? '▼ 隐藏蒸馏' : '▶ 显示蒸馏'}
             </button>
           )}
           {summary && showSummary && (
@@ -263,7 +263,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               <button
                 onClick={handleDeleteSummary}
                 className="Memora-btn Memora-btn-ghost text-xs text-red-500"
-                title="删除总结"
+                title="删除蒸馏"
               >
                 🗑 删除
               </button>
@@ -300,12 +300,12 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
         )}
       </header>
 
-      {/* AI 总结面板 */}
+      {/* 记忆蒸馏面板 */}
       {summary && showSummary && !editingSummary && (
         <div className="px-6 py-4 border-b border-border bg-accent-muted/30">
           <div className="max-w-3xl mx-auto">
             <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
-              AI 总结
+              记忆蒸馏
               {summary.model && (
                 <span className="ml-2 text-fg-muted normal-case font-normal">
                   · {summary.model}
@@ -345,11 +345,11 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
         </div>
       )}
 
-      {/* AI 总结编辑面板 */}
+      {/* 记忆蒸馏编辑面板 */}
       {summary && showSummary && editingSummary && (
         <div className="px-6 py-4 border-b border-border bg-accent-muted/30">
           <div className="max-w-3xl mx-auto">
-            <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">编辑总结</h3>
+            <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">编辑蒸馏</h3>
             <textarea
               value={editSummaryText}
               onChange={(e) => setEditSummaryText(e.target.value)}

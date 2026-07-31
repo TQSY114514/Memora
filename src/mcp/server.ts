@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MCP Server — 把 Memora 的对话数据暴露给外部 AI 工具
  *
  * 实现 Model Context Protocol (MCP) 的子集：
@@ -28,14 +28,19 @@
  */
 
 import { createInterface } from 'readline'
+import { app } from 'electron'
 import { initDatabase } from '../database/connection'
 import { listSessions, getSession, createSession } from '../database/repositories/sessionRepo'
 import { listWorkspaces } from '../database/repositories/workspaceRepo'
 import { listTags } from '../database/repositories/tagRepo'
 import { getSummary } from '../database/repositories/summaryRepo'
 import { search } from '../search/query'
+import { semanticSearch } from '../search/semantic'
+import { loadAiConfigFile } from '../main/aiConfigFile'
+import { getAllApiKeys } from '../main/secretStore'
 import { getDatabase } from '../database/connection'
 import { v4 as uuidv4 } from 'uuid'
+import type { AiConfig } from '@shared/types'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -150,6 +155,38 @@ const TOOLS: McpTool[] = [
         model: { type: 'string', description: '使用的模型（可选）' }
       },
       required: ['sessionId', 'role', 'content']
+    }
+  },
+  {
+    name: 'memory_recall',
+    description:
+      '语义召回：基于向量相似度从全库对话中检索与问题最相关的片段。适合「我以前有没有讨论过 X」「之前那个决定是怎么做的」这类模糊召回。需要先在 Memora UI 配置 AI 并建立向量索引。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '自然语言问题或要召回的主题' },
+        limit: { type: 'number', description: '返回结果数量上限，默认 5' },
+        threshold: { type: 'number', description: '相似度阈值（0-1），默认 0.25' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'memory_write',
+    description:
+      '知识沉淀：把一条重要信息（架构决定、Bug 解决方案、经验教训等）写入 Memora 知识库，便于以后召回复用。会创建一条新对话。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: '知识条目标题（如「Electron 项目改用 SQLite 的决定」）' },
+        content: { type: 'string', description: '要沉淀的知识内容（支持多段文本）' },
+        provider: {
+          type: 'string',
+          description: '来源标识，默认为 Unknown。可设为具体 AI 平台名或 Manual'
+        },
+        folderId: { type: 'string', description: '目标文件夹 ID（可选）' }
+      },
+      required: ['title', 'content']
     }
   }]
 
@@ -282,6 +319,87 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       return { messageId: msgId, sessionId, order }
     }
 
+    case 'memory_recall': {
+      const query = String(args.query ?? '')
+      if (!query) throw new Error('query 不能为空')
+      const limit = Number(args.limit ?? 5)
+      const threshold = Number(args.threshold ?? 0.25)
+
+      // 从主进程文件 + secretStore 组装 AiConfig
+      const configFile = loadAiConfigFile()
+      const activeProvider = configFile.activeProvider ?? 'openai'
+      const stored = configFile.configs[activeProvider]
+      if (!stored || !stored.hasApiKey) {
+        throw new Error(
+          '未配置 AI 供应商或未设置 API Key。请在 Memora UI 的「设置 → AI 配置」中配置供应商和密钥后再使用 memory_recall。'
+        )
+      }
+      const apiKeys = getAllApiKeys()
+      const apiKey = apiKeys[activeProvider]
+      if (!apiKey) {
+        throw new Error('API Key 未在加密存储中找到，请在 Memora UI 重新配置 API Key。')
+      }
+      const config: AiConfig = {
+        provider: activeProvider as AiConfig['provider'],
+        baseUrl: stored.baseUrl,
+        apiKey,
+        chatModel: stored.chatModel,
+        embeddingModel: stored.embeddingModel,
+        embeddingDim: stored.embeddingDim
+      }
+
+      const results = await semanticSearch(query, config, { limit, threshold })
+      return results.map((r) => ({
+        sessionId: r.session.id,
+        title: r.session.title,
+        provider: r.session.provider,
+        snippet: r.snippet,
+        score: r.score
+      }))
+    }
+
+    case 'memory_write': {
+      const title = String(args.title ?? '')
+      const content = String(args.content ?? '')
+      if (!title) throw new Error('title 不能为空')
+      if (!content) throw new Error('content 不能为空')
+      const provider = String(args.provider ?? 'Unknown')
+      const folderId = args.folderId ? String(args.folderId) : undefined
+
+      const messages = [
+        {
+          id: uuidv4(),
+          sessionId: '',
+          role: 'user' as const,
+          content: title,
+          order: 0,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: uuidv4(),
+          sessionId: '',
+          role: 'assistant' as const,
+          content,
+          order: 1,
+          createdAt: new Date().toISOString()
+        }
+      ]
+      const session = createSession(
+        {
+          provider: provider as any,
+          title,
+          folderId,
+          isFavorite: false,
+          messageCount: messages.length,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          tags: []
+        },
+        messages
+      )
+      return { sessionId: session.id, title: session.title, written: true }
+    }
+
     default:
       throw new Error(`未知工具: ${name}`)
   }
@@ -322,7 +440,7 @@ export async function startMcpServer(): Promise<void> {
               capabilities: { tools: {} },
               serverInfo: {
                 name: 'Memora',
-                version: '0.1.0'
+                version: '1.0.1'
               }
             }
           })

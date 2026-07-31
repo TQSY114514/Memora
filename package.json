@@ -1,6 +1,6 @@
 {
   "name": "Memora",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Memora - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
   "author": "Memora",
   "main": "out/main/index.js",
@@ -17,6 +17,9 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "benchmark": "node scripts/run-benchmark.js",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist": "electron-vite build && electron-builder"
   },
@@ -34,7 +37,8 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.7.2",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.9",

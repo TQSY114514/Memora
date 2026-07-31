@@ -12,6 +12,7 @@ import { useThemeStore } from './stores/themeStore'
 import { useBgImportStore } from './stores/backgroundImportStore'
 import { useAiConfigStore } from './stores/aiConfigStore'
 import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
+import { StartupImportHint } from './components/StartupImportHint'
 
 export default function App() {
   const { error } = useStore()
@@ -140,6 +141,8 @@ export default function App() {
       {dragFiles.length > 0 && <ImportProgress />}
 
       <BackgroundImportIndicator />
+
+      <StartupImportHint onOpenImportCenter={() => setShowImportCenter(true)} />
 
       {showImportCenter && <ImportCenter onClose={() => setShowImportCenter(false)} />}
 

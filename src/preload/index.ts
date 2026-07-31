@@ -233,7 +233,18 @@ const api = {
       chatModel: string
       embeddingModel: string
     }): Promise<{ ok: boolean; dim: number; error: string | undefined; message?: string }> =>
-      ipcRenderer.invoke(IPC.TEST_AI_CONNECTION, config)
+      ipcRenderer.invoke(IPC.TEST_AI_CONNECTION, config),
+    /** 同步 AI 配置到主进程文件（供 MCP 进程读取，只存非敏感字段） */
+    saveConfigFile: (
+      provider: string,
+      config: { baseUrl: string; chatModel: string; embeddingModel: string; embeddingDim: number; hasApiKey: boolean }
+    ): Promise<void> => ipcRenderer.invoke(IPC.AI_CONFIG_FILE_SAVE, provider, config),
+    /** 设置激活的 provider（同步到主进程文件） */
+    setActiveProviderFile: (provider: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.AI_CONFIG_FILE_SET_ACTIVE, provider),
+    /** 删除某 provider 的配置文件记录 */
+    deleteConfigFile: (provider: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.AI_CONFIG_FILE_DELETE, provider)
   },
 
   // ===== API Key 安全存储（safeStorage 加密） =====

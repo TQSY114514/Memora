@@ -4,6 +4,12 @@ import { deleteSummary, upsertSummary } from '@db/repositories'
 import { generateSummary, getSessionSummary, generateKnowledgeMd } from '@ai/summarizer'
 import { embedSession, getEmbedStatus } from '@ai/embedder'
 import { askProjectMemory, findRelatedSessions } from '@ai/projectMemory'
+import {
+  saveProviderConfig,
+  loadAiConfigFile,
+  setActiveProvider as setActiveProviderFile,
+  deleteProviderConfig
+} from '@main/aiConfigFile'
 import type { AiConfig } from '@shared/types'
 
 function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
@@ -147,5 +153,25 @@ export function registerAiHandlers(): void {
       dim: 0,
       message: undefined
     }
+  })
+
+  // ===== AI 配置文件持久化（供 MCP 进程读取） =====
+  safeHandle(
+    IPC.AI_CONFIG_FILE_SAVE,
+    (_e, provider: string, config: { baseUrl: string; chatModel: string; embeddingModel: string; embeddingDim: number; hasApiKey: boolean }) => {
+      saveProviderConfig(provider, config)
+    }
+  )
+
+  safeHandle(IPC.AI_CONFIG_FILE_LOAD, () => {
+    return loadAiConfigFile()
+  })
+
+  safeHandle(IPC.AI_CONFIG_FILE_SET_ACTIVE, (_e, provider: string) => {
+    setActiveProviderFile(provider)
+  })
+
+  safeHandle(IPC.AI_CONFIG_FILE_DELETE, (_e, provider: string) => {
+    deleteProviderConfig(provider)
   })
 }

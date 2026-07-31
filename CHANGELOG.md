@@ -2,6 +2,31 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.1] - 2026-07-31
+
+定位重塑 + 工程基础加固。回应外部反馈，将项目从「AI Memory」差异化为「AI Knowledge Vault」，补齐测试与性能基准。
+
+### Added
+
+- **MCP `memory_recall` 工具**：语义召回，让 AI Agent 可查询「我以前有没有讨论过 X」，基于向量相似度返回相关对话片段
+- **MCP `memory_write` 工具**：知识沉淀，让 AI Agent 自动保存重要决定/经验到 Memora 知识库
+- **AI 配置文件持久化**（`userData/ai-config.json`）：主进程同步非敏感 AI 配置，供 MCP 进程读取 + secretStore 组装完整 AiConfig
+- **StartupImportHint 组件**：启动时自动检测已安装的 AI 应用，右下角弹轻量导入提示（可永久关闭）
+- **单元测试套件**（vitest + 31 用例）：覆盖 segmenter / streamJsonArray / chatgpt-importer / markdown-importer / extract-array-items
+- **搜索性能 Benchmark**（`npm run benchmark`）：1000/5000/10000 对话三档测试，AND 搜索平均延迟 0.2-0.4ms
+- **CI test job**：GitHub Actions 增加 vitest 单元测试任务
+
+### Changed
+
+- **品牌定位**：tagline 从「Local-First AI 记忆工作台」改为「Your Personal AI Knowledge Vault」，避开 Mem0/Memori 撞车
+- **「AI 总结」改名「记忆蒸馏」（Memory Distillation）**：ChatViewer 按钮/面板/编辑器文案 + README 同步更新
+- **README 重塑**：新增 Before/After 图直观展示价值，新增性能 Benchmark 段落，MCP 工具表从 6 个扩展到 10 个
+- **MCP server 版本号**同步至 1.0.1
+
+### Fixed
+
+- 修正 README 版本徽章滞后（0.1.0 → 1.0.1）
+
 ## [1.0.0] - 2026-07-31
 
 首次正式发布。Local-First AI 对话知识管理工具，聚合多款 AI 产品的对话记录到统一的本地工作区。

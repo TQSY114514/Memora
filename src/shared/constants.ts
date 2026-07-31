@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.0.0'
+export const APP_VERSION = '1.0.1'
 
 /** IPC 通道命名空间 */
 export const IPC = {
@@ -101,6 +101,12 @@ export const IPC = {
 
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',
+
+  // AI 配置文件持久化（主进程 userData/ai-config.json，供 MCP 进程读取）
+  AI_CONFIG_FILE_SAVE: 'ai:config-file-save',
+  AI_CONFIG_FILE_LOAD: 'ai:config-file-load',
+  AI_CONFIG_FILE_SET_ACTIVE: 'ai:config-file-set-active',
+  AI_CONFIG_FILE_DELETE: 'ai:config-file-delete',
 
   // API Key 安全存储（safeStorage 加密）
   SECRET_GET_ALL: 'secret:get-all',

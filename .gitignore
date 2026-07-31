@@ -8,6 +8,7 @@ Thumbs.db
 desktop.ini
 .env
 .env.local
+test/benchmark/results.json
 
 # 数据库与运行时数据
 .data/
