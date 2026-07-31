@@ -17,7 +17,11 @@ import type {
   DashboardStats,
   BackupData,
   FolderRule,
-  ExtractedSession
+  ExtractedSession,
+  BackgroundImportConfig,
+  BackgroundImportStatus,
+  BackgroundImportProgress,
+  BackgroundImportRunResult
 } from '../shared/types'
 
 /**
@@ -246,6 +250,27 @@ const api = {
   db: {
     vacuum: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.DB_VACUUM),
     cleanOrphans: (): Promise<{ cleaned: number }> => ipcRenderer.invoke(IPC.DB_CLEAN_ORPHANS)
+  },
+
+  // ===== 后台静默导入（P3） =====
+  bgImport: {
+    getConfig: (): Promise<BackgroundImportConfig> => ipcRenderer.invoke(IPC.IMPORT_BG_CONFIG_GET),
+    setConfig: (patch: Partial<BackgroundImportConfig>): Promise<BackgroundImportConfig> =>
+      ipcRenderer.invoke(IPC.IMPORT_BG_CONFIG_SET, patch),
+    getStatus: (): Promise<BackgroundImportStatus> => ipcRenderer.invoke(IPC.IMPORT_BG_STATUS),
+    start: (): Promise<boolean> => ipcRenderer.invoke(IPC.IMPORT_BG_START),
+    stop: (): Promise<boolean> => ipcRenderer.invoke(IPC.IMPORT_BG_STOP),
+    runOnce: (): Promise<BackgroundImportRunResult> => ipcRenderer.invoke(IPC.IMPORT_BG_RUN_ONCE),
+    onProgress: (cb: (p: BackgroundImportProgress) => void): (() => void) => {
+      const h = (_e: unknown, p: BackgroundImportProgress): void => cb(p)
+      ipcRenderer.on(IPC.IMPORT_BG_PROGRESS, h)
+      return () => ipcRenderer.removeListener(IPC.IMPORT_BG_PROGRESS, h)
+    },
+    onDone: (cb: (r: BackgroundImportRunResult) => void): (() => void) => {
+      const h = (_e: unknown, r: BackgroundImportRunResult): void => cb(r)
+      ipcRenderer.on(IPC.IMPORT_BG_DONE, h)
+      return () => ipcRenderer.removeListener(IPC.IMPORT_BG_DONE, h)
+    }
   }
 }
 

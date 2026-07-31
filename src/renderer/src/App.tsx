@@ -9,11 +9,14 @@ import { ProjectMemoryPanel } from './components/ProjectMemory'
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
+import { useBgImportStore } from './stores/backgroundImportStore'
+import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
 
 export default function App() {
   const { error } = useStore()
   const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
   const { backgroundImage, blur, opacity } = useThemeStore()
+  const { loadConfig: loadBgConfig, loadStatus: loadBgStatus, attachListeners: attachBgListeners } = useBgImportStore()
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showMemoryPanel, setShowMemoryPanel] = useState(false)
   const [showImportCenter, setShowImportCenter] = useState(false)
@@ -131,6 +134,8 @@ export default function App() {
       )}
 
       {dragFiles.length > 0 && <ImportProgress />}
+
+      <BackgroundImportIndicator />
 
       {showImportCenter && <ImportCenter onClose={() => setShowImportCenter(false)} />}
 

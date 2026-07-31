@@ -55,6 +55,16 @@ export const IPC = {
   EXTRACT_APP: 'scanner:extract-app',
   IMPORT_EXTRACTED: 'import:extracted',
 
+  // 后台静默导入（P3）
+  IMPORT_BG_START: 'import:bg-start',
+  IMPORT_BG_STOP: 'import:bg-stop',
+  IMPORT_BG_RUN_ONCE: 'import:bg-run-once',
+  IMPORT_BG_STATUS: 'import:bg-status',
+  IMPORT_BG_CONFIG_GET: 'import:bg-config-get',
+  IMPORT_BG_CONFIG_SET: 'import:bg-config-set',
+  IMPORT_BG_PROGRESS: 'import:bg-progress',  // event: main -> renderer
+  IMPORT_BG_DONE: 'import:bg-done',           // event: main -> renderer
+
   // Search
   SEARCH_QUERY: 'search:query',
 

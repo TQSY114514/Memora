@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { useT, useI18nStore, LANGUAGES } from '../../i18n'
 import { useThemeStore } from '../../stores/themeStore'
+import { useBgImportStore } from '../../stores/backgroundImportStore'
+import type { Folder, Workspace } from '@shared/types'
 
 interface SettingsProps {
   onClose: () => void
@@ -305,6 +308,9 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
               </p>
             )}
           </div>
+
+          {/* 后台静默导入 */}
+          <BackgroundImportSection />
         </div>
 
         {/* 底部 */}
@@ -313,6 +319,158 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             {t('settings.done')}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** 后台静默导入设置分区 */
+function BackgroundImportSection() {
+  const { config, status, loadConfig, loadStatus, setConfig, runOnce } = useBgImportStore()
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+
+  useEffect(() => {
+    loadConfig()
+    loadStatus()
+    window.Memora.folder.list().then(setFolders).catch(() => {})
+    window.Memora.workspace.list().then(setWorkspaces).catch(() => {})
+  }, [loadConfig, loadStatus])
+
+  const enabled = config?.enabled ?? false
+  const targetFolderId = config?.targetFolderId ?? ''
+  const intervalMinutes = config?.intervalMinutes ?? 30
+  const runOnStartup = config?.runOnStartup ?? true
+  const running = status?.running ?? false
+
+  const wsName = (id: string) => workspaces.find((w) => w.id === id)?.name ?? ''
+  const folderLabel = (f: Folder) =>
+    wsName(f.workspaceId) ? `${wsName(f.workspaceId)} / ${f.name}` : f.name
+
+  async function handleToggleEnabled() {
+    await setConfig({ enabled: !enabled })
+  }
+  async function handleFolder(e: ChangeEvent<HTMLSelectElement>) {
+    await setConfig({ targetFolderId: e.target.value || null })
+  }
+  async function handleInterval(e: ChangeEvent<HTMLInputElement>) {
+    const v = Math.max(1, Number(e.target.value) || 1)
+    await setConfig({ intervalMinutes: v })
+  }
+  async function handleToggleRunOnStartup() {
+    await setConfig({ runOnStartup: !runOnStartup })
+  }
+  async function handleRunOnce() {
+    await runOnce()
+  }
+
+  const last = status?.lastResult
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-xs font-medium text-fg-secondary">后台静默导入</label>
+        <button
+          onClick={handleToggleEnabled}
+          className={`relative w-9 h-5 rounded-full transition-colors ${enabled ? 'bg-accent' : 'bg-bg-hover'}`}
+          aria-label="启用后台静默导入"
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+              enabled ? 'translate-x-4' : ''
+            }`}
+          />
+        </button>
+      </div>
+      <p className="text-[11px] text-fg-muted mb-2.5">
+        应用启动后自动扒取已安装的 AI 应用（Cursor / Claude Code 等）并导入新对话，重复对话自动跳过。
+      </p>
+
+      <div className="space-y-2.5">
+        {/* 目标文件夹 */}
+        <div>
+          <label className="block text-[10px] text-fg-muted mb-1">目标文件夹（必选）</label>
+          <select
+            value={targetFolderId}
+            onChange={handleFolder}
+            className="Memora-input w-full text-xs py-1"
+          >
+            <option value="">— 请选择 —</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {folderLabel(f)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 轮询间隔 */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-fg-muted">轮询间隔</label>
+          <input
+            type="number"
+            min={1}
+            value={intervalMinutes}
+            onChange={handleInterval}
+            className="Memora-input w-20 text-xs py-1"
+          />
+          <span className="text-[10px] text-fg-muted">分钟</span>
+        </div>
+
+        {/* 启动时立即执行 */}
+        <div className="flex items-center justify-between">
+          <label className="text-[10px] text-fg-muted">启动时立即执行一次</label>
+          <button
+            onClick={handleToggleRunOnStartup}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              runOnStartup ? 'bg-accent' : 'bg-bg-hover'
+            }`}
+            aria-label="启动时立即执行"
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                runOnStartup ? 'translate-x-4' : ''
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* 立即执行一次 */}
+        <div className="flex items-center gap-2 pt-0.5">
+          <button
+            onClick={handleRunOnce}
+            disabled={running || !targetFolderId}
+            className="Memora-btn Memora-btn-ghost text-xs"
+          >
+            {running ? '⏳ 执行中…' : '▶ 立即执行一次'}
+          </button>
+          {enabled && !targetFolderId && (
+            <span className="text-[10px] text-red-500">请先选择目标文件夹</span>
+          )}
+        </div>
+
+        {/* 上次结果 */}
+        {last && (
+          <div className="text-[11px] text-fg-muted mt-1 space-y-0.5">
+            <p>
+              上次：+{last.imported} 新 / 跳过 {last.skipped} / 失败 {last.failed}
+              <span className="ml-1">· 耗时 {(last.durationMs / 1000).toFixed(1)}s</span>
+            </p>
+            {status?.lastRunAt && (
+              <p>时间：{new Date(status.lastRunAt).toLocaleString()}</p>
+            )}
+            {last.errors.length > 0 && (
+              <p className="text-red-500 truncate" title={last.errors.join('\n')}>
+                {last.errors[0]}
+              </p>
+            )}
+          </div>
+        )}
+        {enabled && status?.nextRunAt && (
+          <p className="text-[10px] text-fg-muted">
+            下次：{new Date(status.nextRunAt).toLocaleString()}
+          </p>
+        )}
       </div>
     </div>
   )

@@ -38,6 +38,7 @@ import { importFile, importDirectory, importContent, importExtractedSessions } f
 import { scanDirectories } from '@importer/scanner'
 import { detectInstalledApps } from '@importer/appDetector'
 import { extractLocal } from '@importer/localExtractor'
+import { backgroundImporter } from '@importer/backgroundImporter'
 import { search } from '@search/query'
 import { semanticSearch } from '@search/semantic'
 import { renderSessionToHtml, renderSessionToMd } from '@sharing'
@@ -520,5 +521,17 @@ export function registerIpcHandlers(): void {
     return { restored: data.sessions.length }
   })
 
-
+  // ===== 后台静默导入（P3） =====
+  ipcMain.handle(IPC.IMPORT_BG_CONFIG_GET, () => backgroundImporter.getConfig())
+  ipcMain.handle(IPC.IMPORT_BG_CONFIG_SET, (_e, patch) => backgroundImporter.setConfig(patch))
+  ipcMain.handle(IPC.IMPORT_BG_STATUS, () => backgroundImporter.getStatus())
+  ipcMain.handle(IPC.IMPORT_BG_START, () => {
+    backgroundImporter.start()
+    return true
+  })
+  ipcMain.handle(IPC.IMPORT_BG_STOP, () => {
+    backgroundImporter.stop()
+    return true
+  })
+  ipcMain.handle(IPC.IMPORT_BG_RUN_ONCE, () => backgroundImporter.runOnce())
 }

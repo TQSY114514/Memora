@@ -4,6 +4,7 @@ import { existsSync } from 'fs'
 import { initDatabase, closeDatabase } from '../database/connection'
 import { registerIpcHandlers } from './ipc'
 import { listWorkspaces, deleteWorkspace } from '../database/repositories/workspaceRepo'
+import { backgroundImporter } from '../importer/backgroundImporter'
 
 // ===== MCP Server 模式 =====
 // 通过 `electron --mcp` 启动时，运行 MCP Server 而非 GUI
@@ -158,9 +159,17 @@ function startGui(): void {
     createTray()
     createWindow()
 
+    // 后台静默导入：加载配置，绑定窗口，若启用则启动
+    backgroundImporter.loadConfig()
+    backgroundImporter.setWindow(mainWindow)
+    if (backgroundImporter.getConfig().enabled) {
+      backgroundImporter.start()
+    }
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow()
+        backgroundImporter.setWindow(mainWindow)
       } else {
         mainWindow?.show()
       }

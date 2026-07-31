@@ -315,3 +315,45 @@ export interface RelatedSession {
   score: number
   reason: string            // 为什么相关（命中消息摘要）
 }
+
+/** 后台静默导入配置 */
+export interface BackgroundImportConfig {
+  enabled: boolean
+  /** 导入目标文件夹 ID（必须选择，null=未配置） */
+  targetFolderId: string | null
+  /** 要扒取的 provider 列表（默认空=所有可扒取的） */
+  providers: Provider[]
+  /** 轮询间隔分钟数（默认 30） */
+  intervalMinutes: number
+  /** 启动时立即执行一次 */
+  runOnStartup: boolean
+}
+
+/** 后台导入进度（实时推送） */
+export interface BackgroundImportProgress {
+  phase: 'detecting' | 'extracting' | 'importing' | 'idle'
+  provider: string | null
+  current: number
+  total: number
+  message: string
+}
+
+/** 后台导入单次执行结果 */
+export interface BackgroundImportRunResult {
+  detected: number
+  extracted: number
+  imported: number
+  skipped: number
+  failed: number
+  errors: string[]
+  durationMs: number
+}
+
+/** 后台导入完整状态 */
+export interface BackgroundImportStatus {
+  running: boolean
+  lastRunAt: string | null
+  lastResult: BackgroundImportRunResult | null
+  nextRunAt: string | null
+  currentProgress: BackgroundImportProgress | null
+}
