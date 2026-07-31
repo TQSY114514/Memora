@@ -5,6 +5,7 @@ import { initDatabase, closeDatabase } from '../database/connection'
 import { registerIpcHandlers } from './ipc'
 import { listWorkspaces, deleteWorkspace } from '../database/repositories/workspaceRepo'
 import { backgroundImporter } from '../importer/backgroundImporter'
+import { shutdownSemanticWorker } from '../search/semantic'
 
 // ===== MCP Server 模式 =====
 // 通过 `electron --mcp` 启动时，运行 MCP Server 而非 GUI
@@ -179,6 +180,10 @@ function startGui(): void {
   // 真正退出时才关闭数据库
   app.on('before-quit', () => {
     isQuiting = true
+    // 停止后台导入定时器，避免退出后定时器访问已关闭的数据库
+    backgroundImporter.stop()
+    // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
+    shutdownSemanticWorker()
     closeDatabase()
   })
 

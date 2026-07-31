@@ -4,7 +4,7 @@ import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../store
 import { useT } from '../../i18n'
 import { useDialog, PromptDialog } from '../PromptDialog'
 import { PROVIDER_META } from '@shared/constants'
-import type { Folder, FolderRule } from '@shared/types'
+import type { Folder, FolderRule, SearchResult } from '@shared/types'
 
 interface SidebarProps {
   searchInputRef: React.RefObject<HTMLInputElement>
@@ -208,7 +208,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
       </div>
 
       {/* 搜索框 */}
-      <SearchBox searchInputRef={searchInputRef} onOpenAiSettings={onOpenAiSettings} />
+      <SearchBox searchInputRef={searchInputRef} onOpenAiSettings={onOpenAiSettings} onSearchCleared={() => handleSelectFolder(activeFolderId)} />
 
       {/* 工作区列表 */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
@@ -399,7 +399,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
   )
 }
 
-function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React.RefObject<HTMLInputElement>; onOpenAiSettings: () => void }) {
+function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { searchInputRef: React.RefObject<HTMLInputElement>; onOpenAiSettings: () => void; onSearchCleared: () => void }) {
   const { setSearch, clearSearch, setSessions, searchProvider, setSearchProvider } = useStore()
   const { config } = useAiConfigStore()
   const t = useT()
@@ -433,7 +433,13 @@ function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React
         if (results.length === 0) {
           setSearchError(t('sidebar.semanticEmpty'))
         }
-        setSearch(q, null)
+        // 将语义搜索结果适配为 SearchResult[]，使 ChatList 能显示相关度百分比和命中片段
+        const adapted: SearchResult[] = results.map((r) => ({
+          session: r.session,
+          rank: r.score,
+          snippets: [{ snippet: r.snippet, messageId: r.messageId, sessionId: r.session.id }]
+        }))
+        setSearch(q, adapted)
         setSessions(results.map((r) => r.session))
       } else {
         const results = await window.Memora.search(q, { provider: searchProvider ?? undefined })
@@ -471,6 +477,9 @@ function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React
       if (debounceTimer.current) clearTimeout(debounceTimer.current)
       clearSearch()
       setSearchError(null)
+      // 恢复完整会话列表：重新加载当前工作区/文件夹的会话
+      // 避免清空搜索后仍显示搜索结果的子集
+      onSearchCleared()
     } else {
       scheduleDebouncedSearch(v.trim())
     }

@@ -78,18 +78,34 @@ export function ChatList() {
     setSelectedIds(new Set())
     setShowBatchBar(false)
     setActiveSession(sessionId)
-    const session = await window.Memora.session.get(sessionId, true)
-    setActiveSessionData(session)
+    try {
+      const session = await window.Memora.session.get(sessionId, true)
+      setActiveSessionData(session)
+    } catch (e) {
+      dialog.alert('加载对话失败：' + (e instanceof Error ? e.message : String(e)))
+    }
   }
 
   async function handleToggleFavorite(e: React.MouseEvent, sessionId: string) {
     e.stopPropagation()
-    await window.Memora.session.toggleFavorite(sessionId)
+    // 乐观更新：先改 UI，失败时回滚
     const idx = sessions.findIndex((s) => s.id === sessionId)
+    const prevFavorite = idx >= 0 ? sessions[idx].isFavorite : false
     if (idx >= 0) {
       const updated = [...sessions]
-      updated[idx] = { ...updated[idx], isFavorite: !updated[idx].isFavorite }
+      updated[idx] = { ...updated[idx], isFavorite: !prevFavorite }
       setSessions(updated)
+    }
+    try {
+      await window.Memora.session.toggleFavorite(sessionId)
+    } catch (e) {
+      // 回滚
+      if (idx >= 0) {
+        const updated = [...sessions]
+        updated[idx] = { ...updated[idx], isFavorite: prevFavorite }
+        setSessions(updated)
+      }
+      dialog.alert('操作失败：' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
@@ -97,12 +113,16 @@ export function ChatList() {
     e.stopPropagation()
     const title = await dialog.prompt('对话标题', oldTitle)
     if (!title || title === oldTitle) return
-    await window.Memora.session.update(sessionId, { title })
-    const idx = sessions.findIndex((s) => s.id === sessionId)
-    if (idx >= 0) {
-      const updated = [...sessions]
-      updated[idx] = { ...updated[idx], title }
-      setSessions(updated)
+    try {
+      await window.Memora.session.update(sessionId, { title })
+      const idx = sessions.findIndex((s) => s.id === sessionId)
+      if (idx >= 0) {
+        const updated = [...sessions]
+        updated[idx] = { ...updated[idx], title }
+        setSessions(updated)
+      }
+    } catch (e) {
+      dialog.alert('重命名失败：' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
@@ -110,18 +130,26 @@ export function ChatList() {
     e.stopPropagation()
     const ok = await dialog.confirm(`确定删除「${title}」？此操作不可撤销。`)
     if (!ok) return
-    await window.Memora.batch.deleteSessions([sessionId])
-    refreshList()
+    try {
+      await window.Memora.batch.deleteSessions([sessionId])
+      refreshList()
+    } catch (e) {
+      dialog.alert('删除失败：' + (e instanceof Error ? e.message : String(e)))
+    }
   }
 
   async function handleBatchDelete() {
     const ids = Array.from(selectedIds)
     const ok = await dialog.confirm(`确定删除 ${ids.length} 个对话？此操作不可撤销。`)
     if (!ok) return
-    await window.Memora.batch.deleteSessions(ids)
-    setSelectedIds(new Set())
-    setShowBatchBar(false)
-    refreshList()
+    try {
+      await window.Memora.batch.deleteSessions(ids)
+      setSelectedIds(new Set())
+      setShowBatchBar(false)
+      refreshList()
+    } catch (e) {
+      dialog.alert('批量删除失败：' + (e instanceof Error ? e.message : String(e)))
+    }
   }
 
   async function refreshList() {

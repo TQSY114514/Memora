@@ -45,6 +45,19 @@ function initWorker(): void {
 }
 
 /** 通知 worker 缓存失效（新向量写入后调用） */
+/** 终止 worker 线程，应用退出时调用，避免阻止 Electron 干净退出 */
+export function shutdownSemanticWorker(): void {
+  if (worker) {
+    try {
+      worker.terminate()
+    } catch {
+      // 终止失败忽略
+    }
+    worker = null
+    workerReady = false
+  }
+}
+
 export function invalidateEmbeddingCache(): void {
   if (worker) {
     worker.postMessage({ type: 'invalidate' })
@@ -90,14 +103,16 @@ function getAllEmbeddingsSync(): FallbackRow[] {
   const rows = db
     .prepare('SELECT message_id, session_id, embedding, model FROM message_embeddings')
     .all() as Array<{ message_id: string; session_id: string; embedding: Buffer; model: string }>
-  return rows.map((r) => ({
-    messageId: r.message_id,
-    sessionId: r.session_id,
-    embedding: Array.from(
-      new Float32Array(r.embedding.buffer, r.embedding.byteOffset, r.embedding.byteLength / 4)
-    ),
-    model: r.model
-  }))
+  return rows
+    .filter((r) => r.embedding.byteLength > 0 && r.embedding.byteLength % 4 === 0)
+    .map((r) => ({
+      messageId: r.message_id,
+      sessionId: r.session_id,
+      embedding: Array.from(
+        new Float32Array(r.embedding.buffer, r.embedding.byteOffset, r.embedding.byteLength / 4)
+      ),
+      model: r.model
+    }))
 }
 
 function searchFallback(

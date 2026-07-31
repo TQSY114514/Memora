@@ -225,7 +225,9 @@ function cleanCursorContent(content: string): string {
       }
       if (typeof parsed.text === 'string') return parsed.text.trim()
       if (typeof parsed.content === 'string') return parsed.content.trim()
-    } catch (e) {}
+    } catch {
+      // 非合法 JSON，按原始文本返回
+    }
   }
   return trimmed
 }

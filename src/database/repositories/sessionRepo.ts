@@ -237,13 +237,13 @@ function matchesRule(session: ChatSession, rule: FolderRule): boolean {
   return true
 }
 
-/** 列出工作区内所有会话（含未分组的） */
+/** 列出工作区内所有会话（仅含归属于此工作区的；未分组会话只在「全部聊天」展示） */
 export function listSessionsByWorkspace(workspaceId: string): ChatSession[] {
   const db = getDatabase()
   const rows = db.prepare(
     `SELECT cs.* FROM chat_sessions cs
-     LEFT JOIN folders f ON cs.folder_id = f.id
-     WHERE f.workspace_id = ? OR cs.folder_id IS NULL
+     INNER JOIN folders f ON cs.folder_id = f.id
+     WHERE f.workspace_id = ?
      ORDER BY cs.updated_at DESC`
   ).all(workspaceId) as SessionRow[]
   return rows.map((row) => rowToSession(row, getSessionTags(row.id)))

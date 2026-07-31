@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useStore } from '../../stores/appStore'
 import { useDialog, PromptDialog } from '../PromptDialog'
 import type {
@@ -41,6 +41,17 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
   const [creating, setCreating] = useState(false)
   const [extracting, setExtracting] = useState(false)
   const [extractMsg, setExtractMsg] = useState<string | null>(null)
+  // 搜索防抖：避免每输入一个字符就触发 FTS 查询
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => setDebouncedSearch(searchQuery), 300)
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    }
+  }, [searchQuery])
 
   // 加载工作区列表
   useEffect(() => {
@@ -58,8 +69,8 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
     setError(null)
     try {
       const [list, c] = await Promise.all([
-        searchQuery.trim()
-          ? window.Memora.knowledge.search(searchQuery.trim(), { workspaceId: currentWsId })
+        debouncedSearch.trim()
+          ? window.Memora.knowledge.search(debouncedSearch.trim(), { workspaceId: currentWsId })
           : window.Memora.knowledge.list({ workspaceId: currentWsId, limit: 1000 }),
         window.Memora.knowledge.count(currentWsId)
       ])
@@ -70,7 +81,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [currentWsId, searchQuery])
+  }, [currentWsId, debouncedSearch])
 
   useEffect(() => {
     refresh()
@@ -92,11 +103,15 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
   async function handleToggleTask(entry: KnowledgeEntry) {
     try {
       const updated = await window.Memora.knowledge.toggleTask(entry.id)
-      setEntries((prev) => prev.map((e) => (e.id === entry.id ? updated! : e)))
+      if (!updated) {
+        dialog.alert('更新失败：服务端返回空结果')
+        return
+      }
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
       if (counts) {
         setCounts({
           ...counts,
-          openTask: updated?.status === 'done' ? counts.openTask - 1 : counts.openTask + 1
+          openTask: updated.status === 'done' ? counts.openTask - 1 : counts.openTask + 1
         })
       }
     } catch (e) {

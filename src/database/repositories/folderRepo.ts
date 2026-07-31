@@ -13,6 +13,16 @@ interface FolderRow {
   updated_at: string
 }
 
+/** 安全解析 JSON，损坏时返回 fallback 并记录警告，避免单个坏行崩溃整列加载 */
+function safeJsonParse<T>(raw: string, fallback: T): T {
+  try {
+    return JSON.parse(raw) as T
+  } catch (e) {
+    console.warn('[folderRepo] JSON.parse 失败，使用默认值:', e)
+    return fallback
+  }
+}
+
 function rowToFolder(row: FolderRow): Folder {
   return {
     id: row.id,
@@ -20,7 +30,7 @@ function rowToFolder(row: FolderRow): Folder {
     parentId: row.parent_id ?? undefined,
     name: row.name,
     sortOrder: row.sort_order,
-    rule: row.rule ? (JSON.parse(row.rule) as FolderRule) : null,
+    rule: row.rule ? safeJsonParse<FolderRule | null>(row.rule, null) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }

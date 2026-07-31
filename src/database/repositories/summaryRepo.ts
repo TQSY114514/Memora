@@ -15,15 +15,27 @@ interface SummaryRow {
   updated_at: string
 }
 
+/** 安全解析 JSON 数组，损坏时返回空数组，避免单个坏行崩溃整列加载 */
+function safeJsonArray(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const v = JSON.parse(raw)
+    return Array.isArray(v) ? (v as string[]) : []
+  } catch (e) {
+    console.warn('[summaryRepo] JSON.parse 失败，返回空数组:', e)
+    return []
+  }
+}
+
 function rowToSummary(row: SummaryRow): SessionSummary {
   return {
     id: row.id,
     sessionId: row.session_id,
     summary: row.summary,
-    keyPoints: row.key_points ? (JSON.parse(row.key_points) as string[]) : [],
-    todos: row.todos ? (JSON.parse(row.todos) as string[]) : [],
-    knowledge: row.knowledge ? (JSON.parse(row.knowledge) as string[]) : undefined,
-    suggestedTags: row.suggested_tags ? (JSON.parse(row.suggested_tags) as string[]) : undefined,
+    keyPoints: safeJsonArray(row.key_points),
+    todos: safeJsonArray(row.todos),
+    knowledge: row.knowledge ? safeJsonArray(row.knowledge) : undefined,
+    suggestedTags: row.suggested_tags ? safeJsonArray(row.suggested_tags) : undefined,
     model: row.model ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at

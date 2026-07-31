@@ -1,4 +1,4 @@
-﻿import type { ChatSession, Message } from '@shared/types'
+import type { ChatSession, Message } from '@shared/types'
 import { PROVIDER_META } from '@shared/constants'
 
 /**
@@ -100,11 +100,24 @@ function renderMarkdown(md: string): string {
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
 
-  // 链接 [text](url)
-  html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener">$1</a>'
-  )
+  // 链接 [text](url) — 校验协议白名单，阻止 javascript:/data: 等 XSS 向量
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text: string, url: string) => {
+    const trimmedUrl = url.trim()
+    try {
+      const parsed = new URL(trimmedUrl)
+      // 只允许 http/https/mailto，其余协议（javascript:/data:/file: 等）丢弃 href
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'mailto:') {
+        return `<a href="${escapeHtml(trimmedUrl)}" target="_blank" rel="noopener">${text}</a>`
+      }
+    } catch {
+      // 非 URL（如相对路径），直接作为文本链接
+      if (/^https?:\/\//i.test(trimmedUrl)) {
+        return `<a href="${escapeHtml(trimmedUrl)}" target="_blank" rel="noopener">${text}</a>`
+      }
+    }
+    // 危险或无法解析的 URL：保留文本，不加 href
+    return text
+  })
 
   // 无序列表
   html = html.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')

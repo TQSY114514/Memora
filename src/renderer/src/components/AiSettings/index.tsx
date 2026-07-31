@@ -301,8 +301,16 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                 </label>
                 <input
                   type="number"
+                  min={1}
+                  max={8192}
                   value={config.embeddingDim}
-                  onChange={(e) => setConfig({ embeddingDim: Number(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10)
+                    // 仅在合法范围（1-8192）内更新，避免清空输入框时维度变为 0 导致向量操作失败
+                    if (!Number.isNaN(n) && n >= 1 && n <= 8192) {
+                      setConfig({ embeddingDim: n })
+                    }
+                  }}
                   placeholder="1536"
                   className="Memora-input w-full"
                 />

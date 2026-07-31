@@ -117,11 +117,10 @@ function escapeHtml(s: string): string {
 function buildSnippet(content: string, query: string, radius = 60): string {
   if (!content) return ''
   const lowerContent = content.toLowerCase()
-  const terms = query
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
+  // 用与搜索一致的中文分词，避免中文查询因无空格导致高亮失效
+  const terms = segmentQuery(query)
     .map((t) => t.toLowerCase())
+    .filter((t) => t.length > 0)
 
   // 找第一个匹配位置
   let pos = -1

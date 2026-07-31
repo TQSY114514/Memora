@@ -31,6 +31,7 @@ import { createInterface } from 'readline'
 import { app } from 'electron'
 import { initDatabase } from '../database/connection'
 import { listSessions, getSession, createSession } from '../database/repositories/sessionRepo'
+import { indexSessionForSearch } from '../search/indexer'
 import { listWorkspaces } from '../database/repositories/workspaceRepo'
 import { listTags } from '../database/repositories/tagRepo'
 import { getSummary } from '../database/repositories/summaryRepo'
@@ -362,7 +363,6 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       const msgId = uuidv4()
       const now = new Date().toISOString()
       const order = (db.prepare('SELECT COUNT(*) as n FROM messages WHERE session_id = ?').get(sessionId) as { n: number }).n
-      const indexSessionForSearch = require('../database/repositories/sessionRepo').indexSessionForSearch
 
       const tx = db.transaction(() => {
         db.prepare(
@@ -371,6 +371,12 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
         db.prepare('UPDATE chat_sessions SET message_count = message_count + 1, updated_at = ? WHERE id = ?').run(now, sessionId)
       })
       tx()
+      // 更新 FTS 索引（事务外，与 createSession 保持一致：FTS 失败不应阻塞消息写入）
+      try {
+        indexSessionForSearch(sessionId, session.title, [{ content }], session.provider)
+      } catch (e) {
+        console.warn('[MCP] add_message: 重建 FTS 索引失败（不影响消息写入）:', e)
+      }
       return { messageId: msgId, sessionId, order }
     }
 

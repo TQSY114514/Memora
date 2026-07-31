@@ -43,6 +43,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
 
   const [relatedSessions, setRelatedSessions] = useState<RelatedSession[]>([])
   const [showRelated, setShowRelated] = useState(false)
+  const [relatedLoading, setRelatedLoading] = useState(false)
   const [editingSummary, setEditingSummary] = useState(false)
   const [editSummaryText, setEditSummaryText] = useState('')
   const [editKeyPoints, setEditKeyPoints] = useState('')
@@ -71,10 +72,13 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setExtractMsg(null)
 
     if (!session) return
-    window.Memora.ai.getSummary(session.id).then(setSummary).catch(() => {})
-    window.Memora.ai.getEmbedStatus(session.id).then(setEmbedStatus).catch(() => {})
+    // 用 cancelled 标志避免快速切换会话时旧请求覆盖新会话状态（race condition）
+    let cancelled = false
+    window.Memora.ai.getSummary(session.id).then((s) => { if (!cancelled) setSummary(s) }).catch((e) => { if (!cancelled) console.warn('[ChatViewer] 加载总结失败:', e) })
+    window.Memora.ai.getEmbedStatus(session.id).then((s) => { if (!cancelled) setEmbedStatus(s) }).catch((e) => { if (!cancelled) console.warn('[ChatViewer] 加载嵌入状态失败:', e) })
     // 切换会话时滚动到顶部
     if (scrollRef.current) scrollRef.current.scrollTop = 0
+    return () => { cancelled = true }
   }, [session?.id])
 
   async function handleToggleFavorite() {
@@ -191,11 +195,15 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       return
     }
     setShowRelated(true)
+    setRelatedLoading(true)
     try {
       const related = await window.Memora.memory.findRelated(session.id, { limit: 5 })
       setRelatedSessions(related)
-    } catch {
+    } catch (e) {
       setRelatedSessions([])
+      console.warn('[ChatViewer] 加载相关讨论失败:', e)
+    } finally {
+      setRelatedLoading(false)
     }
   }
 
@@ -418,7 +426,9 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
               相关讨论
             </h3>
-            {relatedSessions.length === 0 ? (
+            {relatedLoading ? (
+              <p className="text-xs text-fg-muted py-2">加载中…</p>
+            ) : relatedSessions.length === 0 ? (
               <p className="text-xs text-fg-muted py-2">
                 暂无相关讨论。需要先为本对话和其他对话建立向量索引。
               </p>

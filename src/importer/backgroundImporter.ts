@@ -84,7 +84,7 @@ class BackgroundImporter {
     }
   }
 
-  /** 更新配置并持久化；启用状态变化时重启调度 */
+  /** 更新配置并持久化；始终先停止再按新配置重启调度，确保 intervalMinutes 立即生效 */
   setConfig(patch: Partial<BackgroundImportConfig>): BackgroundImportConfig {
     this.config = { ...this.config, ...patch }
     try {
@@ -93,9 +93,9 @@ class BackgroundImporter {
     } catch {
       // 写入失败不阻塞
     }
-    // 重启调度
+    // 先停止旧调度，再用新配置重启，避免旧 timer 残留导致 intervalMinutes 不生效
+    this.stop()
     if (this.config.enabled) this.start()
-    else this.stop()
     return { ...this.config }
   }
 
@@ -109,7 +109,9 @@ class BackgroundImporter {
       if (this.startupTimer) clearTimeout(this.startupTimer)
       this.startupTimer = setTimeout(() => {
         this.startupTimer = null
-        this.runOnce()
+        this.runOnce().catch((e) => {
+          console.error('[backgroundImporter] startup runOnce failed:', e)
+        })
       }, 5000)
     }
   }
@@ -133,7 +135,10 @@ class BackgroundImporter {
     const next = new Date(Date.now() + ms)
     this.status.nextRunAt = next.toISOString()
     this.timer = setTimeout(() => {
-      this.runOnce()
+      // 捕获 runOnce 的 rejection，避免 Unhandled Promise Rejection 导致主进程崩溃
+      this.runOnce().catch((e) => {
+        console.error('[backgroundImporter] runOnce failed:', e)
+      })
       this.scheduleNext()
     }, ms)
   }
@@ -204,6 +209,9 @@ class BackgroundImporter {
           result.errors.push(`${appInfo.name}: ${(e as Error).message}`)
         }
       }
+    } catch (e) {
+      // detectInstalledApps 或其他外层错误：记录到 result 而非 reject，保证 runOnce 始终 resolve
+      result.errors.push(`后台导入出错: ${(e as Error).message}`)
     } finally {
       result.durationMs = Date.now() - t0
       this.status.running = false
@@ -217,11 +225,16 @@ class BackgroundImporter {
 
   private emit(p: BackgroundImportProgress): void {
     this.status.currentProgress = p
-    this.win?.webContents.send(IPC.IMPORT_BG_PROGRESS, p)
+    // 窗口可能已销毁（如正在导入时用户关闭应用），校验避免 webContents.send 抛错中断导入
+    if (this.win && !this.win.isDestroyed()) {
+      this.win.webContents.send(IPC.IMPORT_BG_PROGRESS, p)
+    }
   }
 
   private emitDone(r: BackgroundImportRunResult): void {
-    this.win?.webContents.send(IPC.IMPORT_BG_DONE, r)
+    if (this.win && !this.win.isDestroyed()) {
+      this.win.webContents.send(IPC.IMPORT_BG_DONE, r)
+    }
   }
 }
 

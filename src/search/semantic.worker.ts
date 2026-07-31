@@ -40,11 +40,13 @@ function loadCache(): number {
 }
 
 function cosineSimilarity(a: Float32Array, b: Float32Array): number {
-  const len = Math.min(a.length, b.length)
+  // 维度不一致（如切换 embedding 模型导致向量维度变化）直接返回 0，
+  // 避免静默截断计算产生错误的相似度分数
+  if (a.length !== b.length || a.length === 0) return 0
   let dot = 0
   let normA = 0
   let normB = 0
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i]
     normA += a[i] * a[i]
     normB += b[i] * b[i]

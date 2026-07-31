@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { basename, extname, join } from 'path'
-import { registerBuiltins, detectImporter } from '../importer'
+import { registerBuiltins, detectImporter, getImporter } from '../importer'
 import { createSession, findBySourceId } from '../database/repositories/sessionRepo'
 import { StreamParseError, LARGE_FILE_THRESHOLD } from './streamJsonArray'
 import type { ImportResult, ChatSession } from '@shared/types'
@@ -221,7 +221,7 @@ export function importContent(
   registerBuiltins()
 
   const importer = options?.provider
-    ? detectImporter(filename, content)
+    ? getImporter(options.provider) ?? detectImporter(filename, content)
     : detectImporter(filename, content)
 
   if (!importer) {

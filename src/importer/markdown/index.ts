@@ -278,12 +278,13 @@ function parsePlainMarkdown(content: string): ParsedSession {
 
   const messages: ParsedMessage[] = []
   const now = new Date().toISOString()
-  let toggle = 0
+  // 追踪上一个实际角色，避免「连续同角色标题 + 无标题段」时角色错乱
+  let lastRole: ParsedMessage['role'] | null = null
 
   for (const section of sections) {
     // 尝试识别角色
     const headingMatch = section.match(/^#{1,3}\s+(.+?)\s*$/m)
-    let role: ParsedMessage['role'] = toggle % 2 === 0 ? 'user' : 'assistant'
+    let role: ParsedMessage['role']
     let body = section
 
     if (headingMatch) {
@@ -292,12 +293,18 @@ function parsePlainMarkdown(content: string): ParsedSession {
         role = roleGuess
         // 去掉标题行
         body = section.replace(/^#{1,3}\s+.+?\s*$/m, '').trim()
+      } else {
+        // 有标题但无法识别角色，按交替规则推断
+        role = lastRole === 'user' ? 'assistant' : 'user'
       }
+    } else {
+      // 无标题，按交替规则推断
+      role = lastRole === 'user' ? 'assistant' : 'user'
     }
 
     if (body) {
       messages.push({ role, content: body, createdAt: now })
-      toggle++
+      lastRole = role
     }
   }
 

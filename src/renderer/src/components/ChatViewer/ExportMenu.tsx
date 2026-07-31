@@ -29,6 +29,7 @@ interface FormatItem {
 export function ExportMenu({ session }: ExportMenuProps) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<FormatKey | null>(null)
+  const [exportError, setExportError] = useState('')
   const wrapRef = useRef<HTMLDivElement>(null)
 
   // 外部点击 / Esc 关闭
@@ -51,6 +52,7 @@ export function ExportMenu({ session }: ExportMenuProps) {
   async function runExport(kind: FormatKey) {
     if (busy) return
     setBusy(kind)
+    setExportError('')
     try {
       const safeName = session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')
       let content: string | null = null
@@ -68,6 +70,8 @@ export function ExportMenu({ session }: ExportMenuProps) {
       if (!content) return
       await window.Memora.saveFileDialog({ defaultName: `${safeName}.${ext}`, content })
       setOpen(false)
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(null)
     }
@@ -144,6 +148,12 @@ export function ExportMenu({ session }: ExportMenuProps) {
               跨平台迁移：将导出的 .jsonl 放入目标软件本地目录，重启后即出现在其历史中
             </div>
           </div>
+
+          {exportError && (
+            <div className="export-hint" style={{ color: '#dc2626' }}>
+              导出失败：{exportError}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -96,10 +96,14 @@ export function previewFile(filePath: string): ScanPreview {
     } else {
       // 大文件：只读头部做 detect，不 parse（保护隐私 + 性能）
       const fd = openSync(filePath, 'r')
-      const buf = Buffer.alloc(HEAD_BYTES)
-      const bytes = readSync(fd, buf, 0, HEAD_BYTES, 0)
-      closeSync(fd)
-      content = buf.slice(0, bytes).toString('utf-8')
+      try {
+        const buf = Buffer.alloc(HEAD_BYTES)
+        const bytes = readSync(fd, buf, 0, HEAD_BYTES, 0)
+        content = buf.slice(0, bytes).toString('utf-8')
+      } finally {
+        // 确保 fd 必定关闭，即使 readSync 抛错也不泄漏文件描述符
+        closeSync(fd)
+      }
     }
 
     const importer = detectImporter(fileName, content)

@@ -95,8 +95,12 @@ export function countSessionEmbeddings(sessionId: string): number {
   return row?.n ?? 0
 }
 
-/** BLOB buffer → number[]（Float32Array 二进制还原） */
+/** BLOB buffer → number[]（Float32Array 二进制还原）。损坏的 buffer 返回空数组。 */
 function bufferToNumbers(buf: Buffer): number[] {
+  // 校验字节长度是 4 的整数倍，否则 Float32Array 构造器抛 RangeError
+  if (buf.byteLength === 0 || buf.byteLength % 4 !== 0) {
+    return []
+  }
   const arr = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4)
   return Array.from(arr)
 }

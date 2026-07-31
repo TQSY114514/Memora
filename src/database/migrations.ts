@@ -97,7 +97,14 @@ function migrateEmbeddingsToBlob(db: Database.Database): void {
     )
     const tx = db.transaction(() => {
       for (const r of rows) {
-        const vec = JSON.parse(r.embedding) as number[]
+        // 损坏的 embedding JSON 跳过，避免单条坏数据阻塞整个迁移导致应用无法启动
+        let vec: number[]
+        try {
+          vec = JSON.parse(r.embedding) as number[]
+          if (!Array.isArray(vec) || vec.length === 0) continue
+        } catch {
+          continue
+        }
         const buf = Buffer.from(new Float32Array(vec).buffer)
         insert.run(r.id, r.message_id, r.session_id, buf, r.model, r.dim, r.created_at)
       }
@@ -214,8 +221,15 @@ function backfillKnowledgeEntries(db: Database.Database): void {
       const wsId = sessionWsMap.get(sum.session_id)
       if (!wsId) continue // 无工作区的跳过（避免 NOT NULL 约束失败）
 
-      const keyPoints: string[] = sum.key_points ? (JSON.parse(sum.key_points) as string[]) : []
-      const todos: string[] = sum.todos ? (JSON.parse(sum.todos) as string[]) : []
+      // 损坏的 JSON 跳过该 summary，避免单条坏数据阻塞迁移
+      let keyPoints: string[] = []
+      let todos: string[] = []
+      try {
+        keyPoints = sum.key_points ? (JSON.parse(sum.key_points) as string[]) : []
+        todos = sum.todos ? (JSON.parse(sum.todos) as string[]) : []
+      } catch {
+        continue
+      }
 
       keyPoints.forEach((kp, idx) => {
         const title = kp.slice(0, 120)
