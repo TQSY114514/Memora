@@ -38,8 +38,9 @@ function isRetryableStatus(status: number): boolean {
 
 /** 可重试的网络错误关键词 */
 function isRetryableError(err: unknown): boolean {
+  if (err instanceof Error && err.name === 'AbortError') return true
   const msg = err instanceof Error ? err.message : String(err)
-  return /ECONNRESET|ETIMEDOUT|ENOTFOUND|fetch failed|network|socket/i.test(msg)
+  return /ECONNRESET|ETIMEDOUT|ENOTFOUND|fetch failed|network|socket|aborted/i.test(msg)
 }
 
 function sleep(ms: number): Promise<void> {
@@ -58,7 +59,6 @@ async function fetchWithRetry(
 ): Promise<Response> {
   const { retries = DEFAULT_RETRIES, timeout = DEFAULT_TIMEOUT } = options
 
-  let lastError: unknown
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController()
@@ -78,7 +78,6 @@ async function fetchWithRetry(
       }
       return resp
     } catch (err) {
-      lastError = err
       // 网络错误：等待后重试
       if (isRetryableError(err) && attempt < retries) {
         await sleep(RETRY_BASE_DELAY * Math.pow(2, attempt))
@@ -87,7 +86,8 @@ async function fetchWithRetry(
       throw err
     }
   }
-  throw lastError
+  // 理论上不可达（所有路径要么 return 要么 throw），作为安全兜底
+  throw new Error('fetchWithRetry: unexpected end of loop')
 }
 
 /** 从响应中提取错误信息（兼容各协议） */
@@ -96,14 +96,14 @@ async function extractError(resp: Response): Promise<string> {
   if (!txt) return `${resp.status} ${resp.statusText}`
   try {
     const json = JSON.parse(txt)
-    // OpenAI / DeepSeek 风格
+    // OpenAI / DeepSeek / Gemini 风格（error.message）
     if (json.error?.message) return `${resp.status}: ${json.error.message}`
-    // Anthropic 风格
+    // Anthropic 风格（error.type + error.message）
     if (json.error?.type) return `${resp.status}: ${json.error.type} - ${json.error.message ?? ''}`
-    // Gemini 风格
-    if (json.error?.message) return `${resp.status}: ${json.error.message}`
-    // Ollama 风格
-    if (json.error) return `${resp.status}: ${json.error}`
+    // Ollama 风格（error 为字符串）
+    if (typeof json.error === 'string') return `${resp.status}: ${json.error}`
+    // 兜底：error 为对象
+    if (json.error) return `${resp.status}: ${JSON.stringify(json.error)}`
   } catch {
     // 非 JSON，返回截断文本
   }
@@ -357,16 +357,6 @@ async function embedOpenaiCompatible(
   })
 }
 
-/** Anthropic 原生协议下 embedding：Anthropic 暂不提供官方 embedding，尝试 OpenAI 兼容端点 */
-async function embedAnthropicFallback(
-  config: AiConfig,
-  inputs: string[]
-): Promise<number[][]> {
-  // Anthropic 官方无 embedding API，用户需配置第三方 embedding 端点
-  // 这里复用 OpenAI 兼容协议（部分用户会用 OpenAI embedding 配合 Claude chat）
-  return embedOpenaiCompatible(config, inputs)
-}
-
 /** Ollama embeddings（单条） */
 async function embedOllama(config: AiConfig, text: string): Promise<number[]> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/api/embeddings`
@@ -408,6 +398,3 @@ async function embedGemini(config: AiConfig, text: string): Promise<number[]> {
   if (!vec || vec.length === 0) throw new Error('Gemini 返回空向量')
   return vec
 }
-
-/** 兼容 Anthropic 协议的批量 embedding（保留导出供 embedBatch 内部分流使用） */
-export { embedAnthropicFallback }

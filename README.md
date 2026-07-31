@@ -10,7 +10,7 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.0.1-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.2.0-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -162,6 +162,27 @@ Workspace（工作区）
 
 **相关讨论推荐**：基于会话向量质心，自动推荐与当前对话相关的其他讨论。
 
+### Knowledge Vault 知识库（v1.1）
+
+把决策、任务、知识从对话蒸馏的 JSON 数组提升为**一等公民实体**，可独立查询、关联、复用：
+
+- **三类实体**：知识（knowledge）/ 决策（decision）/ 任务（task）
+- **独立管理**：新建 / 编辑 / 删除 / 搜索，不依赖对话
+- **任务勾选**：卡片内一键切换完成状态，已完成自动半透明 + 删除线
+- **决策追踪**：状态标记（生效中 / 已废弃）
+- **FTS 搜索**：知识条目专用全文索引（中文分词）
+- **轻量 Memory Graph**：关系类型（supports / contradicts / derived-from / relates-to）
+- **「提炼到知识库」按钮**：在对话蒸馏工具栏，一键把当前对话提炼为知识库条目（幂等）
+
+### 后台静默导入（v1.1）
+
+后台定时轮询已安装的 AI 应用（Cursor / Claude Code / OpenCode / Windsurf / Cline），自动检测新增对话并导入：
+
+- 可配置轮询间隔（默认 30 分钟）、目标文件夹、启用的应用
+- 启动时自动执行一次
+- 右下角浮动进度指示器，非阻塞
+- 幂等去重：基于 sourceId 避免重复导入
+
 ### 主题系统与个性化
 
 - **深色 / 浅色 / 跟随系统**三种主题模式
@@ -169,17 +190,20 @@ Workspace（工作区）
 - **模糊度与不透明度**调节：让背景图与界面和谐共存
 - **多语言支持**：简体中文 / English / 日本語
 
-### 多供应商 AI 配置
+### 无限供应商 + 多协议 AI 配置（v1.2）
 
-每个供应商独立配置，互不干扰：
+支持无限添加 AI 供应商，每个供应商独立选择 API 协议风格，配置完全隔离：
 
-| 供应商 | Chat | Embeddings | 说明 |
-|--------|:----:|:----------:|------|
-| OpenAI | ✅ | ✅ | 官方接口 |
-| DeepSeek | ✅ | — | 对话可用，语义搜索需另配 |
-| 自定义 | ✅ | ✅ | 任何 OpenAI 兼容接口 |
+| 协议风格 | Chat | Embeddings | 鉴权方式 | 适用平台 |
+|----------|:----:|:----------:|----------|-----|
+| **OpenAI 兼容** | ✅ | ✅ | Bearer Token | OpenAI / DeepSeek / SiliconFlow / Kimi / 通义千问 / 大多数第三方 |
+| **Anthropic 原生** | ✅ | 第三方 | x-api-key | Claude 官方 API |
+| **Ollama 本地** | ✅ | ✅ | 无需鉴权 | 本地部署的 Ollama |
+| **Google Gemini** | ✅ | ✅ | URL Key | Google AI Studio |
 
-配置仅保存在本地 localStorage，不会上传。测试连接通过 main 进程代理（避免 CORS 限制）。
+- 每个供应商可独立重命名、删除、切换协议
+- 配置仅保存在本地，apiKey 加密存储（safeStorage）
+- 测试连接通过 main 进程代理，同时验证 chat + embeddings 接口
 
 ### MCP Server
 
@@ -196,7 +220,7 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 }
 ```
 
-暴露 10 个工具：
+暴露 13 个工具：
 
 | 工具 | 用途 |
 |------|------|
@@ -209,7 +233,10 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 | `add_session` | 创建新对话 |
 | `add_message` | 追加消息 |
 | `memory_recall` | **语义召回**：让 AI 查询「我以前有没有讨论过 X」 |
-| `memory_write` | **知识沉淀**：让 AI 自动保存重要决定/经验 |
+| `memory_write` | **知识沉淀**：让 AI 自动保存重要决定/经验到知识库 |
+| `knowledge_search` | **知识搜索**：FTS 搜索知识/决策/任务条目 |
+| `decision_search` | **决策搜索**：专搜架构决策 |
+| `project_context` | **项目上下文**：组装近期决策 + 未完成任务 + 核心知识 |
 
 `memory_recall` 和 `memory_write` 让 Memora 从「对话管理器」升级为真正的 **AI Memory 层**——AI Agent 可主动召回历史知识、沉淀新知识。
 
@@ -284,14 +311,15 @@ npm run mcp
 
 ## 配置 AI
 
-在使用记忆蒸馏、语义搜索、Project Memory 之前，需要配置 OpenAI 兼容的 API：
+在使用记忆蒸馏、语义搜索、Project Memory 之前，需要配置 AI 供应商：
 
 1. 启动 Memora，点击侧边栏「⚙ 设置」→ AI 配置
-2. 选择供应商（OpenAI / DeepSeek / 自定义），各供应商独立配置
-3. 填入 API Base URL、API Key、对话模型、嵌入模型、向量维度
-4. 点击「测试连接」验证配置
+2. 点击「+ 新增供应商」添加任意数量的 AI 供应商
+3. 每个供应商独立选择 API 协议风格（OpenAI 兼容 / Anthropic / Ollama / Gemini）
+4. 填入 API Base URL、API Key（Ollama 无需）、对话模型、嵌入模型、向量维度
+5. 点击「测试连接」验证配置（同时验证 chat + embeddings）
 
-配置仅保存在本地 localStorage，不会上传。支持 OpenAI、DeepSeek 及任何 OpenAI 兼容接口。
+配置仅保存在本地，apiKey 加密存储。支持 OpenAI、DeepSeek、SiliconFlow、Kimi、通义千问、Claude、Ollama、Gemini 及任何兼容接口。
 
 ## 项目架构
 
@@ -402,6 +430,10 @@ memora/
 - [ ] 浏览器插件（一键采集网页对话）
 - [ ] Cursor / VSCode 插件（IDE 内查看项目记忆）
 - [ ] 协作 Workspace（团队共享）
+
+## 变更日志
+
+详见 [CHANGELOG.md](CHANGELOG.md) — 基于 Keep a Changelog 格式，记录所有重要变更。
 
 ## 核心原则
 
