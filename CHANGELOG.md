@@ -2,6 +2,20 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-07-31
+
+### Security
+
+- **Electron 沙箱模式**：渲染进程启用 `sandbox: true`，禁止直接访问 Node API
+- **Content-Security-Policy**：设置 CSP 头限制资源加载（仅同源 + data: URI）
+- **全局异常处理器**：注册 `unhandledRejection` / `uncaughtException` 防止进程静默崩溃
+- **SnippetRenderer 安全组件**：替换 `dangerouslySetInnerHTML` 为安全的 React 组件解析 `<mark>` 标签
+
+### Docs
+
+- **README AI 项目声明**：坦诚声明 90%+ 代码由 AI 生成，未经人工安全审计
+- **README 安全披露章节**：列出已知漏洞及修复状态，引导安全研究者私下报告
+
 ## [1.3.0] - 2026-07-31
 
 聚焦「知识图谱可视化 + 安全加固 + 性能维护」：新增知识库图谱视图（纯 SVG 0 依赖），导入时自动脱敏 API Key/Token，数据库退出时自动 WAL 检查点，首页空状态引导。
