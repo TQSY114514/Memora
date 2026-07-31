@@ -1,43 +1,7 @@
 <div align="center">
 
-<!-- Hero：书架 M 品牌视觉，GitHub-safe inline SVG -->
-<svg width="560" height="180" viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Memora">
-  <defs>
-    <linearGradient id="heroOrange" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F97316"/>
-      <stop offset="100%" stop-color="#EA580C"/>
-    </linearGradient>
-    <linearGradient id="heroYellow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FBBF24"/>
-      <stop offset="100%" stop-color="#F59E0B"/>
-    </linearGradient>
-    <filter id="heroShadow" x="-10%" y="-10%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#EA580C" flood-opacity="0.22"/>
-    </filter>
-  </defs>
-
-  <!-- Logo 标记（书架 M，左侧） -->
-  <g transform="translate(36, 28) scale(0.85)">
-    <rect x="44" y="40" width="32" height="160" rx="8" fill="url(#heroOrange)" filter="url(#heroShadow)"/>
-    <rect x="180" y="40" width="32" height="160" rx="8" fill="url(#heroOrange)" filter="url(#heroShadow)"/>
-    <line x1="60" y1="40" x2="128" y2="100" stroke="url(#heroYellow)" stroke-width="22" stroke-linecap="round"/>
-    <line x1="196" y1="40" x2="128" y2="100" stroke="url(#heroYellow)" stroke-width="22" stroke-linecap="round"/>
-    <line x1="76" y1="78" x2="180" y2="78" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
-    <line x1="76" y1="128" x2="180" y2="128" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
-    <line x1="76" y1="178" x2="180" y2="178" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
-    <circle cx="128" cy="128" r="16" fill="#ffffff" filter="url(#heroShadow)"/>
-    <circle cx="128" cy="128" r="7" fill="#EA580C"/>
-    <line x1="140" y1="140" x2="154" y2="154" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
-  </g>
-
-  <!-- 标题 -->
-  <text x="300" y="78" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="44" font-weight="800" letter-spacing="3" fill="url(#heroOrange)">Memora</text>
-  <text x="300" y="108" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="15" font-weight="500" letter-spacing="4" fill="#F59E0B" opacity="0.8">AI MEMORY WORKSPACE</text>
-  <text x="300" y="132" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="12" font-weight="400" letter-spacing="2" fill="#D97706" opacity="0.6">Unified · Searchable · Local-first</text>
-</svg>
+<!-- Hero：书架 M 品牌视觉 -->
+<img src="assets/banner.svg" width="560" alt="Memora - AI Memory Workspace"/>
 
 <p>
   <strong>Local-First 的 AI 记忆工作台</strong><br/>
