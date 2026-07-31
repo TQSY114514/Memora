@@ -15,6 +15,8 @@ import type {
   ScanResult,
   DetectedApp,
   DashboardStats,
+  BackupData,
+  DashboardStats,
   ExtractedSession
 } from '../shared/types'
 
@@ -221,6 +223,11 @@ const api = {
   // ===== Dashboard 统计 =====
   stats: {
     get: (): Promise<DashboardStats> => ipcRenderer.invoke(IPC.STATS_GET)
+  },
+  // ===== 数据备份与恢复 =====
+  backup: {
+    export: (): Promise<BackupData> => ipcRenderer.invoke(IPC.BACKUP_EXPORT),
+    import: (data: BackupData): Promise<{ restored: number }> => ipcRenderer.invoke(IPC.BACKUP_IMPORT, data)
   }
 }
 

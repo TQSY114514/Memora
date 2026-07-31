@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
@@ -19,6 +19,7 @@ export default function App() {
   const [showImportCenter, setShowImportCenter] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const ensured = useRef(false)
   useEffect(() => {
     if (ensured.current) return
@@ -33,6 +34,22 @@ export default function App() {
       }
     }
     ensureDefaultWorkspace().catch(console.error)
+  }, [])
+
+  // 全局快捷键：Ctrl/Cmd+K 聚焦搜索框
+  useEffect(() => {
+    function onKeydown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        const input = searchInputRef.current
+        if (input) {
+          input.focus()
+          input.select()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeydown)
+    return () => window.removeEventListener('keydown', onKeydown)
   }, [])
 
   useEffect(() => {
@@ -88,6 +105,7 @@ export default function App() {
       )}
       <div className={`relative ${backgroundImage ? 'z-10' : ''} flex h-full w-full`}>
       <Sidebar
+        searchInputRef={searchInputRef}
         onOpenAiSettings={() => setShowAiSettings(true)}
         onOpenMemory={() => setShowMemoryPanel(true)}
         onOpenImportCenter={() => setShowImportCenter(true)}

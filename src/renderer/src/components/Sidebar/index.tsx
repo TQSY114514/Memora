@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { useT } from '../../i18n'
 import { useDialog, PromptDialog } from '../PromptDialog'
+import { PROVIDER_META } from '@shared/constants'
 import type { Folder } from '@shared/types'
 
 interface SidebarProps {
+  searchInputRef: React.RefObject<HTMLInputElement>
   onOpenAiSettings: () => void
   onOpenMemory: () => void
   onOpenImportCenter: () => void
   onOpenSettings: () => void
 }
 
-export function Sidebar({ onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings }: SidebarProps) {
+export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings }: SidebarProps) {
   const {
     workspaces,
     activeWorkspaceId,
@@ -165,7 +167,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory, onOpenImportCenter, on
       </div>
 
       {/* 搜索框 */}
-      <SearchBox onOpenAiSettings={onOpenAiSettings} />
+      <SearchBox searchInputRef={searchInputRef} onOpenAiSettings={onOpenAiSettings} />
 
       {/* 工作区列表 */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
@@ -300,8 +302,8 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory, onOpenImportCenter, on
   )
 }
 
-function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
-  const { setSearch, clearSearch, setSessions } = useStore()
+function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React.RefObject<HTMLInputElement>; onOpenAiSettings: () => void }) {
+  const { setSearch, clearSearch, setSessions, searchProvider, setSearchProvider } = useStore()
   const { config } = useAiConfigStore()
   const t = useT()
   const [query, setQuery] = useState('')
@@ -337,7 +339,7 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
         setSearch(q, null)
         setSessions(results.map((r) => r.session))
       } else {
-        const results = await window.Memora.search(q)
+        const results = await window.Memora.search(q, { provider: searchProvider ?? undefined })
         setSearch(q, results)
         setSessions(results.map((r) => r.session))
       }
@@ -361,6 +363,7 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
     <div className="px-3 py-2 border-b border-border">
       <div className="relative">
         <input
+          ref={searchInputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -391,6 +394,29 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
             {searchError}
           </span>
         )}
+      </div>
+      {/* 平台过滤 */}
+      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+        <button
+          onClick={() => setSearchProvider(null)}
+          className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+            searchProvider === null ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+          }`}
+        >
+          全部
+        </button>
+        {Object.entries(PROVIDER_META).filter(([k]) => k !== 'Unknown' && k !== 'Markdown' && k !== 'JSON' && k !== 'HTML').map(([key, meta]) => (
+          <button
+            key={key}
+            onClick={() => setSearchProvider(searchProvider === key ? null : key)}
+            className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+              searchProvider === key ? 'text-white' : 'hover:bg-bg-hover'
+            }`}
+            style={searchProvider === key ? { backgroundColor: meta.color } : { color: meta.color }}
+          >
+            {meta.label}
+          </button>
+        ))}
       </div>
     </div>
   )

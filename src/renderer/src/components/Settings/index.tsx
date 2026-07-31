@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useT, useI18nStore, LANGUAGES } from '../../i18n'
 import { useThemeStore } from '../../stores/themeStore'
 
@@ -33,6 +34,52 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
         setBackgroundImage(reader.result as string)
       }
       reader.readAsDataURL(file)
+    }
+    input.click()
+  }
+
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [backupMsg, setBackupMsg] = useState<string | null>(null)
+
+  async function handleExportBackup() {
+    setBackupLoading(true)
+    setBackupMsg(null)
+    try {
+      const data = await window.Memora.backup.export()
+      const json = JSON.stringify(data, null, 2)
+      const date = new Date().toISOString().slice(0, 10)
+      await window.Memora.saveFileDialog({
+        defaultName: `memora-backup-${date}.json`,
+        content: json
+      })
+      setBackupMsg('✓ 备份已导出')
+    } catch (e) {
+      setBackupMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setBackupLoading(false)
+    }
+  }
+
+  async function handleImportBackup() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      if (!confirm('恢复将覆盖当前所有数据，确定继续？')) return
+      setBackupLoading(true)
+      setBackupMsg(null)
+      try {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        const result = await window.Memora.backup.import(data)
+        setBackupMsg(`✓ 已恢复 ${result.restored} 个对话，请重启应用`)
+      } catch (e) {
+        setBackupMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
+      } finally {
+        setBackupLoading(false)
+      }
     }
     input.click()
   }
@@ -171,6 +218,35 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             >
               {t('settings.aiConfigBtn')}
             </button>
+          </div>
+
+          {/* 数据备份与恢复 */}
+          <div>
+            <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+              数据备份与恢复
+            </label>
+            <p className="text-[11px] text-fg-muted mb-2.5">导出全部数据为 JSON 文件，或从备份恢复（会覆盖当前数据）。</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportBackup}
+                disabled={backupLoading}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                {backupLoading ? '⏳ 处理中…' : '⬇ 导出备份'}
+              </button>
+              <button
+                onClick={handleImportBackup}
+                disabled={backupLoading}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                ⬆ 恢复备份
+              </button>
+            </div>
+            {backupMsg && (
+              <p className={`text-xs mt-2 ${backupMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+                {backupMsg}
+              </p>
+            )}
           </div>
         </div>
 

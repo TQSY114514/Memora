@@ -87,6 +87,8 @@ export const IPC = {
   DIALOG_OPEN_FILE: 'dialog:open-file',
   DIALOG_SAVE_FILE: 'dialog:save-file',
   STATS_GET: 'stats:get',
+  BACKUP_EXPORT: 'backup:export',
+  BACKUP_IMPORT: 'backup:import',
   APP_GET_DATA_DIR: 'app:get-data-dir'
 } as const
 

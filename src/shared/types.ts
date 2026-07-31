@@ -156,6 +156,20 @@ export interface DashboardStats {
   recentSessions: ChatSession[]
 }
 
+/** 备份数据（完整数据库导出） */
+export interface BackupData {
+  version: number
+  exportedAt: string
+  workspaces: any[]
+  folders: any[]
+  sessions: any[]
+  messages: any[]
+  tags: any[]
+  sessionTags: any[]
+  summaries: any[]
+}
+
+
 
 /** 导入结果 */
 export interface ImportResult {

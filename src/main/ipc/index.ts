@@ -408,4 +408,57 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  // ===== 数据备份与恢复 =====
+  ipcMain.handle(IPC.BACKUP_EXPORT, async () => {
+    const db = getDatabase()
+    const workspaces = db.prepare('SELECT * FROM workspaces').all()
+    const folders = db.prepare('SELECT * FROM folders').all()
+    const sessions = db.prepare('SELECT * FROM chat_sessions').all()
+    const messages = db.prepare('SELECT * FROM messages').all()
+    const tags = db.prepare('SELECT * FROM tags').all()
+    const sessionTags = db.prepare('SELECT * FROM session_tags').all()
+    const summaries = db.prepare('SELECT * FROM session_summaries').all()
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      workspaces, folders, sessions, messages, tags, sessionTags, summaries
+    }
+  })
+
+  ipcMain.handle(IPC.BACKUP_IMPORT, async (_event, data: any) => {
+    if (!data || !data.workspaces || !data.sessions) {
+      throw new Error('无效的备份文件')
+    }
+    const db = getDatabase()
+    const tx = db.transaction(() => {
+      // 清空现有数据（按依赖顺序）
+      db.prepare('DELETE FROM session_summaries').run()
+      db.prepare('DELETE FROM message_embeddings').run()
+      db.prepare('DELETE FROM session_tags').run()
+      db.prepare('DELETE FROM messages').run()
+      db.prepare('DELETE FROM chat_sessions').run()
+      db.prepare('DELETE FROM tags').run()
+      db.prepare('DELETE FROM folders').run()
+      db.prepare('DELETE FROM workspaces').run()
+
+      // 按依赖顺序恢复
+      const insertRow = (table: string, row: any) => {
+        const cols = Object.keys(row)
+        const placeholders = cols.map(() => '?').join(',')
+        db.prepare(`INSERT INTO ${table} (${cols.join(',')}) VALUES (${placeholders})`).run(...cols.map(c => row[c]))
+      }
+
+      for (const ws of data.workspaces) insertRow('workspaces', ws)
+      for (const f of (data.folders || [])) insertRow('folders', f)
+      for (const t of (data.tags || [])) insertRow('tags', t)
+      for (const s of data.sessions) insertRow('chat_sessions', s)
+      for (const m of (data.messages || [])) insertRow('messages', m)
+      for (const st of (data.sessionTags || [])) insertRow('session_tags', st)
+      for (const su of (data.summaries || [])) insertRow('session_summaries', su)
+    })
+    tx()
+    return { restored: data.sessions.length }
+  })
+
+
 }

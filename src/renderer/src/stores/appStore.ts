@@ -37,6 +37,7 @@ interface AppState {
   searchQuery: string
   searchResults: import('@shared/types').SearchResult[] | null
   isSearchMode: boolean
+  searchProvider: string | null  // 搜索时按平台过滤（null=全部）
 
   // UI 状态
   loading: boolean
@@ -55,6 +56,7 @@ interface AppState {
   setActiveSessionData: (s: ChatSession | null) => void
   setSearch: (query: string, results: import('@shared/types').SearchResult[] | null) => void
   clearSearch: () => void
+  setSearchProvider: (p: string | null) => void
   setLoading: (v: boolean) => void
   setError: (e: string | null) => void
   togglePin: (id: string) => void
@@ -72,6 +74,7 @@ export const useStore = create<AppState>((set, get) => ({
   searchQuery: '',
   searchResults: null,
   isSearchMode: false,
+  searchProvider: null,
   loading: false,
   error: null,
   pinnedIds: loadPinnedIds(),
@@ -86,7 +89,8 @@ export const useStore = create<AppState>((set, get) => ({
   setSearch: (query, results) =>
     set({ searchQuery: query, searchResults: results, isSearchMode: !!query }),
   clearSearch: () =>
-    set({ searchQuery: '', searchResults: null, isSearchMode: false }),
+    set({ searchQuery: '', searchResults: null, isSearchMode: false, searchProvider: null }),
+  setSearchProvider: (p) => set({ searchProvider: p }),
   setLoading: (v) => set({ loading: v }),
   setError: (e) => set({ error: e }),
   togglePin: (id) => {
