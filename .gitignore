@@ -17,3 +17,6 @@ aether.db-shm
 
 # TypeScript 构建缓存
 *.tsbuildinfo
+\
+# 打包输出
+dist/\

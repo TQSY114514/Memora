@@ -1,5 +1,5 @@
-﻿import { ipcMain, dialog, app } from 'electron'
-import { writeFileSync } from 'fs'
+import { ipcMain, dialog, app } from 'electron'
+import { writeFileSync, existsSync } from 'fs'
 import { basename } from 'path'
 import { IPC } from '@shared/constants'
 import {
@@ -31,7 +31,10 @@ import {
   getSummary,
   deleteSummary
 } from '@db/repositories'
-import { importFile, importDirectory, importContent } from '@importer/service'
+import { importFile, importDirectory, importContent, importExtractedSessions } from '@importer/service'
+import { scanDirectories } from '@importer/scanner'
+import { detectInstalledApps } from '@importer/appDetector'
+import { extractLocal } from '@importer/localExtractor'
 import { search } from '@search/query'
 import { semanticSearch } from '@search/semantic'
 import { renderSessionToHtml } from '@sharing'
@@ -39,6 +42,15 @@ import { generateSummary, getSessionSummary, generateKnowledgeMd } from '@ai/sum
 import { embedSession, getEmbedStatus } from '@ai/embedder'
 import { askProjectMemory, findRelatedSessions } from '@ai/projectMemory'
 import type { AiConfig, ChatSession } from '@shared/types'
+
+/** 安全获取 Electron 系统目录（目录不存在时返回 null） */
+function safeGetPath(name: 'downloads' | 'documents' | 'desktop'): string | null {
+  try {
+    return app.getPath(name)
+  } catch {
+    return null
+  }
+}
 
 export function registerIpcHandlers(): void {
   // ===== 系统 =====
@@ -151,6 +163,49 @@ export function registerIpcHandlers(): void {
     (_e, dirPath: string, options?: { folderId?: string }) => importDirectory(dirPath, options)
   )
 
+  // ===== 扫描器（智能导入中心） =====
+  // 安全：默认仅扫描 Downloads / Documents / Desktop，且由用户主动触发
+  ipcMain.handle(IPC.SCANNER_GET_DEFAULT_DIRS, () => {
+    const candidates = [
+      safeGetPath('downloads'),
+      safeGetPath('documents'),
+      safeGetPath('desktop')
+    ].filter((p): p is string => !!p)
+    const uniq = Array.from(new Set(candidates))
+    return uniq.filter((p) => {
+      try {
+        return existsSync(p)
+      } catch {
+        return false
+      }
+    })
+  })
+
+  ipcMain.handle(
+    IPC.SCANNER_SCAN,
+    (_e, dirs: string[], options?: { maxDepth?: number; maxFiles?: number }) => {
+      return scanDirectories(dirs, options)
+    }
+  )
+
+  // ===== AI 应用检测 + 本地扒取 =====
+  ipcMain.handle(IPC.DETECT_APPS, () => detectInstalledApps())
+
+  ipcMain.handle(
+    IPC.EXTRACT_APP,
+    (_e, provider: string, dataPath: string, options?: { maxSessions?: number }) => {
+      return extractLocal(provider as any, dataPath, options)
+    }
+  )
+
+  // 导入已扒取的对话（内存中，可编辑标题/来源）
+  ipcMain.handle(
+    IPC.IMPORT_EXTRACTED,
+    (_e, sessions: any[], options?: { folderId?: string }) => {
+      return importExtractedSessions(sessions, options)
+    }
+  )
+
   // ===== Search =====
   ipcMain.handle(IPC.SEARCH_QUERY, (_e, query: string, options?: { provider?: string; limit?: number }) =>
     search(query, options)
@@ -257,4 +312,76 @@ export function registerIpcHandlers(): void {
       return findRelatedSessions(sessionId, options)
     }
   )
+
+  // AI 连接测试（通过 main 进程，避免 CORS）
+  // 同时测 chat 和 embeddings，只要一个成功就算可用
+  ipcMain.handle(IPC.TEST_AI_CONNECTION, async (_e, config) => {
+    const { baseUrl, apiKey, chatModel, embeddingModel } = config
+    const base = baseUrl.replace(/\/$/, '')
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    }
+
+    // 1. 测 chat 接口（必测）
+    let chatOk = false
+    let chatError = ''
+    try {
+      const resp = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: chatModel,
+          messages: [{ role: 'user', content: 'hi' }],
+          max_tokens: 5
+        })
+      })
+      if (resp.ok) {
+        chatOk = true
+      } else {
+        const txt = await resp.text()
+        chatError = `chat ${resp.status}: ${txt.slice(0, 150)}`
+      }
+    } catch (e) {
+      chatError = e instanceof Error ? e.message : String(e)
+    }
+
+    // 2. 测 embeddings 接口（可选，不支持也不算失败）
+    let embeddingOk = false
+    let embeddingDim = 0
+    let embeddingError = ''
+    try {
+      const resp = await fetch(`${base}/embeddings`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model: embeddingModel, input: ['test'] })
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        embeddingDim = data.data?.[0]?.embedding?.length ?? 0
+        if (embeddingDim > 0) embeddingOk = true
+      } else {
+        const txt = await resp.text()
+        embeddingError = `embeddings ${resp.status}: ${txt.slice(0, 150)}`
+      }
+    } catch (e) {
+      embeddingError = e instanceof Error ? e.message : String(e)
+    }
+
+    // chat 成功就算配置可用
+    if (chatOk) {
+      const msg = embeddingOk
+        ? `连接成功（chat ✓, embeddings ✓ 维度 ${embeddingDim}）`
+        : `对话连接成功 ✓（embeddings 不可用：${embeddingError}，语义搜索将无法使用）`
+      return { ok: true, dim: embeddingDim, error: undefined, message: msg }
+    }
+
+    // chat 失败
+    return {
+      ok: false,
+      error: `对话接口失败：${chatError}${embeddingError ? '；embeddings 也失败：' + embeddingError : ''}`,
+      dim: 0,
+      message: undefined
+    }
+  })
 }

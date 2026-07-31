@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Memora 统一数据模型
  * 跨平台 AI 对话的抽象层，所有 importer 输出、database 存储、UI 展示都基于此模型
  */
@@ -16,6 +16,7 @@ export type Provider =
   | 'ClaudeCode'
   | 'Codex'
   | 'OpenCode'
+  | 'TRAE'
   | 'AIStudio'
   | 'Markdown'
   | 'JSON'
@@ -158,8 +159,65 @@ export interface ImportResult {
   sessionIds: string[]
 }
 
+/** 检测到的 AI 应用（仅检测安装状态，不读取内容） */
+export interface DetectedApp {
+  provider: Provider
+  name: string
+  installed: boolean
+  installPath?: string
+  /** 本地数据路径（可扒取时提供，如 Cursor 的 state.vscdb） */
+  dataPath?: string
+  /** 是否支持本地直接扒取 */
+  canExtract: boolean
+  /** 不可扒取时的引导提示（如"请从网页端导出"） */
+  hint?: string
+}
+
+/** 已扒取的对话（可编辑标题/来源后再导入） */
+export interface ExtractedSession {
+  id: string              // 临时 ID（仅扒取阶段使用）
+  provider: Provider
+  title: string           // 可编辑
+  source: string          // 来源标注（可编辑，如 "Cursor 本地扒取" / "Claude Code · projectA"）
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+  /** 完整消息列表（导入时使用） */
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system' | 'tool'
+    content: string
+    model?: string
+    createdAt: string
+  }>
+}
+
 /** 导入来源类型 */
 export type ImportSource = 'file' | 'directory' | 'clipboard' | 'share-link'
+
+/** 扫描预览：单个候选文件的信息（不读取完整内容，保护隐私） */
+export interface ScanPreview {
+  filePath: string
+  fileName: string
+  sizeBytes: number
+  ext: string
+  /** 识别出的 AI 平台；'Unknown' 表示未识别 */
+  provider: Provider | 'Unknown'
+  /** 预估对话数；null 表示文件过大未做完整解析 */
+  estimatedSessions: number | null
+  mtime: string
+}
+
+/** 扫描结果：单个根目录的扫描汇总 */
+export interface ScanResult {
+  root: string
+  files: ScanPreview[]
+  /** 已扫描的文件总数 */
+  scanned: number
+  /** 已跳过的文件数（不匹配类型/未识别） */
+  skipped: number
+  /** 是否因达到 maxFiles 上限而截断 */
+  truncated: boolean
+}
 
 /** AI 总结（Phase 2） */
 export interface SessionSummary {

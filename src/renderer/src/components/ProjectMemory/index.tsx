@@ -1,7 +1,7 @@
-﻿import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { useAiConfigStore, isAiConfigured } from '../../stores/aiConfigStore'
+import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, ProjectMemoryAnswer } from '@shared/types'
@@ -45,7 +45,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
     setQuestion('')
 
     try {
-      const result = await window.Memora.memory.ask(q, config, { topK: 8, threshold: 0.2 })
+      const result = await window.Memora.memory.ask(q, getActiveAiConfig(), { topK: 8, threshold: 0.2 })
       setAnswer(result)
       setHistory((h) => [result, ...h].slice(0, 20))
     } catch (err) {

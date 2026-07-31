@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useStore } from '../../stores/appStore'
-import { useAiConfigStore, isAiConfigured } from '../../stores/aiConfigStore'
+import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, Message, SessionSummary, RelatedSession } from '@shared/types'
 
@@ -89,7 +89,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setSummaryLoading(true)
     setSummaryError(null)
     try {
-      const result = await window.Memora.ai.generateSummary(session.id, config)
+      const result = await window.Memora.ai.generateSummary(session.id, getActiveAiConfig())
       setSummary(result)
       setShowSummary(true)
     } catch (e) {
@@ -108,7 +108,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setEmbedLoading(true)
     setEmbedError(null)
     try {
-      await window.Memora.ai.embedSession(session.id, config)
+      await window.Memora.ai.embedSession(session.id, getActiveAiConfig())
       const status = await window.Memora.ai.getEmbedStatus(session.id)
       setEmbedStatus(status)
     } catch (e) {

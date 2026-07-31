@@ -85,3 +85,12 @@ body {
 .Memora-input {
   @apply bg-bg-tertiary border border-border rounded-md px-3 py-1.5 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent transition-colors;
 }
+
+/* 有背景图片时，组件背景半透明，让背景图透过来 */
+.has-bg-image .bg-bg-primary { background-color: rgba(250, 250, 250, 0.75) !important; }
+.has-bg-image .bg-bg-secondary { background-color: rgba(244, 244, 245, 0.75) !important; }
+.has-bg-image .bg-bg-tertiary { background-color: rgba(255, 255, 255, 0.75) !important; }
+.dark .has-bg-image .bg-bg-primary { background-color: rgba(10, 10, 11, 0.75) !important; }
+.dark .has-bg-image .bg-bg-secondary { background-color: rgba(17, 17, 19, 0.75) !important; }
+.dark .has-bg-image .bg-bg-tertiary { background-color: rgba(24, 24, 27, 0.75) !important; }
+

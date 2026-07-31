@@ -1,20 +1,28 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
 import { AiSettings } from './components/AiSettings'
+import { ImportCenter } from './components/ImportCenter'
+import { Settings } from './components/Settings'
 import { ProjectMemoryPanel } from './components/ProjectMemory'
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
+import { useThemeStore } from './stores/themeStore'
 
 export default function App() {
   const { error } = useStore()
   const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
+  const { backgroundImage, blur, opacity } = useThemeStore()
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showMemoryPanel, setShowMemoryPanel] = useState(false)
+  const [showImportCenter, setShowImportCenter] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
-  // 初始化时确保有默认工作区
+  const ensured = useRef(false)
   useEffect(() => {
+    if (ensured.current) return
+    ensured.current = true
     async function ensureDefaultWorkspace() {
       const workspaces = await window.Memora.workspace.list()
       if (workspaces.length === 0) {
@@ -27,7 +35,6 @@ export default function App() {
     ensureDefaultWorkspace().catch(console.error)
   }, [])
 
-  // 全局拖拽导入监听
   useEffect(() => {
     function onDragOver(e: DragEvent) {
       if (e.dataTransfer?.types.includes('Files')) {
@@ -37,7 +44,6 @@ export default function App() {
       }
     }
     function onDragLeave(e: DragEvent) {
-      // 只有离开窗口才结束（relatedTarget 为 null）
       if (e.relatedTarget === null && isDragging) {
         endDrag()
       }
@@ -49,7 +55,6 @@ export default function App() {
       const files = Array.from(e.dataTransfer.files).map((f) => window.Memora.getPathForFile(f))
       runImport(files)
     }
-
     window.addEventListener('dragover', onDragOver)
     window.addEventListener('dragleave', onDragLeave)
     window.addEventListener('drop', onDrop)
@@ -69,10 +74,24 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-full w-full bg-bg-primary relative">
+    <div className={`flex h-full w-full bg-bg-primary relative ${backgroundImage ? 'has-bg-image' : ''}`}>
+      {/* 背景图片层 */}
+      {backgroundImage && (
+        <div
+          className="absolute inset-0 z-0 bg-cover bg-center pointer-events-none"
+          style={{
+            backgroundImage: `url(${backgroundImage})`,
+            filter: blur > 0 ? `blur(${blur}px)` : undefined,
+            opacity: opacity
+          }}
+        />
+      )}
+      <div className={`relative ${backgroundImage ? 'z-10' : ''} flex h-full w-full`}>
       <Sidebar
         onOpenAiSettings={() => setShowAiSettings(true)}
         onOpenMemory={() => setShowMemoryPanel(true)}
+        onOpenImportCenter={() => setShowImportCenter(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
       {showMemoryPanel ? (
         <ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} />
@@ -83,28 +102,32 @@ export default function App() {
         </>
       )}
 
-      {/* 拖拽遮罩 */}
       {isDragging && (
         <div className="absolute inset-0 z-50 bg-accent-muted backdrop-blur-sm flex items-center justify-center pointer-events-none">
           <div className="border-2 border-dashed border-accent rounded-2xl p-12 text-center bg-bg-primary/80">
             <div className="text-5xl mb-4">📥</div>
-            <p className="text-lg font-semibold text-fg-primary mb-1">
-              松开以导入
-            </p>
-            <p className="text-sm text-fg-muted">
-              支持 ChatGPT / Claude / DeepSeek / Kimi / 通义 / Markdown / JSON
-            </p>
+            <p className="text-lg font-semibold text-fg-primary mb-1">松开以导入</p>
+            <p className="text-sm text-fg-muted">支持 ChatGPT / Claude / DeepSeek / Kimi / 通义 / Markdown / JSON</p>
           </div>
         </div>
       )}
 
-      {/* 导入进度 */}
-      {dragFiles.length > 0 && (
-        <ImportProgress />
-      )}
+      {dragFiles.length > 0 && <ImportProgress />}
 
-      {/* AI 配置弹窗 */}
+      {showImportCenter && <ImportCenter onClose={() => setShowImportCenter(false)} />}
+
       {showAiSettings && <AiSettings onClose={() => setShowAiSettings(false)} />}
+
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onOpenAiSettings={() => {
+            setShowSettings(false)
+            setShowAiSettings(true)
+          }}
+        />
+      )}
+      </div>
     </div>
   )
 }
@@ -112,36 +135,22 @@ export default function App() {
 function ImportProgress() {
   const { dragFiles, clear } = useImportStore()
   const last = dragFiles[dragFiles.length - 1]
-
   return (
     <div className="absolute bottom-4 right-4 z-50 bg-bg-primary border border-border rounded-lg shadow-lg p-4 min-w-[300px]">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
         <span className="text-sm font-medium">导入中…</span>
       </div>
-      <p className="text-xs text-fg-muted mb-3 truncate">
-        {last?.file ?? '处理中'}
-      </p>
+      <p className="text-xs text-fg-muted mb-3 truncate">{last?.file ?? '处理中'}</p>
       {last?.result && (
         <div className="text-xs space-y-1">
           <p className="text-green-600">✓ 导入 {last.result.imported}</p>
-          {last.result.skipped > 0 && (
-            <p className="text-fg-muted">⊘ 跳过 {last.result.skipped}（重复）</p>
-          )}
-          {last.result.failed > 0 && (
-            <p className="text-red-500">✗ 失败 {last.result.failed}</p>
-          )}
+          {last.result.skipped > 0 && <p className="text-fg-muted">⊘ 跳过 {last.result.skipped}（重复）</p>}
+          {last.result.failed > 0 && <p className="text-red-500">✗ 失败 {last.result.failed}</p>}
           {last.result.errors.length > 0 && (
-            <p className="text-red-500 text-[10px] truncate" title={last.result.errors.join('\n')}>
-              {last.result.errors[0]}
-            </p>
+            <p className="text-red-500 text-[10px] truncate" title={last.result.errors.join('\n')}>{last.result.errors[0]}</p>
           )}
-          <button
-            onClick={clear}
-            className="mt-2 Memora-btn Memora-btn-ghost text-xs w-full"
-          >
-            关闭
-          </button>
+          <button onClick={clear} className="mt-2 Memora-btn Memora-btn-ghost text-xs w-full">关闭</button>
         </div>
       )}
     </div>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="mOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316"/>
+      <stop offset="100%" stop-color="#EA580C"/>
+    </linearGradient>
+    <linearGradient id="mYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+    <filter id="blockShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#EA580C" flood-opacity="0.25"/>
+    </filter>
+    <filter id="lightShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1.5" opacity="0.5"/>
+  <rect x="44" y="40" width="32" height="160" rx="8" fill="url(#mOrange)" filter="url(#blockShadow)"/>
+  <rect x="180" y="40" width="32" height="160" rx="8" fill="url(#mOrange)" filter="url(#blockShadow)"/>
+  <line x1="60" y1="40" x2="128" y2="100" stroke="url(#mYellow)" stroke-width="22" stroke-linecap="round" filter="url(#lightShadow)"/>
+  <line x1="196" y1="40" x2="128" y2="100" stroke="url(#mYellow)" stroke-width="22" stroke-linecap="round" filter="url(#lightShadow)"/>
+  <line x1="76" y1="78" x2="180" y2="78" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="76" y1="128" x2="180" y2="128" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="76" y1="178" x2="180" y2="178" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="128" cy="128" r="16" fill="#ffffff" filter="url(#blockShadow)"/>
+  <circle cx="128" cy="128" r="7" fill="#EA580C"/>
+  <line x1="140" y1="140" x2="154" y2="154" stroke="#ffffff" stroke-width="6" stroke-linecap="round" filter="url(#lightShadow)"/>
+</svg>

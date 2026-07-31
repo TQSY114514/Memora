@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "Memora",
   "version": "0.1.0",
   "description": "Memora - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
@@ -16,7 +16,9 @@
     "mcp": "electron out/main/index.js --mcp",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
-    "typecheck": "npm run typecheck:node && npm run typecheck:web"
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist": "electron-vite build && electron-builder"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -27,6 +29,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "electron": "^33.2.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^2.3.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
@@ -47,5 +50,36 @@
     "better-sqlite3": true,
     "electron": true,
     "esbuild": true
+  },
+  "build": {
+    "appId": "com.memora.app",
+    "productName": "Memora",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Memora"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/*.{node,dll}"
+    ],
+    "npmRebuild": false,
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    }
   }
 }

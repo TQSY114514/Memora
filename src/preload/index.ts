@@ -1,4 +1,4 @@
-﻿import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '../shared/constants'
 import type {
   Workspace,
@@ -11,7 +11,10 @@ import type {
   AiConfig,
   SemanticSearchResult,
   ProjectMemoryAnswer,
-  RelatedSession
+  RelatedSession,
+  ScanResult,
+  DetectedApp,
+  ExtractedSession
 } from '../shared/types'
 
 /**
@@ -101,7 +104,33 @@ const api = {
     files: (filePaths: string[], options?: { folderId?: string }): Promise<ImportResult> =>
       ipcRenderer.invoke(IPC.IMPORT_FILES, filePaths, options),
     directory: (dirPath: string, options?: { folderId?: string }): Promise<ImportResult> =>
-      ipcRenderer.invoke(IPC.IMPORT_DIRECTORY, dirPath, options)
+      ipcRenderer.invoke(IPC.IMPORT_DIRECTORY, dirPath, options),
+    /** 导入已扒取的对话（内存中，可编辑标题/来源） */
+    extracted: (
+      sessions: ExtractedSession[],
+      options?: { folderId?: string }
+    ): Promise<ImportResult> => ipcRenderer.invoke(IPC.IMPORT_EXTRACTED, sessions, options)
+  },
+
+  // ===== 扫描器（智能导入中心） =====
+  // 安全：扫描范围由主进程返回的默认目录决定，且需用户主动触发
+  scanner: {
+    /** 获取默认扫描目录（Downloads / Documents / Desktop） */
+    getDefaultDirs: (): Promise<string[]> => ipcRenderer.invoke(IPC.SCANNER_GET_DEFAULT_DIRS),
+    /** 扫描指定目录列表，返回候选 AI 对话文件 */
+    scan: (
+      dirs: string[],
+      options?: { maxDepth?: number; maxFiles?: number }
+    ): Promise<ScanResult[]> => ipcRenderer.invoke(IPC.SCANNER_SCAN, dirs, options),
+    /** 检测本机已安装的 AI 应用 */
+    detectApps: (): Promise<DetectedApp[]> => ipcRenderer.invoke(IPC.DETECT_APPS),
+    /** 扒取指定 AI 应用的本地对话（仅 Cursor / ClaudeCode 支持） */
+    extractApp: (
+      provider: string,
+      dataPath: string,
+      options?: { maxSessions?: number }
+    ): Promise<ExtractedSession[]> =>
+      ipcRenderer.invoke(IPC.EXTRACT_APP, provider, dataPath, options)
   },
 
   // ===== Search =====
@@ -161,7 +190,15 @@ const api = {
     getEmbedStatus: (
       sessionId: string
     ): Promise<{ total: number; embedded: number; complete: boolean }> =>
-      ipcRenderer.invoke(IPC.AI_EMBED_STATUS, sessionId)
+      ipcRenderer.invoke(IPC.AI_EMBED_STATUS, sessionId),
+    /** 测试 AI 连接（通过 main 进程，避免 CORS） */
+    testConnection: (config: {
+      baseUrl: string
+      apiKey: string
+      chatModel: string
+      embeddingModel: string
+    }): Promise<{ ok: boolean; dim: number; error: string | undefined; message?: string }> =>
+      ipcRenderer.invoke(IPC.TEST_AI_CONNECTION, config)
   },
 
   // ===== Project Memory（Phase 3） =====

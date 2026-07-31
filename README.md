@@ -4,12 +4,12 @@
 <svg width="480" height="160" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Memora">
   <defs>
     <linearGradient id="aetherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#615ced"/>
-      <stop offset="100%" stop-color="#4d6bfe"/>
+      <stop offset="0%" stop-color="#43B9B0"/>
+      <stop offset="100%" stop-color="#74E0C1"/>
     </linearGradient>
     <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#615ced"/>
-      <stop offset="100%" stop-color="#4d6bfe"/>
+      <stop offset="0%" stop-color="#43B9B0"/>
+      <stop offset="100%" stop-color="#74E0C1"/>
     </linearGradient>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="3" result="blur"/>
@@ -23,8 +23,7 @@
   <!-- Logo 标记 -->
   <g transform="translate(40, 40)">
     <rect width="80" height="80" rx="16" fill="url(#aetherGrad)" filter="url(#glow)"/>
-    <text x="40" y="58" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-          font-size="48" font-weight="700" fill="white" text-anchor="middle">Æ</text>
+    <rect x="18" y="22" width="44" height="44" rx="9" fill="#43B9B0" fill-opacity=".35"/><rect x="9" y="11" width="44" height="44" rx="9" fill="#74E0C1" fill-opacity=".6"/><circle cx="60" cy="60" r="6" fill="#FF7458"/>
   </g>
 
   <!-- 标题 -->
@@ -41,13 +40,13 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-0.1.0-615ced" alt="version"/>
+  <img src="https://img.shields.io/badge/version-0.1.0-43B9B0" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/SQLite-FTS5-003B57" alt="SQLite"/>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/Local_First-✓-615ced" alt="Local First"/>
+  <img src="https://img.shields.io/badge/Local_First-✓-43B9B0" alt="Local First"/>
 </p>
 
 <p>
@@ -82,9 +81,25 @@ Memora 是一个 **Local-First 的 AI 记忆工作台**。它不是另一个 AI 
 - ✅ 统一数据模型：屏蔽平台差异，所有对话归一为 `ChatSession`
 - ✅ 全文 + 语义搜索：FTS5 关键词搜索 + 向量语义检索
 - ✅ AI 增强：自动总结、knowledge.md 生成、Project Memory 智能问答
-- ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看
+- ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看`n- ✅ **智能导入中心**：自动检测已安装的 AI 应用，一键扒取本地记录
 
 ## 核心功能
+
+
+### 智能导入中心
+
+**自动检测已安装的 AI 应用，一键扒取本地记录：**
+
+| 应用 | 检测方式 | 本地扒取 | 说明 |
+|------|---------|:-------:|------|
+| **Cursor** | state.vscdb | ✅ | 只读 SQLite |
+| **Claude Code** | ~/.claude/projects | ✅ | .jsonl 日志 |
+| **OpenCode** | ~/.opencode | ✅ | 本地数据 |
+| **Windsurf** | %APPDATA%\Windsurf | ✅ | 复用 Cursor 逻辑 |
+| **Cline** | VSCode 扩展 | ✅ | SQLite |
+| ChatGPT/Claude/Kimi | 桌面端 | — | 云端，引导导出 |
+
+扒取后可**编辑标题和来源标注**再导入。安全：只读模式，不碰配置/密钥。
 
 ### 跨平台导入器矩阵
 
@@ -152,7 +167,7 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
   "mcpServers": {
     "memora": {
       "command": "node",
-      "args": ["<aether-path>/out/main/index.js", "--mcp"]
+      "args": ["<memora-path>/out/main/index.js", "--mcp"]
     }
   }
 }
@@ -199,9 +214,7 @@ npm run dev
 npm run typecheck
 
 # 打包
-npm run build
-
-# 预览生产版本
+npm run build`n`n# 打包为 Windows 安装包`nnpm run dist:win`n`n# 预览生产版本
 npm run preview
 ```
 
@@ -267,7 +280,7 @@ memora/
 ├── src/
 │   ├── main/              # Electron 主进程
 │   │   ├── ipc/           # IPC 处理器
-│   │   └── index.ts       # 主进程入口（含 MCP 模式）
+│   │   └── index.ts       # 主进程入口（含 MCP 模式 + Tray）
 │   ├── preload/           # contextBridge 安全 API
 │   ├── renderer/          # React UI
 │   │   └── src/components/
@@ -276,7 +289,7 @@ memora/
 │   │       ├── ChatViewer/# 对话查看 + AI 工具栏
 │   │       ├── ProjectMemory/ # RAG 问答面板
 │   │       └── AiSettings/# AI 配置弹窗
-│   ├── importer/          # 导入器（11 个平台）
+│   ├── importer/          # 导入器 + 扫描器 + 应用探测器 + 本地扒取器
 │   ├── database/          # SQLite + 6 个 Repository
 │   ├── search/            # FTS5 + 语义搜索
 │   ├── ai/                # 总结 + 嵌入 + Project Memory
@@ -314,7 +327,7 @@ memora/
 - [x] Project Memory 智能问答（RAG）
 - [x] 相关讨论推荐（基于向量相似度）
 - [x] MCP Server（暴露对话数据给外部工具）
-- [x] Gemini / Grok / Cursor 导入器
+- [x] Gemini / Grok / Cursor 导入器`r`n- [x] 智能导入中心（自动检测 + 本地扒取）`r`n- [x] 系统托盘 + 应用图标`r`n- [x] Windows 安装包打包
 
 ### 后续规划
 

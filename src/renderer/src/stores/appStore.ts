@@ -1,6 +1,26 @@
 import { create } from 'zustand'
 import type { Workspace, ChatSession, Folder } from '@shared/types'
 
+const PINNED_KEY = 'memora.pinnedIds'
+
+function loadPinnedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PINNED_KEY)
+    if (!raw) return new Set()
+    return new Set(JSON.parse(raw) as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+function savePinnedIds(ids: Set<string>): void {
+  try {
+    localStorage.setItem(PINNED_KEY, JSON.stringify(Array.from(ids)))
+  } catch {
+    // ignore
+  }
+}
+
 interface AppState {
   // 当前选中的
   activeWorkspaceId: string | null
@@ -22,6 +42,9 @@ interface AppState {
   loading: boolean
   error: string | null
 
+  // 置顶（localStorage 持久化）
+  pinnedIds: Set<string>
+
   // Actions
   setActiveWorkspace: (id: string | null) => void
   setActiveFolder: (id: string | null) => void
@@ -34,9 +57,11 @@ interface AppState {
   clearSearch: () => void
   setLoading: (v: boolean) => void
   setError: (e: string | null) => void
+  togglePin: (id: string) => void
+  isPinned: (id: string) => boolean
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   activeWorkspaceId: null,
   activeFolderId: null,
   activeSessionId: null,
@@ -49,6 +74,7 @@ export const useStore = create<AppState>((set) => ({
   isSearchMode: false,
   loading: false,
   error: null,
+  pinnedIds: loadPinnedIds(),
 
   setActiveWorkspace: (id) => set({ activeWorkspaceId: id, activeFolderId: null }),
   setActiveFolder: (id) => set({ activeFolderId: id }),
@@ -62,5 +88,13 @@ export const useStore = create<AppState>((set) => ({
   clearSearch: () =>
     set({ searchQuery: '', searchResults: null, isSearchMode: false }),
   setLoading: (v) => set({ loading: v }),
-  setError: (e) => set({ error: e })
+  setError: (e) => set({ error: e }),
+  togglePin: (id) => {
+    const next = new Set(get().pinnedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    savePinnedIds(next)
+    set({ pinnedIds: next })
+  },
+  isPinned: (id) => get().pinnedIds.has(id)
 }))

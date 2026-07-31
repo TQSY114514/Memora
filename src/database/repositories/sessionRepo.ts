@@ -128,7 +128,7 @@ export function createSession(
       )
       messages.forEach((msg, idx) => {
         stmt.run(
-          msg.id ?? uuidv4(),
+          msg.id || uuidv4(),
           id,
           msg.role,
           msg.content,
@@ -139,12 +139,17 @@ export function createSession(
         )
       })
     }
-
-    // FTS 索引
-    indexSessionForSearch(id, session.title, messages)
   })
 
   tx()
+
+  // FTS 索引（移出事务，避免索引失败导致会话写入回滚）
+  try {
+    indexSessionForSearch(id, session.title, messages)
+  } catch (e) {
+    console.error('[sessionRepo] FTS 索引失败（不影响会话写入）:', e)
+  }
+
   return getSession(id)!
 }
 
@@ -218,7 +223,7 @@ export function listSessionsByWorkspace(workspaceId: string): ChatSession[] {
   const rows = db.prepare(
     `SELECT cs.* FROM chat_sessions cs
      LEFT JOIN folders f ON cs.folder_id = f.id
-     WHERE f.workspace_id = ?
+     WHERE f.workspace_id = ? OR cs.folder_id IS NULL
      ORDER BY cs.updated_at DESC`
   ).all(workspaceId) as SessionRow[]
   return rows.map((row) => rowToSession(row, getSessionTags(row.id)))

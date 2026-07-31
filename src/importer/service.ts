@@ -3,7 +3,7 @@ import { basename, extname, join } from 'path'
 import { registerBuiltins, detectImporter } from '../importer'
 import { createSession, findBySourceId } from '../database/repositories/sessionRepo'
 import type { ImportResult, ChatSession } from '@shared/types'
-import type { ParsedSession } from '../importer/types'
+import type { ParsedSession, ParsedMessage } from '../importer/types'
 
 /** 递归收集目录下所有可导入文件 */
 function collectFiles(dirPath: string): string[] {
@@ -127,7 +127,7 @@ export function importDirectory(
 }
 
 /** 将解析后的会话持久化到数据库（含幂等） */
-function persistSessions(
+export function persistSessions(
   sessions: ParsedSession[],
   folderId?: string
 ): ImportResult {
@@ -165,7 +165,6 @@ function persistSessions(
       }
 
       const messages = parsed.messages.map((m, idx) => ({
-        id: '',
         sessionId: '',
         role: m.role,
         content: m.content,
@@ -184,4 +183,37 @@ function persistSessions(
   }
 
   return result
+}
+
+
+/** 导入已扒取的对话（来自本地扒取，可编辑标题/来源后导入） */
+export function importExtractedSessions(
+  sessions: Array<{
+    id: string
+    provider: string
+    title: string
+    source: string
+    messageCount: number
+    createdAt: string
+    updatedAt: string
+    messages: Array<{ role: string; content: string; model?: string; createdAt: string }>
+  }>,
+  options?: { folderId?: string }
+): ImportResult {
+  registerBuiltins()
+  const parsed: ParsedSession[] = sessions.map((s) => ({
+    provider: s.provider as ParsedSession['provider'],
+    sourceId: s.id,
+    title: s.title,
+    description: s.source,  // 来源标注存入 description
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+    messages: s.messages.map((m) => ({
+      role: m.role as ParsedMessage['role'],
+      content: m.content,
+      model: m.model,
+      createdAt: m.createdAt
+    }))
+  }))
+  return persistSessions(parsed, options?.folderId)
 }

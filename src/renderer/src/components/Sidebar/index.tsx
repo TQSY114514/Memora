@@ -1,14 +1,18 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../../stores/appStore'
-import { useAiConfigStore, isAiConfigured } from '../../stores/aiConfigStore'
+import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
+import { useT } from '../../i18n'
+import { useDialog, PromptDialog } from '../PromptDialog'
 import type { Folder } from '@shared/types'
 
 interface SidebarProps {
   onOpenAiSettings: () => void
   onOpenMemory: () => void
+  onOpenImportCenter: () => void
+  onOpenSettings: () => void
 }
 
-export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
+export function Sidebar({ onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings }: SidebarProps) {
   const {
     workspaces,
     activeWorkspaceId,
@@ -21,6 +25,8 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
     clearSearch
   } = useStore()
   const { config } = useAiConfigStore()
+  const t = useT()
+  const dialog = useDialog()
 
   const [folders, setLocalFolders] = useState<Folder[]>([])
 
@@ -59,29 +65,52 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
 
   async function handleSelectFolder(folderId: string | null) {
     setActiveFolder(folderId)
-    const sessions = await window.Memora.session.list(
-      folderId ? { folderId } : undefined
-    )
-    setSessions(sessions)
+    if (folderId) {
+      // 选了具体文件夹，只查该文件夹的会话
+      const sessions = await window.Memora.session.list({ folderId })
+      setSessions(sessions)
+    } else {
+      // "全部聊天"：查当前工作区的全部会话（含未分组的）
+      if (activeWorkspaceId) {
+        const tree = await window.Memora.workspace.tree(activeWorkspaceId)
+        if (tree) setSessions(tree.sessions)
+      } else {
+        setSessions([])
+      }
+    }
   }
 
   async function handleCreateWorkspace() {
-    const name = prompt('工作区名称')
+    const name = await dialog.prompt(t('sidebar.workspaceName'))
     if (!name) return
     const ws = await window.Memora.workspace.create({ name })
     setWorkspaces([...workspaces, ws])
     handleSelectWorkspace(ws.id)
   }
 
+  async function handleRenameWorkspace(id: string, oldName: string) {
+    const name = await dialog.prompt(t('sidebar.workspaceName'), oldName)
+    if (!name || name === oldName) return
+    await window.Memora.workspace.update(id, { name })
+    setWorkspaces(workspaces.map((ws) => (ws.id === id ? { ...ws, name } : ws)))
+  }
+
   async function handleCreateFolder() {
     if (!activeWorkspaceId) return
-    const name = prompt('文件夹名称')
+    const name = await dialog.prompt(t('sidebar.folderName'))
     if (!name) return
     const folder = await window.Memora.folder.create({
       workspaceId: activeWorkspaceId,
       name
     })
     setLocalFolders([...folders, folder])
+  }
+
+  async function handleRenameFolder(id: string, oldName: string) {
+    const name = await dialog.prompt(t('sidebar.folderName'), oldName)
+    if (!name || name === oldName) return
+    await window.Memora.folder.update(id, { name })
+    setLocalFolders(folders.map((f) => (f.id === id ? { ...f, name } : f)))
   }
 
   async function handleImport() {
@@ -93,11 +122,15 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
     })
     if (!filePaths) return
 
-    const folderId = activeFolderId ?? undefined
+    if (!activeFolderId) {
+      await dialog.alert('请先选择一个文件夹再导入，以便对话能正确归类。')
+      return
+    }
+    const folderId = activeFolderId
     for (const path of filePaths) {
       const result = await window.Memora.import.file(path, { folderId })
       if (result.errors.length > 0) {
-        alert(`导入完成，但有错误：\n${result.errors.join('\n')}`)
+        await dialog.alert(`导入完成，但有错误：\n${result.errors.join('\n')}`)
       }
     }
     // 刷新列表
@@ -115,9 +148,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
       {/* 顶部 Logo */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">
-            Æ
-          </div>
+          <img src="./assets/logo-mark.svg" alt="Memora" className="w-6 h-6 rounded-md" />
           <span className="font-semibold text-sm">Memora</span>
         </div>
         <button
@@ -127,9 +158,9 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
               ? 'text-green-600 hover:bg-bg-hover'
               : 'text-fg-muted hover:bg-bg-hover'
           }`}
-          title={aiConfigured ? 'AI 已配置（点击修改）' : '点击配置 AI'}
+          title={aiConfigured ? t('sidebar.aiConfigured') : t('sidebar.aiNotConfigured')}
         >
-          {aiConfigured ? '✓ AI' : '⚙ AI'}
+          {aiConfigured ? t('sidebar.aiOk') : t('sidebar.aiSetup')}
         </button>
       </div>
 
@@ -140,12 +171,12 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
       <div className="flex-1 overflow-y-auto px-2 py-2">
         <div className="px-2 py-1 flex items-center justify-between">
           <span className="text-xs font-medium text-fg-muted uppercase tracking-wider">
-            工作区
+            {t('sidebar.workspace')}
           </span>
           <button
             onClick={handleCreateWorkspace}
             className="text-fg-muted hover:text-fg-primary text-base leading-none"
-            title="新建工作区"
+            title={t('sidebar.newWorkspace')}
           >
             +
           </button>
@@ -153,17 +184,27 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
 
         {workspaces.map((ws) => (
           <div key={ws.id}>
-            <button
-              onClick={() => handleSelectWorkspace(ws.id)}
-              className={`w-full text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
-                activeWorkspaceId === ws.id
-                  ? 'bg-bg-hover text-fg-primary'
-                  : 'text-fg-secondary hover:bg-bg-hover'
-              }`}
-            >
-              <span className="text-xs opacity-70">📁</span>
-              <span className="truncate">{ws.name}</span>
-            </button>
+            <div className="flex items-center group">
+              <button
+                onClick={() => handleSelectWorkspace(ws.id)}
+                onDoubleClick={() => handleRenameWorkspace(ws.id, ws.name)}
+                className={`flex-1 text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
+                  activeWorkspaceId === ws.id
+                    ? 'bg-bg-hover text-fg-primary'
+                    : 'text-fg-secondary hover:bg-bg-hover'
+                }`}
+              >
+                <span className="text-xs opacity-70">📁</span>
+                <span className="truncate">{ws.name}</span>
+              </button>
+              <button
+                onClick={() => handleRenameWorkspace(ws.id, ws.name)}
+                className="text-fg-muted hover:text-accent text-xs px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="重命名"
+              >
+                ✎
+              </button>
+            </div>
 
             {/* 展开当前工作区的文件夹 */}
             {activeWorkspaceId === ws.id && (
@@ -176,27 +217,36 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
                       : 'text-fg-muted hover:text-fg-secondary'
                   }`}
                 >
-                  全部对话
+                  {t('sidebar.allChats')}
                 </button>
                 {folders.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => handleSelectFolder(f.id)}
-                    className={`w-full text-left px-2 py-1 rounded text-sm flex items-center gap-1.5 ${
-                      activeFolderId === f.id
-                        ? 'text-fg-primary bg-bg-hover'
-                        : 'text-fg-muted hover:text-fg-secondary'
-                    }`}
-                  >
-                    <span className="text-xs opacity-60">📂</span>
-                    <span className="truncate">{f.name}</span>
-                  </button>
+                  <div key={f.id} className="flex items-center group">
+                    <button
+                      onClick={() => handleSelectFolder(f.id)}
+                      onDoubleClick={() => handleRenameFolder(f.id, f.name)}
+                      className={`flex-1 text-left px-2 py-1 rounded text-sm flex items-center gap-1.5 ${
+                        activeFolderId === f.id
+                          ? 'text-fg-primary bg-bg-hover'
+                          : 'text-fg-muted hover:text-fg-secondary'
+                      }`}
+                    >
+                      <span className="text-xs opacity-60">📂</span>
+                      <span className="truncate">{f.name}</span>
+                    </button>
+                    <button
+                      onClick={() => handleRenameFolder(f.id, f.name)}
+                      className="text-fg-muted hover:text-accent text-xs px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="重命名"
+                    >
+                      ✎
+                    </button>
+                  </div>
                 ))}
                 <button
                   onClick={handleCreateFolder}
                   className="w-full text-left px-2 py-1 rounded text-xs text-fg-muted hover:text-fg-secondary"
                 >
-                  + 新建文件夹
+                  {t('sidebar.newFolder')}
                 </button>
               </div>
             )}
@@ -205,9 +255,9 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
 
         {workspaces.length === 0 && (
           <div className="px-3 py-8 text-center">
-            <p className="text-sm text-fg-muted mb-3">还没有工作区</p>
+            <p className="text-sm text-fg-muted mb-3">{t('sidebar.noWorkspace')}</p>
             <button onClick={handleCreateWorkspace} className="Memora-btn Memora-btn-primary text-xs">
-              创建第一个工作区
+              {t('sidebar.createFirst')}
             </button>
           </div>
         )}
@@ -218,18 +268,34 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
         <button
           onClick={onOpenMemory}
           className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="基于历史对话的智能问答"
+          title={t('sidebar.memoryTip')}
         >
-          🧠 Project Memory
+          {t('sidebar.memory')}
+        </button>
+        <button
+          onClick={onOpenImportCenter}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title={t('sidebar.importCenterTip')}
+        >
+          {t('sidebar.importCenter')}
         </button>
         <button
           onClick={handleImport}
           className="Memora-btn Memora-btn-ghost w-full text-xs"
-          title="导入 AI 对话"
+          title={t('sidebar.manualImportTip')}
         >
-          ⬆ 导入
+          {t('sidebar.manualImport')}
+        </button>
+        <button
+          onClick={onOpenSettings}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title={t('sidebar.settings')}
+        >
+          {t('sidebar.settings')}
         </button>
       </div>
+
+      <PromptDialog state={dialog.state} onClose={dialog.handleClose} />
     </aside>
   )
 }
@@ -237,6 +303,7 @@ export function Sidebar({ onOpenAiSettings, onOpenMemory }: SidebarProps) {
 function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
   const { setSearch, clearSearch, setSessions } = useStore()
   const { config } = useAiConfigStore()
+  const t = useT()
   const [query, setQuery] = useState('')
   const [useSemantic, setUseSemantic] = useState(false)
   const [searching, setSearching] = useState(false)
@@ -255,7 +322,7 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
 
     // 语义搜索需要先配置 AI
     if (useSemantic && !aiConfigured) {
-      setSearchError('请先配置 AI 才能使用语义搜索')
+      setSearchError(t('sidebar.needAiSemantic'))
       return
     }
 
@@ -263,9 +330,9 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
     setSearchError(null)
     try {
       if (useSemantic) {
-        const results = await window.Memora.semanticSearch(q, config, { limit: 20 })
+        const results = await window.Memora.semanticSearch(q, getActiveAiConfig(), { limit: 20 })
         if (results.length === 0) {
-          setSearchError('未找到语义相关结果（可能需要先建立向量索引）')
+          setSearchError(t('sidebar.semanticEmpty'))
         }
         setSearch(q, null)
         setSessions(results.map((r) => r.session))
@@ -298,7 +365,7 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleSearch}
-          placeholder={useSemantic ? '语义搜索... (Enter)' : '搜索对话... (Enter)'}
+          placeholder={useSemantic ? t('sidebar.searchSemanticPlaceholder') : t('sidebar.searchPlaceholder')}
           className="Memora-input w-full text-xs pr-7"
         />
         {searching && (
@@ -315,9 +382,9 @@ function SearchBox({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
               ? 'bg-accent text-white'
               : 'text-fg-muted hover:bg-bg-hover'
           }`}
-          title={aiConfigured ? '切换语义搜索' : '需先配置 AI'}
+          title={aiConfigured ? t('sidebar.toggleSemantic') : t('sidebar.needAi')}
         >
-          {useSemantic ? '◉ 语义' : '○ 语义'}
+          {useSemantic ? t('sidebar.semanticOn') : t('sidebar.semanticOff')}
         </button>
         {searchError && (
           <span className="text-[10px] text-red-500 truncate max-w-[140px]" title={searchError}>

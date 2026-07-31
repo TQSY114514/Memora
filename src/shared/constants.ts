@@ -1,4 +1,4 @@
-﻿import type { Provider } from './types'
+import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
@@ -45,6 +45,15 @@ export const IPC = {
   IMPORT_DIRECTORY: 'import:directory',
   IMPORT_CONTENT: 'import:content',
 
+  // 扫描器（智能导入中心）
+  SCANNER_GET_DEFAULT_DIRS: 'scanner:get-default-dirs',
+  SCANNER_SCAN: 'scanner:scan',
+
+  // AI 应用检测 + 本地扒取（智能导入中心 v2）
+  DETECT_APPS: 'scanner:detect-apps',
+  EXTRACT_APP: 'scanner:extract-app',
+  IMPORT_EXTRACTED: 'import:extracted',
+
   // Search
   SEARCH_QUERY: 'search:query',
 
@@ -71,6 +80,9 @@ export const IPC = {
   AI_MEMORY_ASK: 'ai:memory:ask',
   AI_RELATED_SESSIONS: 'ai:related-sessions',
 
+  // AI 连接测试
+  TEST_AI_CONNECTION: 'ai:test-connection',
+
   // 系统
   DIALOG_OPEN_FILE: 'dialog:open-file',
   DIALOG_SAVE_FILE: 'dialog:save-file',
@@ -90,6 +102,7 @@ export const PROVIDER_META: Record<Provider, { label: string; color: string; ico
   ClaudeCode: { label: 'Claude Code', color: '#d97757', icon: 'CC' },
   Codex: { label: 'Codex', color: '#10a37f', icon: 'CX' },
   OpenCode: { label: 'OpenCode', color: '#000000', icon: 'OC' },
+  TRAE: { label: 'TRAE', color: '#6d5dfc', icon: 'TR' },
   AIStudio: { label: 'AI Studio', color: '#4285f4', icon: 'AS' },
   Markdown: { label: 'Markdown', color: '#6b7280', icon: 'MD' },
   JSON: { label: 'JSON', color: '#6b7280', icon: '{}' },

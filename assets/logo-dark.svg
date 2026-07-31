@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="dOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C"/>
+      <stop offset="100%" stop-color="#EA580C"/>
+    </linearGradient>
+    <linearGradient id="dYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+    <filter id="dShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="#1A0C05"/>
+  <rect x="44" y="40" width="32" height="160" rx="8" fill="url(#dOrange)" filter="url(#dShadow)"/>
+  <rect x="180" y="40" width="32" height="160" rx="8" fill="url(#dOrange)" filter="url(#dShadow)"/>
+  <line x1="60" y1="40" x2="128" y2="100" stroke="url(#dYellow)" stroke-width="22" stroke-linecap="round"/>
+  <line x1="196" y1="40" x2="128" y2="100" stroke="url(#dYellow)" stroke-width="22" stroke-linecap="round"/>
+  <line x1="76" y1="78" x2="180" y2="78" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="76" y1="128" x2="180" y2="128" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="76" y1="178" x2="180" y2="178" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <circle cx="128" cy="128" r="16" fill="#2D0A00" filter="url(#dShadow)"/>
+  <circle cx="128" cy="128" r="7" fill="#FB923C"/>
+  <line x1="140" y1="140" x2="154" y2="154" stroke="#2D0A00" stroke-width="6" stroke-linecap="round"/>
+</svg>
