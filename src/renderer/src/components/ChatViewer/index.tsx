@@ -47,6 +47,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
   const [editSummaryText, setEditSummaryText] = useState('')
   const [editKeyPoints, setEditKeyPoints] = useState('')
   const [editTodos, setEditTodos] = useState('')
+  const [extractLoading, setExtractLoading] = useState(false)
+  const [extractMsg, setExtractMsg] = useState<string | null>(null)
 
   // 虚拟列表
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -66,6 +68,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setEmbedError(null)
     setRelatedSessions([])
     setShowRelated(false)
+    setExtractMsg(null)
 
     if (!session) return
     window.Memora.ai.getSummary(session.id).then(setSummary).catch(() => {})
@@ -126,6 +129,20 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.md`,
       content: md
     })
+  }
+
+  async function handleExtractToKnowledge() {
+    if (!session) return
+    setExtractLoading(true)
+    setExtractMsg(null)
+    try {
+      const result = await window.Memora.knowledge.extractFromSession(session.id)
+      setExtractMsg(`✓ 已提炼 ${result.created} 条到知识库`)
+    } catch (e) {
+      setExtractMsg(`✗ ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setExtractLoading(false)
+    }
   }
 
   function handleEditSummary() {
@@ -277,6 +294,21 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             >
               ⬇ knowledge.md
             </button>
+          )}
+          {summary && (
+            <button
+              onClick={handleExtractToKnowledge}
+              disabled={extractLoading}
+              className="Memora-btn Memora-btn-ghost text-xs"
+              title="把本次蒸馏的要点/待办/知识提炼为知识库条目（幂等）"
+            >
+              {extractLoading ? '⏳ 提炼中…' : '📥 提炼到知识库'}
+            </button>
+          )}
+          {extractMsg && (
+            <span className={`text-[10px] ${extractMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+              {extractMsg}
+            </span>
           )}
           <button
             onClick={handleLoadRelated}

@@ -12,9 +12,10 @@ interface SidebarProps {
   onOpenMemory: () => void
   onOpenImportCenter: () => void
   onOpenSettings: () => void
+  onOpenKnowledge: () => void
 }
 
-export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings }: SidebarProps) {
+export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge }: SidebarProps) {
   const {
     workspaces,
     activeWorkspaceId,
@@ -320,6 +321,13 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
           title={t('sidebar.memoryTip')}
         >
           {t('sidebar.memory')}
+        </button>
+        <button
+          onClick={onOpenKnowledge}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title={t('sidebar.knowledgeTip')}
+        >
+          {t('sidebar.knowledge')}
         </button>
         <button
           onClick={onOpenImportCenter}

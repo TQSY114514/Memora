@@ -9,6 +9,8 @@ export const en: Record<string, string> = {
   'sidebar.noWorkspace': 'No workspaces yet',
   'sidebar.createFirst': 'Create your first workspace',
   'sidebar.memory': '🧠 Project Memory',
+  'sidebar.knowledge': '📚 Knowledge',
+  'sidebar.knowledgeTip': 'Decisions · Tasks · Knowledge as first-class entities',
   'sidebar.importCenter': '🔎 Import Center',
   'sidebar.manualImport': '⬆ Manual Import',
   'sidebar.settings': '⚙ Settings',

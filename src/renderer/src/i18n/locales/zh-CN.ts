@@ -9,6 +9,8 @@ export const zhCN: Record<string, string> = {
   'sidebar.noWorkspace': '还没有工作区',
   'sidebar.createFirst': '创建第一个工作区',
   'sidebar.memory': '🧠 Project Memory',
+  'sidebar.knowledge': '📚 知识库',
+  'sidebar.knowledgeTip': '决策 · 任务 · 知识一等公民实体',
   'sidebar.importCenter': '🔎 导入中心',
   'sidebar.manualImport': '⬆ 手动导入',
   'sidebar.settings': '⚙ 设置',

@@ -21,7 +21,10 @@ import type {
   BackgroundImportConfig,
   BackgroundImportStatus,
   BackgroundImportProgress,
-  BackgroundImportRunResult
+  BackgroundImportRunResult,
+  KnowledgeEntry,
+  KnowledgeType,
+  KnowledgeRelation
 } from '../shared/types'
 
 /**
@@ -308,6 +311,58 @@ const api = {
       ipcRenderer.on(IPC.IMPORT_BG_DONE, h)
       return () => ipcRenderer.removeListener(IPC.IMPORT_BG_DONE, h)
     }
+  },
+
+  // ===== Knowledge Vault（v1.1） =====
+  knowledge: {
+    list: (options?: {
+      workspaceId?: string
+      type?: KnowledgeType
+      sessionId?: string
+      status?: string
+      limit?: number
+      offset?: number
+    }): Promise<KnowledgeEntry[]> => ipcRenderer.invoke(IPC.KNOWLEDGE_LIST, options),
+    get: (id: string): Promise<KnowledgeEntry | null> => ipcRenderer.invoke(IPC.KNOWLEDGE_GET, id),
+    create: (input: {
+      workspaceId: string
+      sessionId?: string
+      type: KnowledgeType
+      title: string
+      content?: string
+      status?: string
+      source?: string
+      sortOrder?: number
+    }): Promise<KnowledgeEntry> => ipcRenderer.invoke(IPC.KNOWLEDGE_CREATE, input),
+    update: (
+      id: string,
+      patch: Partial<Pick<KnowledgeEntry, 'title' | 'content' | 'type' | 'status' | 'sortOrder'>>
+    ): Promise<KnowledgeEntry | null> => ipcRenderer.invoke(IPC.KNOWLEDGE_UPDATE, id, patch),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.KNOWLEDGE_DELETE, id),
+    toggleTask: (id: string): Promise<KnowledgeEntry | null> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_TOGGLE_TASK, id),
+    search: (
+      query: string,
+      options?: { workspaceId?: string; type?: KnowledgeType; limit?: number }
+    ): Promise<KnowledgeEntry[]> => ipcRenderer.invoke(IPC.KNOWLEDGE_SEARCH, query, options),
+    count: (workspaceId: string): Promise<{
+      total: number
+      knowledge: number
+      decision: number
+      task: number
+      openTask: number
+    }> => ipcRenderer.invoke(IPC.KNOWLEDGE_COUNT, workspaceId),
+    related: (entryId: string): Promise<KnowledgeEntry[]> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_RELATED, entryId),
+    /** 从对话的 AI 蒸馏提炼为知识条目（幂等） */
+    extractFromSession: (sessionId: string): Promise<{ created: number; workspaceId: string }> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_EXTRACT_FROM_SESSION, sessionId),
+    relationAdd: (fromId: string, toId: string, relation: KnowledgeRelation): Promise<void> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_RELATION_ADD, fromId, toId, relation),
+    relationRemove: (fromId: string, toId: string, relation: KnowledgeRelation): Promise<void> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_RELATION_REMOVE, fromId, toId, relation),
+    relationList: (entryId: string): Promise<Array<{ fromId: string; toId: string; relation: string }>> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_RELATION_LIST, entryId)
   }
 }
 

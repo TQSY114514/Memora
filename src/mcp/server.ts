@@ -34,6 +34,12 @@ import { listSessions, getSession, createSession } from '../database/repositorie
 import { listWorkspaces } from '../database/repositories/workspaceRepo'
 import { listTags } from '../database/repositories/tagRepo'
 import { getSummary } from '../database/repositories/summaryRepo'
+import {
+  searchEntries,
+  listEntries,
+  countEntries,
+  createEntry
+} from '../database/repositories/knowledgeRepo'
 import { search } from '../search/query'
 import { semanticSearch } from '../search/semantic'
 import { loadAiConfigFile } from '../main/aiConfigFile'
@@ -174,7 +180,7 @@ const TOOLS: McpTool[] = [
   {
     name: 'memory_write',
     description:
-      '知识沉淀：把一条重要信息（架构决定、Bug 解决方案、经验教训等）写入 Memora 知识库，便于以后召回复用。会创建一条新对话。',
+      '知识沉淀：把一条重要信息（架构决定、Bug 解决方案、经验教训等）写入 Memora 知识库，便于以后召回复用。默认写入 knowledge_entries 表（type=knowledge），可指定 type=decision/task 写入决策或待办。若提供 folderId 则同时创建一条对话记录。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -184,9 +190,58 @@ const TOOLS: McpTool[] = [
           type: 'string',
           description: '来源标识，默认为 Unknown。可设为具体 AI 平台名或 Manual'
         },
-        folderId: { type: 'string', description: '目标文件夹 ID（可选）' }
+        folderId: { type: 'string', description: '目标文件夹 ID（可选，提供时同时创建对话记录）' },
+        type: {
+          type: 'string',
+          description: '知识条目类型：knowledge（默认）/ decision / task',
+          enum: ['knowledge', 'decision', 'task']
+        },
+        workspaceId: { type: 'string', description: '目标工作区 ID（写入 knowledge_entries 时必填）' }
       },
       required: ['title', 'content']
+    }
+  },
+  {
+    name: 'knowledge_search',
+    description:
+      '搜索 Memora 知识库中的知识/决策/任务条目（FTS 全文，支持中文）。适合查找提炼后的结构化知识，而非原始对话片段。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '搜索关键词' },
+        type: {
+          type: 'string',
+          description: '筛选类型（可选）：knowledge / decision / task',
+          enum: ['knowledge', 'decision', 'task']
+        },
+        limit: { type: 'number', description: '返回数量上限，默认 10' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'decision_search',
+    description:
+      '专搜架构决策（type=decision）。「之前为什么这么定？」「以前做过什么架构决定？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '搜索关键词' },
+        limit: { type: 'number', description: '返回数量上限，默认 10' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'project_context',
+    description:
+      '组装某个工作区的项目上下文：近期决策 + 未完成任务 + 核心知识条目。让 AI 快速恢复项目状态，无需翻阅原始对话。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID' }
+      },
+      required: ['workspaceId']
     }
   }]
 
@@ -365,39 +420,128 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       if (!content) throw new Error('content 不能为空')
       const provider = String(args.provider ?? 'Unknown')
       const folderId = args.folderId ? String(args.folderId) : undefined
+      const type = (String(args.type ?? 'knowledge') as 'knowledge' | 'decision' | 'task')
+      const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
 
-      const messages = [
-        {
-          id: uuidv4(),
-          sessionId: '',
-          role: 'user' as const,
-          content: title,
-          order: 0,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: uuidv4(),
-          sessionId: '',
-          role: 'assistant' as const,
-          content,
-          order: 1,
-          createdAt: new Date().toISOString()
-        }
-      ]
-      const session = createSession(
-        {
-          provider: provider as any,
+      // 优先写入 knowledge_entries（结构化知识条目）
+      let entryId: string | undefined
+      if (workspaceId) {
+        const entry = createEntry({
+          workspaceId,
+          type,
           title,
-          folderId,
-          isFavorite: false,
-          messageCount: messages.length,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          tags: []
+          content,
+          source: 'mcp',
+          status: type === 'task' ? 'open' : 'active'
+        })
+        entryId = entry.id
+      }
+
+      // 若提供 folderId，同时创建一条对话记录（保留旧行为）
+      let sessionId: string | undefined
+      if (folderId) {
+        const messages = [
+          {
+            id: uuidv4(),
+            sessionId: '',
+            role: 'user' as const,
+            content: title,
+            order: 0,
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: uuidv4(),
+            sessionId: '',
+            role: 'assistant' as const,
+            content,
+            order: 1,
+            createdAt: new Date().toISOString()
+          }
+        ]
+        const session = createSession(
+          {
+            provider: provider as any,
+            title,
+            folderId,
+            isFavorite: false,
+            messageCount: messages.length,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            tags: []
+          },
+          messages
+        )
+        sessionId = session.id
+      }
+
+      return {
+        entryId,
+        sessionId,
+        title,
+        type,
+        written: true,
+        note: workspaceId
+          ? `已写入 knowledge_entries（type=${type}）`
+          : folderId
+            ? '已写入对话记录（未提供 workspaceId，跳过 knowledge_entries）'
+            : '未提供 workspaceId 或 folderId，未持久化（请至少提供一个）'
+      }
+    }
+
+    case 'knowledge_search': {
+      const query = String(args.query ?? '')
+      if (!query) throw new Error('query 不能为空')
+      const limit = Number(args.limit ?? 10)
+      const type = args.type ? (String(args.type) as 'knowledge' | 'decision' | 'task') : undefined
+      const results = searchEntries(query, { type, limit })
+      return results.map((e) => ({
+        id: e.id,
+        type: e.type,
+        title: e.title,
+        content: e.content,
+        status: e.status,
+        source: e.source,
+        sessionId: e.sessionId,
+        createdAt: e.createdAt
+      }))
+    }
+
+    case 'decision_search': {
+      const query = String(args.query ?? '')
+      if (!query) throw new Error('query 不能为空')
+      const limit = Number(args.limit ?? 10)
+      const results = searchEntries(query, { type: 'decision', limit })
+      return results.map((e) => ({
+        id: e.id,
+        title: e.title,
+        content: e.content,
+        status: e.status,
+        sessionId: e.sessionId,
+        createdAt: e.createdAt
+      }))
+    }
+
+    case 'project_context': {
+      const workspaceId = String(args.workspaceId ?? '')
+      if (!workspaceId) throw new Error('workspaceId 不能为空')
+
+      const counts = countEntries(workspaceId)
+      const decisions = listEntries({ workspaceId, type: 'decision', limit: 20 })
+      const openTasks = listEntries({ workspaceId, type: 'task', status: 'open', limit: 30 })
+      const knowledge = listEntries({ workspaceId, type: 'knowledge', limit: 20 })
+
+      return {
+        workspaceId,
+        summary: {
+          totalEntries: counts.total,
+          decisions: counts.decision,
+          openTasks: counts.openTask,
+          knowledge: counts.knowledge
         },
-        messages
-      )
-      return { sessionId: session.id, title: session.title, written: true }
+        recentDecisions: decisions.map((e) => ({ id: e.id, title: e.title, content: e.content, status: e.status, sessionId: e.sessionId, createdAt: e.createdAt })),
+        openTasks: openTasks.map((e) => ({ id: e.id, title: e.title, content: e.content, sessionId: e.sessionId, createdAt: e.createdAt })),
+        coreKnowledge: knowledge.map((e) => ({ id: e.id, title: e.title, content: e.content, sessionId: e.sessionId, createdAt: e.createdAt }))
+      }
     }
 
     default:

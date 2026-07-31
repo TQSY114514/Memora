@@ -2,6 +2,45 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2026-07-31
+
+从「AI 对话管理器」升级为「AI Knowledge Vault」：把决策 / 任务 / 知识从对话蒸馏的 JSON 数组提升为一等公民实体，可独立查询、关联、复用；MCP 同步增强，让外部 AI Agent 能直接读写知识库。
+
+### Added
+
+#### Knowledge Vault 数据层
+- **`knowledge_entries` 表**：决策 / 任务 / 知识三类一等公民实体，独立于对话存在，带 status / source / sortOrder
+- **`knowledge_fts` 虚拟表**：知识条目专用 FTS5 全文索引（中文分词），与对话搜索解耦
+- **`knowledge_relations` 表**：轻量 Memory Graph 关系（supports / contradicts / derived-from / relates-to / decision-from-session）
+- **`knowledgeRepo` 数据访问层**：CRUD + FTS 索引 + 关系统计，事务安全
+- **数据库迁移 v5/v6**：幂等建表 + 旧 `session_summaries` 的 key_points/todos 回填为 knowledge_entries（decision/task），零数据丢失
+- **`SessionSummary` 扩展**：新增 `knowledge`（蒸馏知识要点）+ `suggestedTags`（AI 建议标签，不自动应用）
+
+#### Knowledge Vault IPC + Preload
+- 13 个 `KNOWLEDGE_*` IPC 通道：list / get / create / update / delete / toggleTask / search / count / related / extractFromSession / relationAdd / relationRemove / relationList
+- `extractFromSession` 幂等提炼：把对话蒸馏的 keyPoints→decision、todos→task、knowledge→knowledge，同 session+title+type 不重复插入
+- Preload 暴露完整 `window.Memora.knowledge.*` API
+
+#### Knowledge Vault UI
+- **知识库面板**（侧边栏 📚 入口）：工作区切换 + 类型筛选 Tab（全部/知识/决策/任务/待办）+ 统计计数 + FTS 搜索
+- **知识卡片**：类型图标、来源徽章、状态徽章（任务待办/已完成、决策生效中/已废弃）、内容展开折叠、来源对话跳转
+- **任务勾选**：卡片内一键切换任务完成状态，已完成自动半透明 + 删除线
+- **新建/编辑弹层**：类型选择 + 标题 + 内容 + 状态（task: 待办/已完成，decision: 生效中/已废弃）
+- **ChatViewer「📥 提炼到知识库」按钮**：在记忆蒸馏工具栏，一键把当前对话蒸馏提炼为知识库条目（幂等）
+- 三语 i18n 同步（zh-CN / en / ja）
+
+#### MCP 知识工具
+- **`knowledge_search`**：FTS 搜索知识/决策/任务条目（支持中文）
+- **`decision_search`**：专搜架构决策（type=decision）
+- **`project_context`**：组装工作区项目上下文（近期决策 + 未完成任务 + 核心知识 + 统计摘要），让 AI 快速恢复项目状态
+- **`memory_write` 扩展**：提供 workspaceId 时直接写入 knowledge_entries（type 可选 knowledge/decision/task）
+
+### Changed
+
+- **AI 蒸馏 Prompt 升级**：输出 JSON 增加 `knowledge` + `suggestedTags` 字段
+- **knowledge.md 生成**：新增「知识要点」段落
+- MCP server 工具数从 10 个扩展到 13 个
+
 ## [1.0.1] - 2026-07-31
 
 定位重塑 + 工程基础加固。回应外部反馈，将项目从「AI Memory」差异化为「AI Knowledge Vault」，补齐测试与性能基准。

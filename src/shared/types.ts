@@ -182,6 +182,8 @@ export interface BackupData {
   tags: any[]
   sessionTags: any[]
   summaries: any[]
+  knowledgeEntries?: any[]   // v1.1 新增
+  knowledgeRelations?: any[] // v1.1 新增
 }
 
 
@@ -267,9 +269,50 @@ export interface SessionSummary {
   summary: string           // 整体摘要
   keyPoints: string[]       // 关键决定/要点
   todos: string[]           // 待办事项
+  knowledge?: string[]      // 蒸馏出的可复用知识要点（v1.1 新增，可选）
+  suggestedTags?: string[]  // AI 建议标签（不自动应用，UI 让用户确认；可选）
   model?: string            // 生成所用模型
   createdAt: string
   updatedAt: string
+}
+
+/** 知识条目类型（Knowledge Vault 核心） */
+export type KnowledgeType = 'knowledge' | 'decision' | 'task'
+
+/** 知识条目来源 */
+export type KnowledgeSource = 'manual' | 'ai-extract' | 'mcp'
+
+/** 任务状态 */
+export type TaskStatus = 'open' | 'done'
+
+/** 决策状态 */
+export type DecisionStatus = 'active' | 'superseded'
+
+/** 知识条目（一等公民实体，可独立于对话存在） */
+export interface KnowledgeEntry {
+  id: string
+  workspaceId: string
+  /** 来源对话 ID（可空：手动创建或 MCP 写入） */
+  sessionId?: string
+  type: KnowledgeType
+  title: string
+  content?: string
+  /** task: open/done；decision: active/superseded；knowledge: 忽略 */
+  status: string
+  source: KnowledgeSource
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** 知识关系类型（Memory Graph 轻量关系） */
+export type KnowledgeRelation = 'supports' | 'contradicts' | 'derived-from' | 'relates-to' | 'decision-from-session'
+
+/** 知识关系 */
+export interface KnowledgeRelationRow {
+  fromId: string
+  toId: string
+  relation: KnowledgeRelation
 }
 
 /** AI 配置（Phase 2） */

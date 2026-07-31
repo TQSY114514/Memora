@@ -10,6 +10,8 @@ import { upsertSummary, getSummary } from '../database/repositories/summaryRepo'
  * - summary: 整体摘要（2-3 段）
  * - keyPoints: 关键决定/要点（数组）
  * - todos: 待办事项（数组）
+ * - knowledge: 蒸馏出的可复用知识要点（v1.1 新增）
+ * - suggestedTags: AI 建议标签（v1.1 新增，不自动应用）
  */
 
 const SYSTEM_PROMPT = `你是一个 AI 对话总结助手。用户会给你一段 AI 对话记录，请生成结构化总结。
@@ -18,14 +20,18 @@ const SYSTEM_PROMPT = `你是一个 AI 对话总结助手。用户会给你一�
 {
   "summary": "2-3 段对话摘要，概括讨论的主题、过程和结论",
   "keyPoints": ["关键决定1", "关键要点2", "..."],
-  "todos": ["待办事项1", "待办事项2", "..."]
+  "todos": ["待办事项1", "待办事项2", "..."],
+  "knowledge": ["可复用知识要点1", "可复用知识要点2", "..."],
+  "suggestedTags": ["建议标签1", "建议标签2", "..."]
 }
 
 要求：
 - summary 用中文，简洁清晰，不超过 300 字
 - keyPoints 提取对话中做出的关键决定、重要结论、核心要点（3-8 条）
 - todos 提取对话中提到的待办事项、后续行动项（若没有则返回空数组）
-- 如果对话内容很短或无实质内容，keyPoints 和 todos 可以为空数组`
+- knowledge 提取对话中产生的、未来可复用的知识要点（如技术原理、最佳实践、踩坑经验；若没有则返回空数组）
+- suggestedTags 提取 2-5 个能概括对话主题的简短标签（不带 # 号，每个 2-6 字）
+- 如果对话内容很短或无实质内容，keyPoints / todos / knowledge / suggestedTags 可以为空数组`
 
 interface ChatCompletionResponse {
   choices?: Array<{
@@ -100,6 +106,8 @@ function parseSummaryJson(raw: string): {
   summary: string
   keyPoints: string[]
   todos: string[]
+  knowledge: string[]
+  suggestedTags: string[]
 } {
   let jsonStr = raw.trim()
   // 剥离 ```json ... ``` 包裹
@@ -110,12 +118,16 @@ function parseSummaryJson(raw: string): {
     summary?: string
     keyPoints?: string[]
     todos?: string[]
+    knowledge?: string[]
+    suggestedTags?: string[]
   }
 
   return {
     summary: parsed.summary || '',
     keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
-    todos: Array.isArray(parsed.todos) ? parsed.todos : []
+    todos: Array.isArray(parsed.todos) ? parsed.todos : [],
+    knowledge: Array.isArray(parsed.knowledge) ? parsed.knowledge : [],
+    suggestedTags: Array.isArray(parsed.suggestedTags) ? parsed.suggestedTags : []
   }
 }
 
@@ -138,6 +150,8 @@ export async function generateSummary(
     summary: parsed.summary,
     keyPoints: parsed.keyPoints,
     todos: parsed.todos,
+    knowledge: parsed.knowledge,
+    suggestedTags: parsed.suggestedTags,
     model: config.chatModel
   })
 }
@@ -169,6 +183,13 @@ export function generateKnowledgeMd(sessionId: string): string {
       lines.push('## 关键决定')
       lines.push('')
       for (const p of summary.keyPoints) lines.push(`- ${p}`)
+      lines.push('')
+    }
+
+    if (summary.knowledge && summary.knowledge.length > 0) {
+      lines.push('## 知识要点')
+      lines.push('')
+      for (const k of summary.knowledge) lines.push(`- ${k}`)
       lines.push('')
     }
 

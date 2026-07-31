@@ -36,6 +36,16 @@ const migrations: Migration[] = [
     version: 4,
     description: 'embedding 列从 JSON TEXT → BLOB（Float32Array 二进制）',
     up: (db) => migrateEmbeddingsToBlob(db)
+  },
+  {
+    version: 5,
+    description: 'session_summaries 加 knowledge / suggested_tags 列；建 knowledge_entries/fts/relations 表',
+    up: (db) => migrateToKnowledgeVault(db)
+  },
+  {
+    version: 6,
+    description: '回填：把旧 session_summaries 的 key_points/todos 转为 knowledge_entries',
+    up: (db) => backfillKnowledgeEntries(db)
   }
 ]
 
@@ -100,6 +110,165 @@ function migrateEmbeddingsToBlob(db: Database.Database): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_embeddings_message ON message_embeddings(message_id)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_embeddings_session ON message_embeddings(session_id)')
   console.log(`[db] embedding 列已从 TEXT 迁移到 BLOB（${countRow.n} 条）`)
+}
+
+/**
+ * v5：Knowledge Vault 基础设施
+ * - session_summaries 加 knowledge / suggested_tags 列（可选，老数据为 NULL）
+ * - 建 knowledge_entries / knowledge_fts / knowledge_relations 表
+ *
+ * 注：新库由 schema.ts 直接建表；本迁移服务旧库（已存在 session_summaries）。
+ */
+function migrateToKnowledgeVault(db: Database.Database): void {
+  // session_summaries 加列（SQLite 不支持 ADD COLUMN IF NOT EXISTS，需检测）
+  const summaryCols = db.prepare('PRAGMA table_info(session_summaries)').all() as Array<{ name: string }>
+  if (!summaryCols.some((c) => c.name === 'knowledge')) {
+    db.exec('ALTER TABLE session_summaries ADD COLUMN knowledge TEXT')
+  }
+  if (!summaryCols.some((c) => c.name === 'suggested_tags')) {
+    db.exec('ALTER TABLE session_summaries ADD COLUMN suggested_tags TEXT')
+  }
+
+  // knowledge_entries（schema.ts 的新库已建，旧库这里幂等建）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS knowledge_entries (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      session_id   TEXT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+      type         TEXT NOT NULL CHECK(type IN ('knowledge','decision','task')),
+      title        TEXT NOT NULL,
+      content      TEXT,
+      status       TEXT DEFAULT 'open',
+      source       TEXT DEFAULT 'manual',
+      sort_order   INTEGER DEFAULT 0,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+    )
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_ke_workspace ON knowledge_entries(workspace_id)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_ke_type ON knowledge_entries(type)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_ke_session ON knowledge_entries(session_id)')
+
+  // knowledge_fts
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
+      entry_id UNINDEXED,
+      title,
+      content,
+      type UNINDEXED,
+      tokenize = 'unicode61 remove_diacritics 2'
+    )
+  `)
+
+  // knowledge_relations
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS knowledge_relations (
+      from_id  TEXT NOT NULL REFERENCES knowledge_entries(id) ON DELETE CASCADE,
+      to_id    TEXT NOT NULL REFERENCES knowledge_entries(id) ON DELETE CASCADE,
+      relation TEXT NOT NULL,
+      PRIMARY KEY (from_id, to_id, relation)
+    )
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_kr_from ON knowledge_relations(from_id)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_kr_to ON knowledge_relations(to_id)')
+}
+
+/**
+ * v6：回填——把旧 session_summaries 的 key_points/todos 转为 knowledge_entries
+ * - key_points → type='decision'
+ * - todos → type='task' (status='open')
+ * - 通过 session_id 关联回原对话；workspace_id 从对话所属 folder 推导
+ * - 幂等：用 session_id + title + type 去重（避免重复回填）
+ */
+function backfillKnowledgeEntries(db: Database.Database): void {
+  // 读取所有 summary（含 session_id）
+  const summaries = db
+    .prepare('SELECT session_id, key_points, todos FROM session_summaries')
+    .all() as Array<{ session_id: string; key_points: string | null; todos: string | null }>
+
+  if (summaries.length === 0) return
+
+  // 查 session → workspace_id 映射（经 folder）
+  const sessionWsMap = new Map<string, string>()
+  const sessions = db
+    .prepare(
+      `SELECT cs.id as sid, f.workspace_id as wid
+       FROM chat_sessions cs
+       LEFT JOIN folders f ON cs.folder_id = f.id`
+    )
+    .all() as Array<{ sid: string; wid: string | null }>
+  for (const s of sessions) {
+    if (s.wid) sessionWsMap.set(s.sid, s.wid)
+  }
+
+  const now = new Date().toISOString()
+  let count = 0
+  const insertEntry = db.prepare(
+    `INSERT OR IGNORE INTO knowledge_entries
+     (id, workspace_id, session_id, type, title, content, status, source, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'ai-extract', ?, ?, ?)`
+  )
+
+  const tx = db.transaction(() => {
+    for (const sum of summaries) {
+      const wsId = sessionWsMap.get(sum.session_id)
+      if (!wsId) continue // 无工作区的跳过（避免 NOT NULL 约束失败）
+
+      const keyPoints: string[] = sum.key_points ? (JSON.parse(sum.key_points) as string[]) : []
+      const todos: string[] = sum.todos ? (JSON.parse(sum.todos) as string[]) : []
+
+      keyPoints.forEach((kp, idx) => {
+        const title = kp.slice(0, 120)
+        // 去重：同 session + title + type 不重复插入
+        const exists = db
+          .prepare(
+            `SELECT 1 FROM knowledge_entries WHERE session_id = ? AND title = ? AND type = 'decision'`
+          )
+          .get(sum.session_id, title)
+        if (!exists) {
+          insertEntry.run(
+            `${sum.session_id}-dec-${idx}`,
+            wsId,
+            sum.session_id,
+            'decision',
+            title,
+            kp,
+            'active',
+            idx,
+            now,
+            now
+          )
+          count++
+        }
+      })
+
+      todos.forEach((td, idx) => {
+        const title = td.slice(0, 120)
+        const exists = db
+          .prepare(
+            `SELECT 1 FROM knowledge_entries WHERE session_id = ? AND title = ? AND type = 'task'`
+          )
+          .get(sum.session_id, title)
+        if (!exists) {
+          insertEntry.run(
+            `${sum.session_id}-task-${idx}`,
+            wsId,
+            sum.session_id,
+            'task',
+            title,
+            td,
+            'open',
+            idx,
+            now,
+            now
+          )
+          count++
+        }
+      })
+    }
+  })
+  tx()
+  console.log(`[db] v6 回填 ${count} 条 knowledge_entries`)
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */

@@ -9,6 +9,8 @@ export const ja: Record<string, string> = {
   'sidebar.noWorkspace': 'ワークスペースがありません',
   'sidebar.createFirst': '最初のワークスペースを作成',
   'sidebar.memory': '🧠 プロジェクトメモリ',
+  'sidebar.knowledge': '📚 ナレッジ',
+  'sidebar.knowledgeTip': '決定 · タスク · 知識を第一級エンティティとして',
   'sidebar.importCenter': '🔎 インポートセンター',
   'sidebar.manualImport': '⬆ 手動インポート',
   'sidebar.settings': '⚙ 設定',

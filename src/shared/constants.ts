@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.0.1'
+export const APP_VERSION = '1.1.0'
 
 /** IPC 通道命名空间 */
 export const IPC = {
@@ -98,6 +98,21 @@ export const IPC = {
   // Project Memory（Phase 3）
   AI_MEMORY_ASK: 'ai:memory:ask',
   AI_RELATED_SESSIONS: 'ai:related-sessions',
+
+  // Knowledge Vault（v1.1）—— 知识/决策/任务一等公民实体
+  KNOWLEDGE_LIST: 'knowledge:list',
+  KNOWLEDGE_GET: 'knowledge:get',
+  KNOWLEDGE_CREATE: 'knowledge:create',
+  KNOWLEDGE_UPDATE: 'knowledge:update',
+  KNOWLEDGE_DELETE: 'knowledge:delete',
+  KNOWLEDGE_TOGGLE_TASK: 'knowledge:toggle-task',
+  KNOWLEDGE_SEARCH: 'knowledge:search',
+  KNOWLEDGE_COUNT: 'knowledge:count',
+  KNOWLEDGE_RELATED: 'knowledge:related',
+  KNOWLEDGE_EXTRACT_FROM_SESSION: 'knowledge:extract-from-session',
+  KNOWLEDGE_RELATION_ADD: 'knowledge:relation-add',
+  KNOWLEDGE_RELATION_REMOVE: 'knowledge:relation-remove',
+  KNOWLEDGE_RELATION_LIST: 'knowledge:relation-list',
 
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',

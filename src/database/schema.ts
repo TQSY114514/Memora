@@ -128,4 +128,42 @@ INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (2, datetime('
 
 -- 智能文件夹：兼容已有数据库加 rule 字段
 -- ALTER TABLE ADD COLUMN 不会因列已存在而报错（SQLite 不支持 IF NOT EXISTS，用 try-catch 在应用层处理）
+
+-- 知识条目（Knowledge Vault v1.1）
+-- 决策/待办/知识三类一等公民实体，可独立于对话存在
+CREATE TABLE IF NOT EXISTS knowledge_entries (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  session_id   TEXT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  type         TEXT NOT NULL CHECK(type IN ('knowledge','decision','task')),
+  title        TEXT NOT NULL,
+  content      TEXT,
+  status       TEXT DEFAULT 'open',
+  source       TEXT DEFAULT 'manual',
+  sort_order   INTEGER DEFAULT 0,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ke_workspace ON knowledge_entries(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_ke_type ON knowledge_entries(type);
+CREATE INDEX IF NOT EXISTS idx_ke_session ON knowledge_entries(session_id);
+
+-- 知识全文索引（标题+内容，复用 Intl.Segmenter 中文分词）
+CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
+  entry_id UNINDEXED,
+  title,
+  content,
+  type UNINDEXED,
+  tokenize = 'unicode61 remove_diacritics 2'
+);
+
+-- 知识关系（Memory Graph 轻量关系）
+CREATE TABLE IF NOT EXISTS knowledge_relations (
+  from_id  TEXT NOT NULL REFERENCES knowledge_entries(id) ON DELETE CASCADE,
+  to_id    TEXT NOT NULL REFERENCES knowledge_entries(id) ON DELETE CASCADE,
+  relation TEXT NOT NULL,
+  PRIMARY KEY (from_id, to_id, relation)
+);
+CREATE INDEX IF NOT EXISTS idx_kr_from ON knowledge_relations(from_id);
+CREATE INDEX IF NOT EXISTS idx_kr_to ON knowledge_relations(to_id);
 `
