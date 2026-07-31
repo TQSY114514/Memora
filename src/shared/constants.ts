@@ -2,7 +2,41 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.1.0'
+export const APP_VERSION = '1.2.0'
+
+/**
+ * AI API 协议风格元信息（v1.2）
+ * 用于 UI 下拉选择 + apiClient 路由
+ */
+export const API_STYLE_META: Record<
+  import('./types').AiApiStyle,
+  { label: string; description: string; needsApiKey: boolean; defaultBaseUrl: string }
+> = {
+  openai: {
+    label: 'OpenAI 兼容',
+    description: '/chat/completions + /embeddings，Bearer 鉴权。适用于 OpenAI / DeepSeek / SiliconFlow / Kimi / 通义千问等大多数第三方',
+    needsApiKey: true,
+    defaultBaseUrl: 'https://api.openai.com/v1'
+  },
+  anthropic: {
+    label: 'Anthropic 原生',
+    description: '/v1/messages + x-api-key + anthropic-version。Claude 官方 API',
+    needsApiKey: true,
+    defaultBaseUrl: 'https://api.anthropic.com'
+  },
+  ollama: {
+    label: 'Ollama 本地',
+    description: '/api/chat + /api/embeddings，无需鉴权。本地部署的 Ollama',
+    needsApiKey: false,
+    defaultBaseUrl: 'http://localhost:11434'
+  },
+  gemini: {
+    label: 'Google Gemini',
+    description: '/v1beta/models/{model}:generateContent?key=。Google AI Studio',
+    needsApiKey: true,
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com'
+  }
+}
 
 /** IPC 通道命名空间 */
 export const IPC = {

@@ -1,10 +1,11 @@
 import type { AiConfig, SessionSummary } from '@shared/types'
 import { getSession } from '../database/repositories/sessionRepo'
 import { upsertSummary, getSummary } from '../database/repositories/summaryRepo'
+import { callChat } from './apiClient'
 
 /**
  * AI 总结模块
- * 调用 OpenAI 兼容的 chat completions 接口，生成结构化总结
+ * 调用 chat completions 接口生成结构化总结（v1.2 起由 apiClient 路由多协议）
  *
  * 输出结构：
  * - summary: 整体摘要（2-3 段）
@@ -32,44 +33,6 @@ const SYSTEM_PROMPT = `你是一个 AI 对话总结助手。用户会给你一�
 - knowledge 提取对话中产生的、未来可复用的知识要点（如技术原理、最佳实践、踩坑经验；若没有则返回空数组）
 - suggestedTags 提取 2-5 个能概括对话主题的简短标签（不带 # 号，每个 2-6 字）
 - 如果对话内容很短或无实质内容，keyPoints / todos / knowledge / suggestedTags 可以为空数组`
-
-interface ChatCompletionResponse {
-  choices?: Array<{
-    message?: { content?: string }
-  }>
-  error?: { message: string }
-}
-
-/** 调用 chat completions */
-async function callChat(config: AiConfig, systemPrompt: string, userPrompt: string): Promise<string> {
-  const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.chatModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3
-    })
-  })
-
-  if (!resp.ok) {
-    const errText = await resp.text()
-    throw new Error(`API ${resp.status}: ${errText}`)
-  }
-
-  const data = (await resp.json()) as ChatCompletionResponse
-  if (data.error) throw new Error(data.error.message)
-  const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('API 返回空内容')
-  return content
-}
 
 /** 把对话渲染为文本（截断超长对话） */
 function renderSession(session: {
@@ -143,7 +106,7 @@ export async function generateSummary(
   }
 
   const userPrompt = renderSession(session)
-  const raw = await callChat(config, SYSTEM_PROMPT, userPrompt)
+  const raw = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3 })
   const parsed = parseSummaryJson(raw)
 
   return upsertSummary(sessionId, {

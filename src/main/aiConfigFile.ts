@@ -7,6 +7,8 @@
  *
  * 安全：本文件只存非敏感字段（baseUrl/chatModel/embeddingModel/embeddingDim/activeProvider），
  * apiKey 明文仍只存 secretStore 加密文件。
+ *
+ * v1.2：加 apiStyle（多协议路由）和 label（显示名）字段，支持无限供应商
  */
 import { app } from 'electron'
 import { join } from 'path'
@@ -18,6 +20,10 @@ export interface StoredAiConfig {
   embeddingModel: string
   embeddingDim: number
   hasApiKey: boolean
+  /** v1.2 新增：API 协议风格（默认 openai） */
+  apiStyle?: 'openai' | 'anthropic' | 'ollama' | 'gemini'
+  /** v1.2 新增：显示名 */
+  label?: string
 }
 
 export interface AiConfigFile {
@@ -67,8 +73,16 @@ export function setActiveProvider(provider: string): void {
 export function deleteProviderConfig(provider: string): void {
   const file = loadAiConfigFile()
   delete file.configs[provider]
+  // v1.2：删除激活项时，回退到第一个可用配置，而非硬编码 'openai'
   if (file.activeProvider === provider) {
-    file.activeProvider = 'openai'
+    const remaining = Object.keys(file.configs)
+    file.activeProvider = remaining.length > 0 ? remaining[0] : undefined
   }
   saveAiConfigFile(file)
+}
+
+/** v1.2：列出所有已配置的 provider key（供 secretStore 动态读取 apiKey） */
+export function listConfiguredProviders(): string[] {
+  const file = loadAiConfigFile()
+  return Object.keys(file.configs)
 }

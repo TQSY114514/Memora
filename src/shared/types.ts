@@ -315,11 +315,22 @@ export interface KnowledgeRelationRow {
   relation: KnowledgeRelation
 }
 
-/** AI 配置（Phase 2） */
+/**
+ * AI API 协议风格（v1.2）
+ * - openai:    OpenAI 兼容（/chat/completions + /embeddings + Bearer）— 默认
+ * - anthropic: Anthropic 原生（/v1/messages + x-api-key + anthropic-version）
+ * - ollama:    Ollama 本地（/api/chat + /api/embeddings，无 auth）
+ * - gemini:    Google Gemini（/v1beta/models/{model}:generateContent?key=）
+ */
+export type AiApiStyle = 'openai' | 'anthropic' | 'ollama' | 'gemini'
+
+/** AI 配置（Phase 2，v1.2 扩展为无限供应商 + 多协议） */
 export interface AiConfig {
-  provider: 'openai' | 'deepseek' | 'custom'
+  provider: string          // 供应商唯一标识（v1.2 起为 string，可任意命名）
+  label?: string            // 显示名（v1.2 新增，UI 展示用）
+  apiStyle?: AiApiStyle     // API 协议风格（v1.2 新增，默认 openai）
   baseUrl: string           // API 基地址
-  apiKey: string            // 密钥
+  apiKey: string            // 密钥（ollama 可空）
   chatModel: string         // 对话模型（用于总结）
   embeddingModel: string    // 嵌入模型（用于语义搜索）
   embeddingDim: number      // 嵌入维度

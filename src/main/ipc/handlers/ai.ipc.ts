@@ -10,7 +10,8 @@ import {
   setActiveProvider as setActiveProviderFile,
   deleteProviderConfig
 } from '@main/aiConfigFile'
-import type { AiConfig } from '@shared/types'
+import { callChat, embedQuery } from '@ai/apiClient'
+import type { AiConfig, AiApiStyle } from '@shared/types'
 
 function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
   ipcMain.handle(channel, async (event, ...args) => {
@@ -84,34 +85,33 @@ export function registerAiHandlers(): void {
   )
 
   // AI 连接测试（通过 main 进程，避免 CORS）
+  // v1.2：用 apiClient 统一路由，支持 openai/anthropic/ollama/gemini 四种协议
   // 同时测 chat 和 embeddings，只要一个成功就算可用
   safeHandle(IPC.TEST_AI_CONNECTION, async (_e, config) => {
-    const { baseUrl, apiKey, chatModel, embeddingModel } = config
-    const base = baseUrl.replace(/\/$/, '')
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
+    const { baseUrl, apiKey, chatModel, embeddingModel, apiStyle } = config as {
+      baseUrl: string
+      apiKey: string
+      chatModel: string
+      embeddingModel: string
+      apiStyle?: AiApiStyle
+    }
+
+    const aiConfig: AiConfig = {
+      provider: '_test_',
+      apiStyle: apiStyle ?? 'openai',
+      baseUrl,
+      apiKey,
+      chatModel,
+      embeddingModel,
+      embeddingDim: 0 // 测试时未知，不校验
     }
 
     // 1. 测 chat 接口（必测）
     let chatOk = false
     let chatError = ''
     try {
-      const resp = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: chatModel,
-          messages: [{ role: 'user', content: 'hi' }],
-          max_tokens: 5
-        })
-      })
-      if (resp.ok) {
-        chatOk = true
-      } else {
-        const txt = await resp.text()
-        chatError = `chat ${resp.status}: ${txt.slice(0, 150)}`
-      }
+      await callChat(aiConfig, 'You are a test assistant. Reply with: ok', 'hi')
+      chatOk = true
     } catch (e) {
       chatError = e instanceof Error ? e.message : String(e)
     }
@@ -121,19 +121,9 @@ export function registerAiHandlers(): void {
     let embeddingDim = 0
     let embeddingError = ''
     try {
-      const resp = await fetch(`${base}/embeddings`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ model: embeddingModel, input: ['test'] })
-      })
-      if (resp.ok) {
-        const data = await resp.json()
-        embeddingDim = data.data?.[0]?.embedding?.length ?? 0
-        if (embeddingDim > 0) embeddingOk = true
-      } else {
-        const txt = await resp.text()
-        embeddingError = `embeddings ${resp.status}: ${txt.slice(0, 150)}`
-      }
+      const vec = await embedQuery(aiConfig, 'test')
+      embeddingDim = vec.length
+      if (embeddingDim > 0) embeddingOk = true
     } catch (e) {
       embeddingError = e instanceof Error ? e.message : String(e)
     }

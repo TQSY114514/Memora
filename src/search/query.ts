@@ -36,17 +36,19 @@ function runFts(
   provider?: string
 ): FtsHitRow[] {
   const db = getDatabase()
+  // provider 过滤走 chat_sessions 权威表（chat_fts.provider 列历史数据可能为空串）
   let sql = `
-    SELECT session_id, title, content, provider, rank
+    SELECT chat_fts.session_id, chat_fts.title, chat_fts.content, chat_fts.provider, chat_fts.rank
     FROM chat_fts
+    JOIN chat_sessions ON chat_fts.session_id = chat_sessions.id
     WHERE chat_fts MATCH ?
   `
   const params: unknown[] = [ftsQuery]
   if (provider) {
-    sql += ' AND provider = ?'
+    sql += ' AND chat_sessions.provider = ?'
     params.push(provider)
   }
-  sql += ' ORDER BY rank LIMIT ?'
+  sql += ' ORDER BY chat_fts.rank LIMIT ?'
   params.push(limit)
   return db.prepare(sql).all(...params) as FtsHitRow[]
 }

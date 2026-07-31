@@ -7,56 +7,17 @@ import {
   countSessionEmbeddings
 } from '../database/repositories/embeddingRepo'
 import { invalidateEmbeddingCache } from '../search/semantic'
+import { embedBatch } from './apiClient'
 
 /**
  * 向量嵌入模块
- * 调用 OpenAI 兼容的 embeddings 接口，为消息生成向量
+ * 调用 embeddings 接口为消息生成向量（v1.2 起支持多协议，由 apiClient 路由）
  *
  * 策略：
  * - 单条会话内批量请求（一次 API 调用处理多条文本）
  * - 已存在向量的消息跳过（增量索引）
  * - 超长文本截断（embedding 模型一般限制 8k tokens）
  */
-
-interface EmbeddingResponse {
-  data?: Array<{ embedding?: number[] }>
-  error?: { message: string }
-}
-
-/** 调用 embeddings 接口（批量） */
-async function callEmbeddings(
-  config: AiConfig,
-  inputs: string[]
-): Promise<number[][]> {
-  const url = `${config.baseUrl.replace(/\/$/, '')}/embeddings`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.embeddingModel,
-      input: inputs
-    })
-  })
-
-  if (!resp.ok) {
-    const errText = await resp.text()
-    throw new Error(`Embedding API ${resp.status}: ${errText}`)
-  }
-
-  const data = (await resp.json()) as EmbeddingResponse
-  if (data.error) throw new Error(data.error.message)
-  if (!data.data || data.data.length === 0) throw new Error('Embedding API 返回空')
-
-  return data.data.map((d) => {
-    if (!d.embedding || d.embedding.length === 0) {
-      throw new Error('返回的向量为空')
-    }
-    return d.embedding
-  })
-}
 
 /** 截断超长文本（按字符近似，embedding 模型一般 8k tokens 限制） */
 function truncate(text: string, maxChars = 6000): string {
@@ -108,7 +69,7 @@ export async function embedSession(
   for (let i = 0; i < embeddable.length; i += BATCH_SIZE) {
     const batch = embeddable.slice(i, i + BATCH_SIZE)
     const inputs = batch.map((m) => truncate(m.content))
-    const vectors = await callEmbeddings(config, inputs)
+    const vectors = await embedBatch(config, inputs)
 
     if (vectors.length !== batch.length) {
       throw new Error(`向量数量不匹配: 期望 ${batch.length}, 实际 ${vectors.length}`)

@@ -2,6 +2,56 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-07-31
+
+从「固定 3 个供应商」升级为「无限供应商 + 多协议适配」：用户可自由新增/重命名/删除任意数量的 AI 供应商，每个供应商独立选择 API 协议风格（OpenAI 兼容 / Anthropic 原生 / Ollama 本地 / Google Gemini），配置完全隔离。
+
+### Added
+
+#### 无限供应商架构
+- **动态供应商管理**：移除硬编码的 provider union 类型限制，改为字符串 ID + localStorage 持久化，支持任意数量供应商新增 / 删除 / 重命名
+- **`AiApiStyle` 协议枚举**：`openai` / `anthropic` / `ollama` / `gemini` 四种 API 风格
+- **`API_STYLE_META` 协议元信息表**：每种协议的 label / description / needsApiKey / defaultBaseUrl，UI 与路由共用
+- **`AiConfig.label` 显示名字段**：与 provider ID 解耦，支持任意自定义名称
+
+#### 多协议 API 客户端
+- **`src/ai/apiClient.ts`**（新模块）：统一 `callChat` / `embedQuery` 入口，根据 `apiStyle` 路由到协议专属实现
+  - `callChatOpenai`：`/chat/completions` + Bearer 鉴权 + `max_tokens` 字段
+  - `callChatAnthropic`：`/v1/messages` + `x-api-key` + `anthropic-version: 2023-06-01` + `max_tokens` 必填
+  - `callChatOllama`：`/api/chat` 无鉴权 + options 解析
+  - `callChatGemini`：`/v1beta/models/{model}:generateContent?key=` + `contents` 数组结构
+  - `embedQueryOpenai/Anthropic/Ollama/Gemini`：对应 embeddings 端点
+  - 内置 3 次重试 + 指数退避
+- **`src/shared/math.ts`**（新模块）：`cosineSimilarity` 向量余弦相似度，与 protocol 无关
+
+#### UI 重构
+- **AiSettings 左侧供应商列表**：显示所有已配置供应商 + ✓ 已配置徽章 + 协议小字说明
+- **「+ 新增供应商」按钮**：底部虚线按钮，点击弹出新增对话框（输入名称 + 选择协议）
+- **右侧配置面板**：供应商名称（可重命名）+ API 协议下拉 + baseUrl + apiKey（Ollama 隐藏）+ 对话模型 + 嵌入模型 + 维度
+- **测试连接**：调用 main 进程统一走 `apiClient` 路由，同时测 chat + embeddings，chat 成功即算可用
+- **删除/重命名**：每个供应商可独立重命名 / 删除（至少保留 1 个）
+
+#### 主进程适配
+- **`TEST_AI_CONNECTION` IPC**：v1.2 通过 `apiClient` 路由，根据 `apiStyle` 调用对应协议
+- **`aiConfigFile.ts`**：持久化 `apiStyle` + `label` 字段
+- **`secretStore.ts`**：动态加载所有已配置 provider 的 apiKey
+- **`embedder.ts` / `summarizer.ts` / `projectMemory.ts` / `semantic.ts`**：统一重构为调用 `apiClient`，移除原 OpenAI 硬编码逻辑
+
+#### Preload 类型扩展
+- `testConnection` 参数增加 `apiStyle?: AiApiStyle`
+- `saveConfigFile` 参数增加 `apiStyle?` + `label?`
+
+### Changed
+
+- **`AiConfig.provider`**：从 `'openai' | 'anthropic' | 'ollama'` union 类型改为 `string`，向后兼容
+- **`aiConfigStore.ts`**：完全重写，新增 `addProvider` / `removeProvider` / `renameProvider` / `setProviderApiStyle` 方法，移除硬编码 `getProviderPresets`，改为动态构造
+- **`APP_VERSION`**：1.1.0 → 1.2.0
+
+### Migration
+
+- 旧版 localStorage 中已有 `openai` / `anthropic` / `ollama` 三个 provider 的配置自动迁移：补全 `apiStyle` + `label` 字段
+- 已加密的 apiKey 通过 `secretStore` 动态读取，无需重新输入
+
 ## [1.1.0] - 2026-07-31
 
 从「AI 对话管理器」升级为「AI Knowledge Vault」：把决策 / 任务 / 知识从对话蒸馏的 JSON 数组提升为一等公民实体，可独立查询、关联、复用；MCP 同步增强，让外部 AI Agent 能直接读写知识库。

@@ -1,7 +1,9 @@
-﻿import type { AiConfig, ProjectMemoryAnswer, MemoryCitation, RelatedSession } from '@shared/types'
+import type { AiConfig, ProjectMemoryAnswer, MemoryCitation, RelatedSession } from '@shared/types'
 import { getDatabase } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
 import { getAllEmbeddings } from '../database/repositories/embeddingRepo'
+import { callChat, embedQuery } from './apiClient'
+import { cosineSimilarity } from '@shared/math'
 
 /**
  * Project Memory 智能问答（RAG）
@@ -14,12 +16,9 @@ import { getAllEmbeddings } from '../database/repositories/embeddingRepo'
  * 5. 返回答案 + 引用来源
  *
  * 这是 Memora 的核心价值：让 AI 基于用户的历史对话回答项目问题
+ *
+ * v1.2：callChat / embedQuery / cosineSimilarity 统一抽到 apiClient + math
  */
-
-interface EmbeddingResponse {
-  data?: Array<{ embedding?: number[] }>
-  error?: { message: string }
-}
 
 interface MessageRow {
   id: string
@@ -27,86 +26,6 @@ interface MessageRow {
   role: string
   content: string
   msg_order: number
-}
-
-/** 调用 embeddings 接口（单条） */
-async function embedQuery(config: AiConfig, text: string): Promise<number[]> {
-  const url = `${config.baseUrl.replace(/\/$/, '')}/embeddings`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.embeddingModel,
-      input: [text]
-    })
-  })
-
-  if (!resp.ok) {
-    const errText = await resp.text()
-    throw new Error(`Embedding API ${resp.status}: ${errText}`)
-  }
-
-  const data = (await resp.json()) as EmbeddingResponse
-  if (data.error) throw new Error(data.error.message)
-  const vec = data.data?.[0]?.embedding
-  if (!vec || vec.length === 0) throw new Error('Embedding API 返回空')
-  return vec
-}
-
-/** 计算余弦相似度 */
-function cosineSimilarity(a: number[], b: number[]): number {
-  const len = Math.min(a.length, b.length)
-  let dot = 0
-  let normA = 0
-  let normB = 0
-  for (let i = 0; i < len; i++) {
-    dot += a[i] * b[i]
-    normA += a[i] * a[i]
-    normB += b[i] * b[i]
-  }
-  if (normA === 0 || normB === 0) return 0
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
-}
-
-interface ChatCompletionResponse {
-  choices?: Array<{
-    message?: { content?: string }
-  }>
-  error?: { message: string }
-}
-
-/** 调用 chat completions */
-async function callChat(config: AiConfig, systemPrompt: string, userPrompt: string): Promise<string> {
-  const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.chatModel,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3
-    })
-  })
-
-  if (!resp.ok) {
-    const errText = await resp.text()
-    throw new Error(`API ${resp.status}: ${errText}`)
-  }
-
-  const data = (await resp.json()) as ChatCompletionResponse
-  if (data.error) throw new Error(data.error.message)
-  const content = data.choices?.[0]?.message?.content
-  if (!content) throw new Error('API 返回空内容')
-  return content
 }
 
 const SYSTEM_PROMPT = `你是 Memora 的 Project Memory 助手。用户会基于自己过去的 AI 对话记录提问，你需要根据提供的对话片段回答问题。
@@ -241,7 +160,7 @@ ${contextBlocks.join('\n\n---\n\n')}
 
 请基于以上片段回答用户的问题。`
 
-  const answer = await callChat(config, SYSTEM_PROMPT, userPrompt)
+  const answer = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3 })
 
   return {
     question: trimmed,

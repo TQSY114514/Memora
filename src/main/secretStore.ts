@@ -5,13 +5,14 @@
  * 密文存到 userData/secrets.enc，renderer 永远不接触明文存储。
  *
  * renderer 通过 IPC 存取，localStorage 不再保存 apiKey。
+ *
+ * v1.2：getAllApiKeys 不再硬编码 3 个 provider，改为从 aiConfigFile 动态读取
+ *      已配置的 provider 列表，支持无限供应商
  */
 import { app, safeStorage } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
-
-const PROVIDERS = ['openai', 'deepseek', 'custom'] as const
-type Provider = (typeof PROVIDERS)[number]
+import { listConfiguredProviders } from './aiConfigFile'
 
 interface SecretsFile {
   [provider: string]: string // base64 编码的加密 Buffer
@@ -69,10 +70,15 @@ export function getApiKey(provider: string): string | null {
   }
 }
 
-/** 批量获取所有 provider 的明文 apiKey */
+/**
+ * 批量获取所有已配置 provider 的明文 apiKey
+ * v1.2：从 aiConfigFile 动态读取 provider 列表，不再硬编码
+ */
 export function getAllApiKeys(): Record<string, string> {
   const result: Record<string, string> = {}
-  for (const p of PROVIDERS) {
+  // 从 ai-config.json 读取已配置的 provider 列表
+  const providers = listConfiguredProviders()
+  for (const p of providers) {
     const key = getApiKey(p)
     if (key) result[p] = key
   }

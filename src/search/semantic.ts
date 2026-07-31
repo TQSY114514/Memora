@@ -3,39 +3,9 @@ import { join } from 'path'
 import { getDbPath } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
 import { getDatabase } from '../database/connection'
+import { embedQuery } from '../ai/apiClient'
+import { cosineSimilarity } from '@shared/math'
 import type { AiConfig, SemanticSearchResult } from '@shared/types'
-
-interface EmbeddingResponse {
-  data?: Array<{ embedding?: number[] }>
-  error?: { message: string }
-}
-
-/** 调用 embeddings 接口（单条） */
-async function embedQuery(config: AiConfig, text: string): Promise<number[]> {
-  const url = `${config.baseUrl.replace(/\/$/, '')}/embeddings`
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.embeddingModel,
-      input: [text]
-    })
-  })
-
-  if (!resp.ok) {
-    const errText = await resp.text()
-    throw new Error(`Embedding API ${resp.status}: ${errText}`)
-  }
-
-  const data = (await resp.json()) as EmbeddingResponse
-  if (data.error) throw new Error(data.error.message)
-  const vec = data.data?.[0]?.embedding
-  if (!vec || vec.length === 0) throw new Error('Embedding API 返回空')
-  return vec
-}
 
 // ===== Worker 池（常驻，缓存向量数据）=====
 
@@ -115,20 +85,6 @@ interface FallbackRow {
   model: string
 }
 
-function cosineSimilarityArr(a: number[], b: number[]): number {
-  const len = Math.min(a.length, b.length)
-  let dot = 0
-  let normA = 0
-  let normB = 0
-  for (let i = 0; i < len; i++) {
-    dot += a[i] * b[i]
-    normA += a[i] * a[i]
-    normB += b[i] * b[i]
-  }
-  if (normA === 0 || normB === 0) return 0
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
-}
-
 function getAllEmbeddingsSync(): FallbackRow[] {
   const db = getDatabase()
   const rows = db
@@ -153,7 +109,7 @@ function searchFallback(
   const scored = all.map((row) => ({
     messageId: row.messageId,
     sessionId: row.sessionId,
-    score: cosineSimilarityArr(queryVec, row.embedding)
+    score: cosineSimilarity(queryVec, row.embedding)
   }))
   return scored
     .filter((r) => r.score >= threshold)

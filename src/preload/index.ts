@@ -229,8 +229,9 @@ const api = {
       sessionId: string
     ): Promise<{ total: number; embedded: number; complete: boolean }> =>
       ipcRenderer.invoke(IPC.AI_EMBED_STATUS, sessionId),
-    /** 测试 AI 连接（通过 main 进程，避免 CORS） */
+    /** 测试 AI 连接（通过 main 进程，避免 CORS，v1.2 支持多协议） */
     testConnection: (config: {
+      apiStyle?: import('@shared/types').AiApiStyle
       baseUrl: string
       apiKey: string
       chatModel: string
@@ -240,7 +241,15 @@ const api = {
     /** 同步 AI 配置到主进程文件（供 MCP 进程读取，只存非敏感字段） */
     saveConfigFile: (
       provider: string,
-      config: { baseUrl: string; chatModel: string; embeddingModel: string; embeddingDim: number; hasApiKey: boolean }
+      config: {
+        baseUrl: string
+        chatModel: string
+        embeddingModel: string
+        embeddingDim: number
+        hasApiKey: boolean
+        apiStyle?: import('@shared/types').AiApiStyle
+        label?: string
+      }
     ): Promise<void> => ipcRenderer.invoke(IPC.AI_CONFIG_FILE_SAVE, provider, config),
     /** 设置激活的 provider（同步到主进程文件） */
     setActiveProviderFile: (provider: string): Promise<void> =>

@@ -145,7 +145,7 @@ export function createSession(
 
   // FTS 索引（移出事务，避免索引失败导致会话写入回滚）
   try {
-    indexSessionForSearch(id, session.title, messages)
+    indexSessionForSearch(id, session.title, messages, session.provider)
   } catch (e) {
     console.error('[sessionRepo] FTS 索引失败（不影响会话写入）:', e)
   }
