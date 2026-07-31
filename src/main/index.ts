@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, shell, Tray, Menu, nativeImage, session } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { initDatabase, closeDatabase, checkpointDatabase } from '../database/connection'
@@ -6,6 +6,15 @@ import { registerIpcHandlers } from './ipc'
 import { listWorkspaces, deleteWorkspace } from '../database/repositories/workspaceRepo'
 import { backgroundImporter } from '../importer/backgroundImporter'
 import { shutdownSemanticWorker } from '../search/semantic'
+
+// ===== 全局异常处理器 =====
+// 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled Rejection:', reason instanceof Error ? reason.stack : reason)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err.stack)
+})
 
 // ===== MCP Server 模式 =====
 // 通过 `electron --mcp` 启动时，运行 MCP Server 而非 GUI
@@ -96,7 +105,8 @@ function startGui(): void {
       // 隐藏系统标题栏的关闭按钮行为由 tray 接管
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
-        sandbox: false,
+        // 启用沙箱 + contextIsolation，渲染进程无法直接访问 Node API
+        sandbox: true,
         contextIsolation: true,
         nodeIntegration: false
       }
@@ -120,6 +130,23 @@ function startGui(): void {
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
       shell.openExternal(url)
       return { action: 'deny' }
+    })
+
+    // 设置 CSP 头：禁止内联脚本/动态脚本执行，只允许同源资源
+    // 注意：React 组件的 inline style 需 'unsafe-inline'；img data: URI 用于部分图标
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data:; " +
+            "script-src 'self'; " +
+            "font-src 'self' data:;"
+          ]
+        }
+      })
     })
 
     // 开发环境加载 dev server，生产环境加载打包文件

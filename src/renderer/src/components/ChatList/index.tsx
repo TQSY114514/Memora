@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import { useDialog, PromptDialog } from '../PromptDialog'
+import { SnippetRenderer } from '../SnippetRenderer'
 import type { Provider, ChatSession, SearchResult } from '@shared/types'
 
 export function ChatList() {
@@ -400,10 +401,9 @@ const ChatListItem = ({
       </div>
 
       {searchResult && searchResult.snippets.length > 0 && (
-        <div
-          className="mt-2 px-2 py-1.5 bg-bg-tertiary rounded text-xs text-fg-secondary line-clamp-2 [&_mark]:bg-yellow-200 [&_mark]:text-black [&_mark]:px-0.5 [&_mark]:rounded dark:[&_mark]:bg-yellow-500 dark:[&_mark]:text-black"
-          dangerouslySetInnerHTML={{ __html: searchResult.snippets[0].snippet }}
-        />
+        <div className="mt-2 px-2 py-1.5 bg-bg-tertiary rounded text-xs text-fg-secondary line-clamp-2 [&_mark]:bg-yellow-200 [&_mark]:text-black [&_mark]:px-0.5 [&_mark]:rounded dark:[&_mark]:bg-yellow-500 dark:[&_mark]:text-black">
+          <SnippetRenderer html={searchResult.snippets[0].snippet} />
+        </div>
       )}
     </div>
   )

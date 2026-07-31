@@ -10,7 +10,7 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.2.0-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.3.0-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -29,6 +29,22 @@
 </p>
 
 </div>
+
+---
+
+## AI 项目声明
+
+> **本项目 90%+ 代码由 AI（Claude、DeepSeek、Gemini 等）生成，未经人工安全审计。**
+
+Memora 是一个实验性项目，初衷是验证「AI 能否从零构建一个完整的桌面应用」。事实证明可以——但也带来了代价：
+
+- **安全漏洞**：AI 生成的代码存在已知和未知的安全问题（XSS、注入、权限绕过等），本项目未经过专业安全审计
+- **代码质量**：存在冗余逻辑、不一致的命名风格、不够优雅的架构设计
+- **潜在 Bug**：边界条件、错误处理、内存管理等方面可能存在未覆盖的场景
+
+**如果你打算使用 Memora 管理敏感对话，请自行评估风险。** 欢迎安全研究者提交漏洞报告或 PR。
+
+相关讨论：[为什么 AI 越聪明，写的代码反而越不安全？](https://www.bilibili.com/video/BV1T1GA6pEvp/) — VibeCoding 安全分析
 
 ---
 
@@ -434,6 +450,20 @@ memora/
 ## 变更日志
 
 详见 [CHANGELOG.md](CHANGELOG.md) — 基于 Keep a Changelog 格式，记录所有重要变更。
+
+## 安全披露
+
+本项目为 AI 生成代码，已知和潜在的安全问题包括但不限于：
+
+- **XSS 风险**：部分渲染路径历史上使用 `dangerouslySetInnerHTML`（v1.3.0 已修复为安全组件）
+- **CSP 缺失**：v1.3.0 前未设置 Content-Security-Policy 头（v1.3.0 已修复）
+- **沙箱未启用**：v1.3.0 前渲染进程未启用 Electron sandbox 模式（v1.3.0 已修复）
+- **全局异常未捕获**：v1.3.0 前未注册 `unhandledRejection` / `uncaughtException` 处理器（v1.3.0 已修复）
+- **依赖漏洞**：`npm audit` 报告 20 个已知漏洞（18 个高风险），主要来自 Electron 33.x
+- **SQL 注入**：部分查询使用字符串拼接，虽经过参数校验但未经渗透测试
+- **IPC 安全**：preload 桥接层暴露了较宽的主进程 API 面，存在被恶意利用的可能
+
+**如果你发现安全漏洞，请通过 GitHub Issues 或邮件私下报告，不要公开披露。** 我们会在确认后尽快修复并致谢。
 
 ## 核心原则
 
