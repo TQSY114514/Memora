@@ -40,6 +40,8 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
 
   const [backupLoading, setBackupLoading] = useState(false)
   const [backupMsg, setBackupMsg] = useState<string | null>(null)
+  const [maintMsg, setMaintMsg] = useState<string | null>(null)
+  const [maintLoading, setMaintLoading] = useState(false)
 
   async function handleExportBackup() {
     setBackupLoading(true)
@@ -82,6 +84,32 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
       }
     }
     input.click()
+  }
+
+  async function handleVacuum() {
+    setMaintLoading(true)
+    setMaintMsg(null)
+    try {
+      await window.Memora.db.vacuum()
+      setMaintMsg('✓ 数据库已压缩')
+    } catch (e) {
+      setMaintMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setMaintLoading(false)
+    }
+  }
+
+  async function handleCleanOrphans() {
+    setMaintLoading(true)
+    setMaintMsg(null)
+    try {
+      const result = await window.Memora.db.cleanOrphans()
+      setMaintMsg(`✓ 清理了 ${result.cleaned} 条孤儿数据`)
+    } catch (e) {
+      setMaintMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setMaintLoading(false)
+    }
   }
 
   return (
@@ -245,6 +273,35 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             {backupMsg && (
               <p className={`text-xs mt-2 ${backupMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
                 {backupMsg}
+              </p>
+            )}
+          </div>
+
+          {/* 数据库维护 */}
+          <div>
+            <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+              数据库维护
+            </label>
+            <p className="text-[11px] text-fg-muted mb-2.5">压缩数据库文件（VACUUM）或清理引用了已删除对话的孤儿数据。</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleVacuum}
+                disabled={maintLoading}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                {maintLoading ? '⏳ 处理中…' : '🗜 压缩数据库'}
+              </button>
+              <button
+                onClick={handleCleanOrphans}
+                disabled={maintLoading}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                🧹 清理孤儿数据
+              </button>
+            </div>
+            {maintMsg && (
+              <p className={`text-xs mt-2 ${maintMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+                {maintMsg}
               </p>
             )}
           </div>

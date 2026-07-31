@@ -60,6 +60,9 @@ export const IPC = {
   // Sharing
   SHARE_EXPORT_HTML: 'share:export-html',
   SHARE_EXPORT_HTML_BATCH: 'share:export-html-batch',
+  SHARE_EXPORT_MD: 'share:export-md',
+  DB_VACUUM: 'db:vacuum',
+  DB_CLEAN_ORPHANS: 'db:clean-orphans',
 
   // 批量操作
   SESSION_BATCH_DELETE: 'session:batch-delete',
@@ -68,6 +71,7 @@ export const IPC = {
   // AI（Phase 2）
   AI_SUMMARY_GENERATE: 'ai:summary:generate',
   AI_SUMMARY_GET: 'ai:summary:get',
+  AI_SUMMARY_UPDATE: 'ai:summary:update',
   AI_SUMMARY_DELETE: 'ai:summary:delete',
   AI_KNOWLEDGE_GENERATE: 'ai:knowledge:generate',
   AI_EMBED_SESSION: 'ai:embed:session',

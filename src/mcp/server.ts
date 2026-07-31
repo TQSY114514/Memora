@@ -29,11 +29,13 @@
 
 import { createInterface } from 'readline'
 import { initDatabase } from '../database/connection'
-import { listSessions, getSession } from '../database/repositories/sessionRepo'
+import { listSessions, getSession, createSession } from '../database/repositories/sessionRepo'
 import { listWorkspaces } from '../database/repositories/workspaceRepo'
 import { listTags } from '../database/repositories/tagRepo'
 import { getSummary } from '../database/repositories/summaryRepo'
 import { search } from '../search/query'
+import { getDatabase } from '../database/connection'
+import { v4 as uuidv4 } from 'uuid'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -121,8 +123,35 @@ const TOOLS: McpTool[] = [
       },
       required: ['sessionId']
     }
-  }
-]
+  },
+  {
+    name: 'add_session',
+    description: '在 Memora 中创建新对话。返回新对话的 ID。可指定 provider（如 ChatGPT/Claude/Gemini 等）和 folderId。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: '对话标题' },
+        provider: { type: 'string', description: 'AI 平台标识，如 Claude/ChatGPT/Gemini/DeepSeek 等' },
+        folderId: { type: 'string', description: '目标文件夹 ID（可选）' },
+        messages: { type: 'array', description: '消息列表', items: { type: 'object' } }
+      },
+      required: ['title', 'provider']
+    }
+  },
+  {
+    name: 'add_message',
+    description: '向指定对话追加一条消息。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: '目标对话 ID' },
+        role: { type: 'string', description: '消息角色：user/assistant/system/tool' },
+        content: { type: 'string', description: '消息内容' },
+        model: { type: 'string', description: '使用的模型（可选）' }
+      },
+      required: ['sessionId', 'role', 'content']
+    }
+  }]
 
 /** 调用工具 */
 async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -199,6 +228,58 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       const sessionId = String(args.sessionId ?? '')
       if (!sessionId) throw new Error('sessionId 不能为空')
       return getSummary(sessionId)
+    }
+
+    case 'add_session': {
+      const title = String(args.title ?? '')
+      const provider = String(args.provider ?? 'Unknown')
+      if (!title) throw new Error('title 不能为空')
+      const folderId = args.folderId ? String(args.folderId) : undefined
+      const rawMessages = (args.messages ?? []) as Array<Record<string, unknown>>
+      const messages = rawMessages.map((m, idx) => ({
+        id: uuidv4(),
+        sessionId: '',
+        role: String(m.role ?? 'user') as any,
+        content: String(m.content ?? ''),
+        model: m.model ? String(m.model) : undefined,
+        order: idx,
+        createdAt: m.createdAt ? String(m.createdAt) : new Date().toISOString()
+      }))
+      const session = createSession({
+        provider: provider as any,
+        title,
+        folderId,
+        isFavorite: false,
+        messageCount: messages.length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        tags: []
+      }, messages)
+      return { sessionId: session.id, title: session.title }
+    }
+
+    case 'add_message': {
+      const sessionId = String(args.sessionId ?? '')
+      const role = String(args.role ?? 'user')
+      const content = String(args.content ?? '')
+      if (!sessionId) throw new Error('sessionId 不能为空')
+      if (!content) throw new Error('content 不能为空')
+      const session = getSession(sessionId, false)
+      if (!session) throw new Error('对话不存在')
+      const db = getDatabase()
+      const msgId = uuidv4()
+      const now = new Date().toISOString()
+      const order = (db.prepare('SELECT COUNT(*) as n FROM messages WHERE session_id = ?').get(sessionId) as { n: number }).n
+      const indexSessionForSearch = require('../database/repositories/sessionRepo').indexSessionForSearch
+
+      const tx = db.transaction(() => {
+        db.prepare(
+          'INSERT INTO messages (id, session_id, role, content, model, tokens, msg_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(msgId, sessionId, role, content, args.model ? String(args.model) : null, null, order, now)
+        db.prepare('UPDATE chat_sessions SET message_count = message_count + 1, updated_at = ? WHERE id = ?').run(now, sessionId)
+      })
+      tx()
+      return { messageId: msgId, sessionId, order }
     }
 
     default:

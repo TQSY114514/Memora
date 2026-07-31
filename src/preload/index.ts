@@ -16,7 +16,6 @@ import type {
   DetectedApp,
   DashboardStats,
   BackupData,
-  DashboardStats,
   ExtractedSession
 } from '../shared/types'
 
@@ -155,7 +154,12 @@ const api = {
     exportHtml: (
       sessionId: string,
       options?: { customTitle?: string; customDescription?: string }
-    ): Promise<string | null> => ipcRenderer.invoke(IPC.SHARE_EXPORT_HTML, sessionId, options)
+    ): Promise<string | null> => ipcRenderer.invoke(IPC.SHARE_EXPORT_HTML, sessionId, options),
+    /** 导出为 Markdown */
+    exportMd: (
+      sessionId: string,
+      options?: { customTitle?: string; customDescription?: string }
+    ): Promise<string | null> => ipcRenderer.invoke(IPC.SHARE_EXPORT_MD, sessionId, options)
   },
 
   // ===== 批量操作 =====
@@ -180,6 +184,11 @@ const api = {
     /** 删除会话总结 */
     deleteSummary: (sessionId: string): Promise<void> =>
       ipcRenderer.invoke(IPC.AI_SUMMARY_DELETE, sessionId),
+    /** 更新会话总结（手动编辑） */
+    updateSummary: (
+      sessionId: string,
+      data: { summary: string; keyPoints: string[]; todos: string[] }
+    ): Promise<SessionSummary> => ipcRenderer.invoke(IPC.AI_SUMMARY_UPDATE, sessionId, data),
     /** 生成 knowledge.md 内容 */
     generateKnowledgeMd: (sessionId: string): Promise<string> =>
       ipcRenderer.invoke(IPC.AI_KNOWLEDGE_GENERATE, sessionId),
@@ -228,6 +237,11 @@ const api = {
   backup: {
     export: (): Promise<BackupData> => ipcRenderer.invoke(IPC.BACKUP_EXPORT),
     import: (data: BackupData): Promise<{ restored: number }> => ipcRenderer.invoke(IPC.BACKUP_IMPORT, data)
+  },
+  // ===== 数据库维护 =====
+  db: {
+    vacuum: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.DB_VACUUM),
+    cleanOrphans: (): Promise<{ cleaned: number }> => ipcRenderer.invoke(IPC.DB_CLEAN_ORPHANS)
   }
 }
 

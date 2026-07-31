@@ -42,6 +42,10 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
 
   const [relatedSessions, setRelatedSessions] = useState<RelatedSession[]>([])
   const [showRelated, setShowRelated] = useState(false)
+  const [editingSummary, setEditingSummary] = useState(false)
+  const [editSummaryText, setEditSummaryText] = useState('')
+  const [editKeyPoints, setEditKeyPoints] = useState('')
+  const [editTodos, setEditTodos] = useState('')
 
   // 虚拟列表
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -76,6 +80,16 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     await window.Memora.saveFileDialog({
       defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.html`,
       content: html
+    })
+  }
+
+  async function handleShareMd() {
+    if (!session) return
+    const md = await window.Memora.share.exportMd(session.id)
+    if (!md) return
+    await window.Memora.saveFileDialog({
+      defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.md`,
+      content: md
     })
   }
 
@@ -133,6 +147,41 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     })
   }
 
+  function handleEditSummary() {
+    if (!summary) return
+    setEditSummaryText(summary.summary)
+    setEditKeyPoints(summary.keyPoints.join('\n'))
+    setEditTodos(summary.todos.join('\n'))
+    setEditingSummary(true)
+  }
+
+  async function handleSaveSummary() {
+    if (!session) return
+    try {
+      const updated = await window.Memora.ai.updateSummary(session.id, {
+        summary: editSummaryText,
+        keyPoints: editKeyPoints.split('\n').map(s => s.trim()).filter(Boolean),
+        todos: editTodos.split('\n').map(s => s.trim()).filter(Boolean)
+      })
+      setSummary(updated)
+      setEditingSummary(false)
+    } catch (e) {
+      setSummaryError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleDeleteSummary() {
+    if (!session) return
+    if (!confirm('确定删除这个 AI 总结？')) return
+    try {
+      await window.Memora.ai.deleteSummary(session.id)
+      setSummary(null)
+      setShowSummary(false)
+    } catch (e) {
+      setSummaryError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   async function handleLoadRelated() {
     if (!session) return
     if (showRelated) {
@@ -171,7 +220,14 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               className="Memora-btn Memora-btn-ghost text-xs"
               title="导出为自包含 HTML 分享"
             >
-              ⤴ 分享
+              ⤴ HTML
+            </button>
+            <button
+              onClick={handleShareMd}
+              className="Memora-btn Memora-btn-ghost text-xs"
+              title="导出为 Markdown（适合导入 Obsidian/Notion）"
+            >
+              ⬇ MD
             </button>
           </div>
         </div>
@@ -227,6 +283,24 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               {showSummary ? '▼ 隐藏总结' : '▶ 显示总结'}
             </button>
           )}
+          {summary && showSummary && (
+            <>
+              <button
+                onClick={handleEditSummary}
+                className="Memora-btn Memora-btn-ghost text-xs"
+                title="编辑总结"
+              >
+                ✎ 编辑
+              </button>
+              <button
+                onClick={handleDeleteSummary}
+                className="Memora-btn Memora-btn-ghost text-xs text-red-500"
+                title="删除总结"
+              >
+                🗑 删除
+              </button>
+            </>
+          )}
           {summary && (
             <button
               onClick={handleExportKnowledge}
@@ -259,7 +333,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       </header>
 
       {/* AI 总结面板 */}
-      {summary && showSummary && (
+      {summary && showSummary && !editingSummary && (
         <div className="px-6 py-4 border-b border-border bg-accent-muted/30">
           <div className="max-w-3xl mx-auto">
             <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
@@ -299,6 +373,40 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
                 </ul>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* AI 总结编辑面板 */}
+      {summary && showSummary && editingSummary && (
+        <div className="px-6 py-4 border-b border-border bg-accent-muted/30">
+          <div className="max-w-3xl mx-auto">
+            <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">编辑总结</h3>
+            <textarea
+              value={editSummaryText}
+              onChange={(e) => setEditSummaryText(e.target.value)}
+              className="Memora-input w-full text-sm mb-2"
+              rows={4}
+              placeholder="总结内容"
+            />
+            <label className="block text-[10px] text-fg-muted mb-1">关键要点（每行一条）</label>
+            <textarea
+              value={editKeyPoints}
+              onChange={(e) => setEditKeyPoints(e.target.value)}
+              className="Memora-input w-full text-sm mb-2"
+              rows={3}
+            />
+            <label className="block text-[10px] text-fg-muted mb-1">待办事项（每行一条）</label>
+            <textarea
+              value={editTodos}
+              onChange={(e) => setEditTodos(e.target.value)}
+              className="Memora-input w-full text-sm mb-2"
+              rows={3}
+            />
+            <div className="flex gap-2">
+              <button onClick={handleSaveSummary} className="Memora-btn Memora-btn-primary text-xs">保存</button>
+              <button onClick={() => setEditingSummary(false)} className="Memora-btn Memora-btn-ghost text-xs">取消</button>
+            </div>
           </div>
         </div>
       )}

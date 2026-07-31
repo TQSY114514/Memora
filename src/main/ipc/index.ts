@@ -38,7 +38,7 @@ import { detectInstalledApps } from '@importer/appDetector'
 import { extractLocal } from '@importer/localExtractor'
 import { search } from '@search/query'
 import { semanticSearch } from '@search/semantic'
-import { renderSessionToHtml } from '@sharing'
+import { renderSessionToHtml, renderSessionToMd } from '@sharing'
 import { generateSummary, getSessionSummary, generateKnowledgeMd } from '@ai/summarizer'
 import { embedSession, getEmbedStatus } from '@ai/embedder'
 import { askProjectMemory, findRelatedSessions } from '@ai/projectMemory'
@@ -265,6 +265,13 @@ export function registerIpcHandlers(): void {
     deleteSummary(sessionId)
   })
 
+  ipcMain.handle(
+    IPC.AI_SUMMARY_UPDATE,
+    (_e, sessionId: string, data: { summary: string; keyPoints: string[]; todos: string[] }) => {
+      return upsertSummary(sessionId, data)
+    }
+  )
+
   ipcMain.handle(IPC.AI_KNOWLEDGE_GENERATE, (_e, sessionId: string) => {
     return generateKnowledgeMd(sessionId)
   })
@@ -384,6 +391,52 @@ export function registerIpcHandlers(): void {
       dim: 0,
       message: undefined
     }
+  })
+
+
+  // ===== 导出 Markdown =====
+  ipcMain.handle(
+    IPC.SHARE_EXPORT_MD,
+    (_e, sessionId: string, options?: { customTitle?: string; customDescription?: string }) => {
+      const session = getSession(sessionId, true) as ChatSession | null
+      if (!session) return null
+      return renderSessionToMd(session, options)
+    }
+  )
+
+  // ===== 数据库维护 =====
+  ipcMain.handle(IPC.DB_VACUUM, () => {
+    const db = getDatabase()
+    db.pragma('wal_checkpoint(TRUNCATE)')
+    db.exec('VACUUM')
+    return { ok: true }
+  })
+
+  ipcMain.handle(IPC.DB_CLEAN_ORPHANS, () => {
+    const db = getDatabase()
+    let cleaned = 0
+    // 清理孤儿消息（session 不存在）
+    const r1 = db.prepare('DELETE FROM messages WHERE session_id NOT IN (SELECT id FROM chat_sessions)').run()
+    cleaned += r1.changes
+    // 清理孤儿附件
+    const r2 = db.prepare('DELETE FROM attachments WHERE message_id NOT IN (SELECT id FROM messages)').run()
+    cleaned += r2.changes
+    // 清理孤儿总结
+    const r3 = db.prepare('DELETE FROM session_summaries WHERE session_id NOT IN (SELECT id FROM chat_sessions)').run()
+    cleaned += r3.changes
+    // 清理孤儿嵌入
+    const r4 = db.prepare('DELETE FROM message_embeddings WHERE session_id NOT IN (SELECT id FROM chat_sessions)').run()
+    cleaned += r4.changes
+    // 清理孤儿 session_tags
+    const r5 = db.prepare('DELETE FROM session_tags WHERE session_id NOT IN (SELECT id FROM chat_sessions)').run()
+    cleaned += r5.changes
+    // 清理 FTS 索引中已删除的会话
+    try {
+      db.exec("DELETE FROM chat_fts WHERE session_id NOT IN (SELECT id FROM chat_sessions)")
+    } catch {
+      // FTS 清理失败不阻塞
+    }
+    return { cleaned }
   })
 
   // ===== Dashboard 统计 =====
