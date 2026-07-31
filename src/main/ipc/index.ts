@@ -30,7 +30,9 @@ import {
   detachTag,
   attachTagByName,
   getSummary,
-  deleteSummary
+  deleteSummary,
+  upsertSummary,
+  listSessionsByRule
 } from '@db/repositories'
 import { importFile, importDirectory, importContent, importExtractedSessions } from '@importer/service'
 import { scanDirectories } from '@importer/scanner'
@@ -393,6 +395,11 @@ export function registerIpcHandlers(): void {
     }
   })
 
+
+  // ===== 智能文件夹：按规则列出会话 =====
+  ipcMain.handle(IPC.SESSION_LIST_BY_RULE, (_e, workspaceId: string, rule: any) => {
+    return listSessionsByRule(workspaceId, rule)
+  })
 
   // ===== 导出 Markdown =====
   ipcMain.handle(

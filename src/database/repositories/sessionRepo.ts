@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
-import type { ChatSession, Message, Tag } from '@shared/types'
+import type { ChatSession, Message, Tag, FolderRule } from '@shared/types'
 import { indexSessionForSearch, unindexSession } from '@search/indexer'
 
 interface SessionRow {
@@ -217,6 +217,26 @@ export function listSessions(options?: {
   return rows.map((row) => rowToSession(row, getSessionTags(row.id)))
 }
 
+/** 检查会话是否匹配智能文件夹规则 */
+function matchesRule(session: ChatSession, rule: FolderRule): boolean {
+  // 关键词匹配（标题或描述）
+  if (rule.keywords && rule.keywords.length > 0) {
+    const text = (session.title + ' ' + (session.description ?? '')).toLowerCase()
+    if (!rule.keywords.some((k: string) => text.includes(k.toLowerCase()))) return false
+  }
+  // 平台匹配
+  if (rule.providers && rule.providers.length > 0) {
+    if (!rule.providers.includes(session.provider)) return false
+  }
+  // 标签匹配
+  if (rule.tags && rule.tags.length > 0) {
+    if (!session.tags.some(t => rule.tags!.includes(t.name))) return false
+  }
+  // 收藏匹配
+  if (rule.favoriteOnly && !session.isFavorite) return false
+  return true
+}
+
 /** 列出工作区内所有会话（含未分组的） */
 export function listSessionsByWorkspace(workspaceId: string): ChatSession[] {
   const db = getDatabase()
@@ -227,6 +247,13 @@ export function listSessionsByWorkspace(workspaceId: string): ChatSession[] {
      ORDER BY cs.updated_at DESC`
   ).all(workspaceId) as SessionRow[]
   return rows.map((row) => rowToSession(row, getSessionTags(row.id)))
+}
+
+/** 列出匹配智能文件夹规则的会话 */
+export function listSessionsByRule(workspaceId: string, rule: FolderRule): ChatSession[] {
+  // 先获取工作区全部会话，再在应用层过滤（规则含 keywords/tags 难以纯 SQL 表达）
+  const all = listSessionsByWorkspace(workspaceId)
+  return all.filter(s => matchesRule(s, rule))
 }
 
 /** 更新会话元信息 */

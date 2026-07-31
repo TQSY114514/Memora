@@ -98,6 +98,19 @@ export interface Workspace {
   sessionCount?: number
 }
 
+
+/** 智能文件夹规则 */
+export interface FolderRule {
+  /** 匹配关键词（标题或内容包含任一即命中） */
+  keywords?: string[]
+  /** 匹配平台（任一即命中） */
+  providers?: string[]
+  /** 匹配标签（任一即命中） */
+  tags?: string[]
+  /** 是否只匹配收藏 */
+  favoriteOnly?: boolean
+}
+
 /** 文件夹（支持嵌套） */
 export interface Folder {
   id: string
@@ -105,6 +118,8 @@ export interface Folder {
   parentId?: string
   name: string
   sortOrder: number
+  /** 智能文件夹规则（null=普通文件夹） */
+  rule?: FolderRule | null
   createdAt: string
   updatedAt: string
   /** 子文件夹数量 */

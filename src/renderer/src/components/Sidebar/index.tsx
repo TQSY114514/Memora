@@ -4,7 +4,7 @@ import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../store
 import { useT } from '../../i18n'
 import { useDialog, PromptDialog } from '../PromptDialog'
 import { PROVIDER_META } from '@shared/constants'
-import type { Folder } from '@shared/types'
+import type { Folder, FolderRule } from '@shared/types'
 
 interface SidebarProps {
   searchInputRef: React.RefObject<HTMLInputElement>
@@ -31,6 +31,10 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
   const dialog = useDialog()
 
   const [folders, setLocalFolders] = useState<Folder[]>([])
+  const [showSmartFolderDialog, setShowSmartFolderDialog] = useState(false)
+  const [smartName, setSmartName] = useState('')
+  const [smartKeywords, setSmartKeywords] = useState('')
+  const [smartProviders, setSmartProviders] = useState('')
 
   // 初始加载工作区列表
   useEffect(() => {
@@ -68,9 +72,16 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
   async function handleSelectFolder(folderId: string | null) {
     setActiveFolder(folderId)
     if (folderId) {
-      // 选了具体文件夹，只查该文件夹的会话
-      const sessions = await window.Memora.session.list({ folderId })
-      setSessions(sessions)
+      const folder = folders.find(f => f.id === folderId)
+      if (folder?.rule) {
+        // 智能文件夹：按规则查
+        const sessions = await window.Memora.session.listByRule(activeWorkspaceId!, folder.rule)
+        setSessions(sessions)
+      } else {
+        // 普通文件夹
+        const sessions = await window.Memora.session.list({ folderId })
+        setSessions(sessions)
+      }
     } else {
       // "全部聊天"：查当前工作区的全部会话（含未分组的）
       if (activeWorkspaceId) {
@@ -95,6 +106,35 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
     if (!name || name === oldName) return
     await window.Memora.workspace.update(id, { name })
     setWorkspaces(workspaces.map((ws) => (ws.id === id ? { ...ws, name } : ws)))
+  }
+
+  async function handleCreateSmartFolder() {
+    if (!activeWorkspaceId) return
+    if (!smartName.trim()) {
+      await dialog.alert('请输入文件夹名称')
+      return
+    }
+    const rule: FolderRule = {}
+    if (smartKeywords.trim()) {
+      rule.keywords = smartKeywords.split(/[,，\n]/).map(s => s.trim()).filter(Boolean)
+    }
+    if (smartProviders.trim()) {
+      rule.providers = smartProviders.split(/[,，\n]/).map(s => s.trim()).filter(Boolean)
+    }
+    if (Object.keys(rule).length === 0) {
+      await dialog.alert('请至少设置一个规则（关键词或平台）')
+      return
+    }
+    const folder = await window.Memora.folder.create({
+      workspaceId: activeWorkspaceId,
+      name: smartName.trim(),
+      rule
+    })
+    setLocalFolders([...folders, folder])
+    setSmartName('')
+    setSmartKeywords('')
+    setSmartProviders('')
+    setShowSmartFolderDialog(false)
   }
 
   async function handleCreateFolder() {
@@ -231,8 +271,9 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
                           ? 'text-fg-primary bg-bg-hover'
                           : 'text-fg-muted hover:text-fg-secondary'
                       }`}
+                      title={f.rule ? '智能文件夹' : ''}
                     >
-                      <span className="text-xs opacity-60">📂</span>
+                      <span className="text-xs opacity-60">{f.rule ? '🔮' : '📂'}</span>
                       <span className="truncate">{f.name}</span>
                     </button>
                     <button
@@ -249,6 +290,12 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
                   className="w-full text-left px-2 py-1 rounded text-xs text-fg-muted hover:text-fg-secondary"
                 >
                   {t('sidebar.newFolder')}
+                </button>
+                <button
+                  onClick={() => setShowSmartFolderDialog(true)}
+                  className="w-full text-left px-2 py-1 rounded text-xs text-fg-muted hover:text-fg-secondary"
+                >
+                  + 智能文件夹
                 </button>
               </div>
             )}
@@ -297,6 +344,48 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
         </button>
       </div>
 
+      {showSmartFolderDialog && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
+          onClick={() => setShowSmartFolderDialog(false)}
+        >
+          <div
+            className="bg-bg-primary rounded-lg shadow-xl p-5 w-96"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold mb-3">创建智能文件夹</h3>
+            <p className="text-xs text-fg-muted mb-3">根据规则自动归类对话，无需手动移动。</p>
+            <label className="block text-xs text-fg-secondary mb-1">名称</label>
+            <input
+              type="text"
+              value={smartName}
+              onChange={(e) => setSmartName(e.target.value)}
+              className="Memora-input w-full text-sm mb-3"
+              placeholder="如：Claude 项目相关"
+            />
+            <label className="block text-xs text-fg-secondary mb-1">关键词（逗号分隔，标题/描述含任一即命中）</label>
+            <input
+              type="text"
+              value={smartKeywords}
+              onChange={(e) => setSmartKeywords(e.target.value)}
+              className="Memora-input w-full text-sm mb-3"
+              placeholder="如：aether, 架构, bug"
+            />
+            <label className="block text-xs text-fg-secondary mb-1">平台（逗号分隔，如 Claude, ChatGPT）</label>
+            <input
+              type="text"
+              value={smartProviders}
+              onChange={(e) => setSmartProviders(e.target.value)}
+              className="Memora-input w-full text-sm mb-3"
+              placeholder="如：Claude, ChatGPT"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowSmartFolderDialog(false)} className="Memora-btn Memora-btn-ghost text-xs">取消</button>
+              <button onClick={handleCreateSmartFolder} className="Memora-btn Memora-btn-primary text-xs">创建</button>
+            </div>
+          </div>
+        </div>
+      )}
       <PromptDialog state={dialog.state} onClose={dialog.handleClose} />
     </aside>
   )

@@ -55,6 +55,23 @@ Memora 是一个 **Local-First 的 AI 记忆工作台**。它不是另一个 AI 
 - ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看
 - ✅ **智能导入中心**：自动检测已安装的 AI 应用，一键扒取本地记录
 
+## 演示
+
+> 以下 Gif 占位，录制后替换文件名即可
+
+<table>
+  <tr>
+    <td width="33%" align="center">Dashboard 首页</td>
+    <td width="33%" align="center">智能导入</td>
+    <td width="33%" align="center">搜索高亮</td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="assets/demo-dashboard.gif" alt="Dashboard"/></td>
+    <td width="33%"><img src="assets/demo-import.gif" alt="Import"/></td>
+    <td width="33%"><img src="assets/demo-search.gif" alt="Search"/></td>
+  </tr>
+</table>
+
 ## 核心功能
 
 

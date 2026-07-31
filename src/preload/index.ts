@@ -16,6 +16,7 @@ import type {
   DetectedApp,
   DashboardStats,
   BackupData,
+  FolderRule,
   ExtractedSession
 } from '../shared/types'
 
@@ -58,7 +59,7 @@ const api = {
   // ===== Folder =====
   folder: {
     list: (workspaceId?: string): Promise<Folder[]> => ipcRenderer.invoke(IPC.FOLDER_LIST, workspaceId),
-    create: (input: { workspaceId: string; parentId?: string; name: string }): Promise<Folder> =>
+    create: (input: { workspaceId: string; parentId?: string; name: string; rule?: FolderRule | null }): Promise<Folder> =>
       ipcRenderer.invoke(IPC.FOLDER_CREATE, input),
     update: (id: string, patch: Partial<Folder>): Promise<void> =>
       ipcRenderer.invoke(IPC.FOLDER_UPDATE, id, patch),
@@ -84,7 +85,10 @@ const api = {
     move: (id: string, folderId: string | null): Promise<void> =>
       ipcRenderer.invoke(IPC.SESSION_MOVE, id, folderId),
     toggleFavorite: (id: string): Promise<void> =>
-      ipcRenderer.invoke(IPC.SESSION_TOGGLE_FAVORITE, id)
+      ipcRenderer.invoke(IPC.SESSION_TOGGLE_FAVORITE, id),
+    /** 按智能文件夹规则列出会话 */
+    listByRule: (workspaceId: string, rule: FolderRule): Promise<ChatSession[]> =>
+      ipcRenderer.invoke(IPC.SESSION_LIST_BY_RULE, workspaceId, rule)
   },
 
   // ===== Tag =====

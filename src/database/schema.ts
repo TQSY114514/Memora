@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS folders (
   parent_id     TEXT REFERENCES folders(id) ON DELETE CASCADE,
   name          TEXT NOT NULL,
   sort_order    INTEGER DEFAULT 0,
+  rule          TEXT,              -- 智能文件夹规则（JSON，null=普通文件夹）
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
@@ -124,4 +125,7 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_message ON message_embeddings(message_
 CREATE INDEX IF NOT EXISTS idx_embeddings_session ON message_embeddings(session_id);
 
 INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (2, datetime('now'));
+
+-- 智能文件夹：兼容已有数据库加 rule 字段
+-- ALTER TABLE ADD COLUMN 不会因列已存在而报错（SQLite 不支持 IF NOT EXISTS，用 try-catch 在应用层处理）
 `

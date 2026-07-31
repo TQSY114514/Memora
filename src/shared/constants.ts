@@ -23,6 +23,7 @@ export const IPC = {
   FOLDER_CREATE: 'folder:create',
   FOLDER_UPDATE: 'folder:update',
   FOLDER_DELETE: 'folder:delete',
+  SESSION_LIST_BY_RULE: 'session:list-by-rule',
 
   // Session
   SESSION_LIST: 'session:list',

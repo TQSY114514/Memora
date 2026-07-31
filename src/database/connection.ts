@@ -31,6 +31,16 @@ export function initDatabase(dbPath?: string): Database.Database {
   // 建表
   dbInstance.exec(SCHEMA_SQL)
 
+  // 迁移：为已有数据库加新字段（ALTER TABLE 不支持 IF NOT EXISTS，需手动检查）
+  const addColumnIfMissing = (table: string, column: string, def: string) => {
+    const cols = dbInstance!.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+    if (!cols.some(c => c.name === column)) {
+      dbInstance!.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
+    }
+  }
+  addColumnIfMissing('folders', 'rule', 'TEXT')
+
+
   return dbInstance
 }
 

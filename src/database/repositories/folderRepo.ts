@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
-import type { Folder } from '@shared/types'
+import type { Folder, FolderRule } from '@shared/types'
 
 interface FolderRow {
   id: string
@@ -8,6 +8,7 @@ interface FolderRow {
   parent_id: string | null
   name: string
   sort_order: number
+  rule: string | null
   created_at: string
   updated_at: string
 }
@@ -19,6 +20,7 @@ function rowToFolder(row: FolderRow): Folder {
     parentId: row.parent_id ?? undefined,
     name: row.name,
     sortOrder: row.sort_order,
+    rule: row.rule ? (JSON.parse(row.rule) as FolderRule) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -28,14 +30,15 @@ export function createFolder(input: {
   workspaceId: string
   parentId?: string
   name: string
+  rule?: FolderRule | null
 }): Folder {
   const db = getDatabase()
   const id = uuidv4()
   const now = new Date().toISOString()
   db.prepare(
-    `INSERT INTO folders (id, workspace_id, parent_id, name, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 0, ?, ?)`
-  ).run(id, input.workspaceId, input.parentId ?? null, input.name, now, now)
+    `INSERT INTO folders (id, workspace_id, parent_id, name, sort_order, rule, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 0, ?, ?, ?)`
+  ).run(id, input.workspaceId, input.parentId ?? null, input.name, input.rule ? JSON.stringify(input.rule) : null, now, now)
   return getFolder(id)!
 }
 
@@ -75,7 +78,7 @@ export function listChildFolders(parentId: string): Folder[] {
 
 export function updateFolder(
   id: string,
-  patch: Partial<Pick<Folder, 'name' | 'parentId' | 'sortOrder'>>
+  patch: Partial<Pick<Folder, 'name' | 'parentId' | 'sortOrder' | 'rule'>>
 ): void {
   const db = getDatabase()
   const sets: string[] = []
@@ -92,6 +95,10 @@ export function updateFolder(
   if (patch.sortOrder !== undefined) {
     sets.push('sort_order = @sortOrder')
     params.sortOrder = patch.sortOrder
+  }
+  if (patch.rule !== undefined) {
+    sets.push('rule = @rule')
+    params.rule = patch.rule ? JSON.stringify(patch.rule) : null
   }
   if (sets.length === 0) return
 
