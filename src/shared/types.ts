@@ -315,6 +315,20 @@ export interface KnowledgeRelationRow {
   relation: KnowledgeRelation
 }
 
+/** 知识图谱边（含显式关系和隐式关联） */
+export interface GraphEdge {
+  from: string
+  to: string
+  relation: string
+  implicit: boolean
+}
+
+/** 知识图谱数据（节点 + 边） */
+export interface KnowledgeGraphData {
+  nodes: KnowledgeEntry[]
+  edges: GraphEdge[]
+}
+
 /**
  * AI API 协议风格（v1.2）
  * - openai:    OpenAI 兼容（/chat/completions + /embeddings + Bearer）— 默认

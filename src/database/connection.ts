@@ -46,7 +46,26 @@ export function initDatabase(dbPath?: string): Database.Database {
   // 版本化迁移（version 3+ 的增量变更）
   runMigrations(dbInstance)
 
+  // 启动时优化查询计划（轻量：SQLite 自动判断是否需要 ANALYZE，首次启动几乎无开销）
+  try {
+    dbInstance.pragma('optimize')
+  } catch {
+    // 优化失败不阻塞启动
+  }
+
   return dbInstance
+}
+
+/** 退出前检查点：将 WAL 日志写回主库文件，避免 WAL 文件膨胀导致下次启动变慢 */
+export function checkpointDatabase(): void {
+  if (dbInstance) {
+    try {
+      dbInstance.pragma('wal_checkpoint(TRUNCATE)')
+      dbInstance.pragma('optimize')
+    } catch {
+      // 退出时检查点失败不阻塞退出
+    }
+  }
 }
 
 /** 获取数据库实例（必须先 initDatabase） */

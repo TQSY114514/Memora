@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import { initDatabase, closeDatabase } from '../database/connection'
+import { initDatabase, closeDatabase, checkpointDatabase } from '../database/connection'
 import { registerIpcHandlers } from './ipc'
 import { listWorkspaces, deleteWorkspace } from '../database/repositories/workspaceRepo'
 import { backgroundImporter } from '../importer/backgroundImporter'
@@ -184,6 +184,8 @@ function startGui(): void {
     backgroundImporter.stop()
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
+    // 退出前将 WAL 写回主库 + 优化查询计划，避免 WAL 膨胀导致下次启动变慢
+    checkpointDatabase()
     closeDatabase()
   })
 

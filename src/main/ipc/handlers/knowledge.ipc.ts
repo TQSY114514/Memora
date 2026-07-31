@@ -13,7 +13,8 @@ import {
   findRelatedEntries,
   addRelation,
   removeRelation,
-  listRelations
+  listRelations,
+  getGraphData
 } from '@db/repositories'
 import { getSummary } from '@db/repositories'
 import type { KnowledgeType, KnowledgeRelation } from '@shared/types'
@@ -156,5 +157,10 @@ export function registerKnowledgeHandlers(): void {
 
   safeHandle(IPC.KNOWLEDGE_RELATION_LIST, (_e, entryId: string) => {
     return listRelations(entryId)
+  })
+
+  // ===== 知识图谱（Memory Graph 可视化数据） =====
+  safeHandle(IPC.KNOWLEDGE_GRAPH_DATA, (_e, workspaceId: string) => {
+    return getGraphData(workspaceId)
   })
 }

@@ -129,7 +129,7 @@ export default function App() {
       ) : (
         <>
           <ChatList />
-          <ChatViewer onOpenAiSettings={() => setShowAiSettings(true)} />
+          <ChatViewer onOpenAiSettings={() => setShowAiSettings(true)} onOpenImportCenter={() => setShowImportCenter(true)} />
         </>
       )}
 

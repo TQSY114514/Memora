@@ -6,6 +6,7 @@ import type {
   KnowledgeType,
   Workspace
 } from '@shared/types'
+import { KnowledgeGraph } from './KnowledgeGraph'
 
 interface KnowledgePanelProps {
   onClose: () => void
@@ -34,6 +35,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
   const [entries, setEntries] = useState<KnowledgeEntry[]>([])
   const [counts, setCounts] = useState<{ total: number; knowledge: number; decision: number; task: number; openTask: number } | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -271,9 +273,15 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
         {error && <p className="text-[11px] text-red-500 break-all">✗ {error}</p>}
       </div>
 
-      {/* 列表 */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">
+      {/* 列表 / 图谱 */}
+      {viewMode === 'graph' ? (
+        <KnowledgeGraph
+          workspaceId={currentWsId}
+          onEntryClick={(entry) => setEditing(entry)}
+        />
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">
           {loading && (
             <div className="flex items-center gap-2 text-sm text-fg-secondary py-8 justify-center">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -316,6 +324,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
             ))}
         </div>
       </div>
+      )}
 
       {/* 编辑/新建弹层 */}
       {(editing || creating) && (

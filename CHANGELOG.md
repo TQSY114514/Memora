@@ -2,6 +2,37 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-07-31
+
+聚焦「知识图谱可视化 + 安全加固 + 性能维护」：新增知识库图谱视图（纯 SVG 0 依赖），导入时自动脱敏 API Key/Token，数据库退出时自动 WAL 检查点，首页空状态引导。
+
+### Added
+
+#### 知识图谱可视化
+- **`KnowledgeGraph.tsx`**（新组件）：纯 SVG 实现的知识图谱视图，0 新增依赖
+  - 按 type 分三层同心圆环布局（知识最外圈 / 决策中圈 / 任务最内圈）
+  - 显式关系实线 + 隐式关联（同源对话）虚线
+  - 点击节点高亮关联边和邻居 + 底部详情面板（关联列表可点击跳转）
+  - hover tooltip + 滚轮缩放 + 拖拽平移 + 缩放工具栏 + 图例
+- **`getGraphData()` IPC**：一次性返回工作区所有节点 + 边（显式关系 + 隐式同源关联，每 session 最多 20 条边避免 O(n²) 爆炸）
+- **Knowledge 面板视图切换**：📋 列表 / 🕸️ 图谱 segment 切换
+
+#### 导入敏感信息清洗
+- **`src/importer/sanitizer.ts`**（新模块）：导入前自动检测并脱敏 6 种凭证模式
+  - OpenAI Key（sk-）/ Anthropic Key（sk-ant-）/ Google Key（AIza）/ GitHub Token（ghp_）/ Bearer Token / 通用 key=value
+  - 替换为 `[REDACTED:类型]`，保留上下文
+  - 保守匹配：特定前缀 + 足够长度，避免误伤正常技术讨论
+
+#### 首页空状态引导
+- **Dashboard 空状态 CTA**：无对话时显示「📥 开始导入」+「⚙️ 配置 AI」引导卡片，降低首次使用门槛
+
+### Changed
+
+#### 数据库自动维护
+- **`connection.ts`**：启动时执行 `PRAGMA optimize`（SQLite 自动判断是否需要 ANALYZE）
+- **`checkpointDatabase()`**：退出前执行 `wal_checkpoint(TRUNCATE)` + `PRAGMA optimize`，避免 WAL 文件膨胀导致下次启动变慢
+- **`main/index.ts`**：`before-quit` 钩子接入 `checkpointDatabase()`，在 closeDatabase 之前执行
+
 ## [1.2.0] - 2026-07-31
 
 从「固定 3 个供应商」升级为「无限供应商 + 多协议适配」：用户可自由新增/重命名/删除任意数量的 AI 供应商，每个供应商独立选择 API 协议风格（OpenAI 兼容 / Anthropic 原生 / Ollama 本地 / Google Gemini），配置完全隔离。

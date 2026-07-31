@@ -11,13 +11,14 @@ import { ExportMenu } from './ExportMenu'
 
 interface ChatViewerProps {
   onOpenAiSettings: () => void
+  onOpenImportCenter?: () => void
 }
 
-export function ChatViewer({ onOpenAiSettings }: ChatViewerProps) {
+export function ChatViewer({ onOpenAiSettings, onOpenImportCenter }: ChatViewerProps) {
   const { activeSession, setActiveSessionData } = useStore()
 
   if (!activeSession) {
-    return <Dashboard />
+    return <Dashboard onOpenImportCenter={onOpenImportCenter} onOpenAiSettings={onOpenAiSettings} />
   }
 
   return <ChatViewerContent onOpenAiSettings={onOpenAiSettings} />

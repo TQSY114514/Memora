@@ -3,7 +3,12 @@ import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, DashboardStats } from '@shared/types'
 
-export function Dashboard() {
+interface DashboardProps {
+  onOpenImportCenter?: () => void
+  onOpenAiSettings?: () => void
+}
+
+export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardProps = {}) {
   const { setActiveSession, setActiveSessionData } = useStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,6 +50,27 @@ export function Dashboard() {
           <h1 className="text-2xl font-bold text-fg-primary mb-1">{greeting} 👋</h1>
           <p className="text-sm text-fg-muted">你的 AI 记忆库</p>
         </div>
+
+        {/* 空状态引导：没有任何对话时引导用户导入 */}
+        {stats.sessionCount === 0 && stats.messageCount === 0 && (
+          <div className="bg-bg-primary border border-border rounded-lg p-8 mb-8 text-center">
+            <div className="text-4xl mb-3 opacity-30">📥</div>
+            <h2 className="text-base font-semibold text-fg-primary mb-1">还没有 AI 对话记录</h2>
+            <p className="text-xs text-fg-muted mb-4">导入你与 AI 的对话，让它们变成可搜索的长期记忆</p>
+            <div className="flex items-center justify-center gap-2">
+              {onOpenImportCenter && (
+                <button onClick={onOpenImportCenter} className="Memora-btn Memora-btn-primary text-xs">
+                  📥 开始导入
+                </button>
+              )}
+              {onOpenAiSettings && (
+                <button onClick={onOpenAiSettings} className="Memora-btn Memora-btn-ghost text-xs">
+                  ⚙️ 配置 AI
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

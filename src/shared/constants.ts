@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.2.0'
+export const APP_VERSION = '1.3.0'
 
 /**
  * AI API 协议风格元信息（v1.2）
@@ -147,6 +147,7 @@ export const IPC = {
   KNOWLEDGE_RELATION_ADD: 'knowledge:relation-add',
   KNOWLEDGE_RELATION_REMOVE: 'knowledge:relation-remove',
   KNOWLEDGE_RELATION_LIST: 'knowledge:relation-list',
+  KNOWLEDGE_GRAPH_DATA: 'knowledge:graph-data',
 
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',

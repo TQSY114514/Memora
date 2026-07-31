@@ -24,7 +24,8 @@ import type {
   BackgroundImportRunResult,
   KnowledgeEntry,
   KnowledgeType,
-  KnowledgeRelation
+  KnowledgeRelation,
+  KnowledgeGraphData
 } from '../shared/types'
 
 /**
@@ -371,7 +372,10 @@ const api = {
     relationRemove: (fromId: string, toId: string, relation: KnowledgeRelation): Promise<void> =>
       ipcRenderer.invoke(IPC.KNOWLEDGE_RELATION_REMOVE, fromId, toId, relation),
     relationList: (entryId: string): Promise<Array<{ fromId: string; toId: string; relation: string }>> =>
-      ipcRenderer.invoke(IPC.KNOWLEDGE_RELATION_LIST, entryId)
+      ipcRenderer.invoke(IPC.KNOWLEDGE_RELATION_LIST, entryId),
+    /** 获取工作区知识图谱数据（节点 + 边，含显式关系和隐式关联） */
+    graphData: (workspaceId: string): Promise<KnowledgeGraphData> =>
+      ipcRenderer.invoke(IPC.KNOWLEDGE_GRAPH_DATA, workspaceId)
   }
 }
 

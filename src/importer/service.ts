@@ -3,6 +3,7 @@ import { basename, extname, join } from 'path'
 import { registerBuiltins, detectImporter, getImporter } from '../importer'
 import { createSession, findBySourceId } from '../database/repositories/sessionRepo'
 import { StreamParseError, LARGE_FILE_THRESHOLD } from './streamJsonArray'
+import { sanitizeMessages } from './sanitizer'
 import type { ImportResult, ChatSession } from '@shared/types'
 import type { ParsedSession, ParsedMessage } from '../importer/types'
 
@@ -336,6 +337,12 @@ export function persistSessions(
         order: idx,
         createdAt: m.createdAt
       }))
+
+      // 导入前脱敏：检测并移除 API Key / Token / 密码等敏感信息，防止凭证入库
+      const sanitizedCount = sanitizeMessages(messages)
+      if (sanitizedCount > 0) {
+        result.errors.push(`「${parsed.title}」: 已脱敏 ${sanitizedCount} 处敏感信息`)
+      }
 
       const created = createSession(sessionInput as never, messages)
       result.imported++

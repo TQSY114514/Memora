@@ -6,7 +6,9 @@ import type {
   KnowledgeType,
   KnowledgeSource,
   KnowledgeRelationRow,
-  KnowledgeRelation
+  KnowledgeRelation,
+  GraphEdge,
+  KnowledgeGraphData
 } from '@shared/types'
 
 interface KnowledgeRow {
@@ -338,4 +340,75 @@ export function listRelations(entryId: string): KnowledgeRelationRow[] {
     .prepare('SELECT from_id, to_id, relation FROM knowledge_relations WHERE to_id = ?')
     .all(entryId) as KnowledgeRelationRow[]
   return [...out, ...incoming]
+}
+
+/**
+ * 获取工作区知识图谱数据（节点 + 边）
+ * - 显式边：knowledge_relations 表中的用户/系统建立的关系
+ * - 隐式边：同一 source_session_id 的 entries 互相关联（same-session）
+ *
+ * 隐式边数量控制：同一 session 最多生成 20 条边，避免 O(n²) 爆炸
+ */
+export function getGraphData(workspaceId: string): KnowledgeGraphData {
+  const db = getDatabase()
+
+  // 节点：当前工作区所有 entries
+  const nodes = listEntries({ workspaceId, limit: 10000 })
+
+  // 显式边：knowledge_relations（通过 JOIN 确保只返回当前工作区的）
+  const relationRows = db
+    .prepare(
+      `SELECT kr.from_id, kr.to_id, kr.relation
+       FROM knowledge_relations kr
+       JOIN knowledge_entries ke1 ON kr.from_id = ke1.id
+       WHERE ke1.workspace_id = ?`
+    )
+    .all(workspaceId) as Array<{ from_id: string; to_id: string; relation: string }>
+
+  const edges: GraphEdge[] = relationRows.map((r) => ({
+    from: r.from_id,
+    to: r.to_id,
+    relation: r.relation,
+    implicit: false
+  }))
+
+  // 隐式边：同 session_id 的 entries 互相关联
+  const sessionGroups = new Map<string, string[]>()
+  for (const node of nodes) {
+    if (node.sessionId) {
+      const group = sessionGroups.get(node.sessionId) || []
+      group.push(node.id)
+      sessionGroups.set(node.sessionId, group)
+    }
+  }
+
+  // 已有显式边的 pair 集合（双向），避免隐式边重复
+  const explicitPairs = new Set<string>()
+  for (const e of edges) {
+    explicitPairs.add(`${e.from}|${e.to}`)
+    explicitPairs.add(`${e.to}|${e.from}`)
+  }
+
+  for (const [, entryIds] of sessionGroups) {
+    if (entryIds.length < 2) continue
+    let added = 0
+    for (let i = 0; i < entryIds.length && added < 20; i++) {
+      for (let j = i + 1; j < entryIds.length && added < 20; j++) {
+        const pairKey = `${entryIds[i]}|${entryIds[j]}`
+        if (!explicitPairs.has(pairKey)) {
+          edges.push({
+            from: entryIds[i],
+            to: entryIds[j],
+            relation: 'same-session',
+            implicit: true
+          })
+          explicitPairs.add(pairKey)
+          explicitPairs.add(`${entryIds[j]}|${entryIds[i]}`)
+          added++
+        }
+      }
+    }
+  }
+
+  return { nodes, edges }
 }
