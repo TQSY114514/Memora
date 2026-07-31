@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- Hero：书架 M 品牌视觉 -->
-<img src="assets/banner.svg" width="560" alt="Memora - AI Memory Workspace"/>
+<img src="assets/banner.svg" width="600" alt="Memora - AI Memory Workspace"/>
 
 <p>
   <strong>Local-First 的 AI 记忆工作台</strong><br/>

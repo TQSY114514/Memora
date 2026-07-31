@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 256" width="512" height="256">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" width="680" height="220">
   <defs>
     <linearGradient id="bGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#F97316"/>
@@ -12,9 +12,9 @@
       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#EA580C" flood-opacity="0.2"/>
     </filter>
   </defs>
-  <rect width="512" height="256" rx="24" fill="#FFFBEB"/>
-  <circle cx="140" cy="128" r="100" fill="#FDE68A" opacity="0.2"/>
-  <g transform="translate(30, 20) scale(0.85)">
+
+  <!-- Logo 标记（书架 M，左侧） -->
+  <g transform="translate(20, 10) scale(0.75)">
     <rect x="44" y="40" width="32" height="160" rx="8" fill="url(#bGrad)" filter="url(#bShadow)"/>
     <rect x="180" y="40" width="32" height="160" rx="8" fill="url(#bGrad)" filter="url(#bShadow)"/>
     <line x1="60" y1="40" x2="128" y2="100" stroke="url(#bGrad2)" stroke-width="22" stroke-linecap="round"/>
@@ -26,7 +26,9 @@
     <circle cx="128" cy="128" r="7" fill="#EA580C"/>
     <line x1="140" y1="140" x2="154" y2="154" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
   </g>
-  <text x="300" y="110" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="56" font-weight="800" letter-spacing="4" fill="url(#bGrad)" text-anchor="start">MEMORA</text>
-  <text x="300" y="158" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="20" font-weight="400" letter-spacing="6" fill="#F59E0B" text-anchor="start" opacity="0.7">AI MEMORY WORKSPACE</text>
-  <text x="300" y="190" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="14" font-weight="300" letter-spacing="4" fill="#D97706" text-anchor="start" opacity="0.5">Unified · Searchable · Local-first</text>
+
+  <!-- 标题 -->
+  <text x="270" y="95" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="52" font-weight="800" letter-spacing="3" fill="url(#bGrad)" text-anchor="start">Memora</text>
+  <text x="272" y="130" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="18" font-weight="500" letter-spacing="5" fill="#F59E0B" text-anchor="start" opacity="0.85">AI MEMORY WORKSPACE</text>
+  <text x="272" y="158" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="13" font-weight="400" letter-spacing="3" fill="#D97706" text-anchor="start" opacity="0.6">Unified · Searchable · Local-first</text>
 </svg>
