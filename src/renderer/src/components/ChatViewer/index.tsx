@@ -7,6 +7,7 @@ import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../store
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, Message, SessionSummary, RelatedSession } from '@shared/types'
 import { Dashboard } from '../Dashboard'
+import { ExportMenu } from './ExportMenu'
 
 interface ChatViewerProps {
   onOpenAiSettings: () => void
@@ -72,26 +73,6 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     // 切换会话时滚动到顶部
     if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [session?.id])
-
-  async function handleShare() {
-    if (!session) return
-    const html = await window.Memora.share.exportHtml(session.id)
-    if (!html) return
-    await window.Memora.saveFileDialog({
-      defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.html`,
-      content: html
-    })
-  }
-
-  async function handleShareMd() {
-    if (!session) return
-    const md = await window.Memora.share.exportMd(session.id)
-    if (!md) return
-    await window.Memora.saveFileDialog({
-      defaultName: `${session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')}.md`,
-      content: md
-    })
-  }
 
   async function handleToggleFavorite() {
     if (!session) return
@@ -215,20 +196,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             >
               {session.isFavorite ? '★ 已收藏' : '☆ 收藏'}
             </button>
-            <button
-              onClick={handleShare}
-              className="Memora-btn Memora-btn-ghost text-xs"
-              title="导出为自包含 HTML 分享"
-            >
-              ⤴ HTML
-            </button>
-            <button
-              onClick={handleShareMd}
-              className="Memora-btn Memora-btn-ghost text-xs"
-              title="导出为 Markdown（适合导入 Obsidian/Notion）"
-            >
-              ⬇ MD
-            </button>
+            <ExportMenu session={session} />
           </div>
         </div>
 

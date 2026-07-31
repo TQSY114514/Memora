@@ -92,7 +92,7 @@ function getSessionTags(sessionId: string): Tag[] {
 /** 创建会话（含消息）+ 建立 FTS 索引。事务保证一致性 */
 export function createSession(
   session: Omit<ChatSession, 'id' | 'importedAt'> & { id?: string },
-  messages: Message[] = []
+  messages: Array<Omit<Message, 'id'> & { id?: string }> = []
 ): ChatSession {
   const db = getDatabase()
   const id = session.id ?? uuidv4()

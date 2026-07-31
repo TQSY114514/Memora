@@ -399,12 +399,12 @@ function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React
   const [useSemantic, setUseSemantic] = useState(false)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const aiConfigured = isAiConfigured(config)
 
-  async function handleSearch(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== 'Enter') return
-    const q = query.trim()
+  // 真正执行搜索（防抖和 Enter 都调这个）
+  async function doSearch(q: string) {
     if (!q) {
       clearSearch()
       setSearchError(null)
@@ -439,6 +439,35 @@ function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React
     }
   }
 
+  // 防抖：输入停顿 300ms 后自动搜索（非语义模式，语义模式成本高保持 Enter 触发）
+  function scheduleDebouncedSearch(q: string) {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    if (useSemantic) return // 语义模式不自动触发，避免频繁 API 调用
+    debounceTimer.current = setTimeout(() => {
+      doSearch(q.trim())
+    }, 300)
+  }
+
+  // Enter 立即搜索（取消 pending 的防抖）
+  async function handleSearch(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    await doSearch(query.trim())
+  }
+
+  // 清空时立即清除搜索
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value
+    setQuery(v)
+    if (!v.trim()) {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+      clearSearch()
+      setSearchError(null)
+    } else {
+      scheduleDebouncedSearch(v.trim())
+    }
+  }
+
   function toggleSemantic() {
     if (!aiConfigured && !useSemantic) {
       onOpenAiSettings()
@@ -455,7 +484,7 @@ function SearchBox({ searchInputRef, onOpenAiSettings }: { searchInputRef: React
           ref={searchInputRef}
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleSearch}
           placeholder={useSemantic ? t('sidebar.searchSemanticPlaceholder') : t('sidebar.searchPlaceholder')}
           className="Memora-input w-full text-xs pr-7"

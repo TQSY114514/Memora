@@ -221,7 +221,7 @@ function cleanCursorContent(content: string): string {
     try {
       const parsed = JSON.parse(trimmed)
       if (parsed && parsed.ops && Array.isArray(parsed.ops)) {
-        return parsed.ops.map(function(op){return op.insert || ''}).join('').trim()
+        return parsed.ops.map((op: { insert?: string }) => op.insert || '').join('').trim()
       }
       if (typeof parsed.text === 'string') return parsed.text.trim()
       if (typeof parsed.content === 'string') return parsed.content.trim()

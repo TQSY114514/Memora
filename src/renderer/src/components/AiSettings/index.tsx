@@ -73,7 +73,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
             <div className="flex gap-1 border-b border-border">
               {(Object.keys(PROVIDER_PRESETS) as AiConfig['provider'][]).map((p) => {
                 const cfg = configs[p]
-                const isConfigured = !!(cfg.baseUrl && cfg.apiKey && cfg.chatModel && cfg.embeddingModel)
+                const isConfigured = !!(cfg.baseUrl && (cfg.hasApiKey || cfg.apiKey) && cfg.chatModel && cfg.embeddingModel)
                 return (
                   <button
                     key={p}
@@ -118,7 +118,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                   type={showKey ? 'text' : 'password'}
                   value={config.apiKey}
                   onChange={(e) => setConfig({ apiKey: e.target.value })}
-                  placeholder="sk-..."
+                  placeholder={config.hasApiKey ? '密钥已加密保存，重新输入可覆盖' : 'sk-...'}
                   className="Memora-input flex-1"
                 />
                 <button

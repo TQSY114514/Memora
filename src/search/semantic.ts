@@ -1,4 +1,5 @@
 import { Worker } from 'worker_threads'
+import { join } from 'path'
 import { getDbPath } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
 import { getDatabase } from '../database/connection'
@@ -44,74 +45,6 @@ interface WorkerSearchResult {
   score: number
 }
 
-const workerCode = `
-const { parentPort } = require('worker_threads')
-
-let cache = null  // { messageId, sessionId, embedding: Float32Array }[]
-let dbPath = null
-let Database = null
-
-function loadCache() {
-  if (!Database) {
-    Database = require('better-sqlite3')
-  }
-  const db = new Database(dbPath, { readonly: true, fileMustExist: true })
-  db.pragma('journal_mode = WAL')
-  const rows = db.prepare('SELECT message_id, session_id, embedding FROM message_embeddings').all()
-  db.close()
-  cache = rows.map(r => ({
-    messageId: r.message_id,
-    sessionId: r.session_id,
-    embedding: new Float32Array(JSON.parse(r.embedding))
-  }))
-  return cache.length
-}
-
-function cosineSimilarity(a, b) {
-  const len = Math.min(a.length, b.length)
-  let dot = 0, normA = 0, normB = 0
-  for (let i = 0; i < len; i++) {
-    dot += a[i] * b[i]
-    normA += a[i] * a[i]
-    normB += b[i] * b[i]
-  }
-  if (normA === 0 || normB === 0) return 0
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
-}
-
-parentPort.on('message', (msg) => {
-  if (msg.type === 'init') {
-    dbPath = msg.dbPath
-    parentPort.postMessage({ type: 'ready' })
-  } else if (msg.type === 'search') {
-    try {
-      if (!cache) {
-        const n = loadCache()
-        parentPort.postMessage({ type: 'cacheLoaded', count: n })
-      }
-      const queryVec = new Float32Array(msg.queryVec)
-      const limit = msg.limit || 20
-      const threshold = msg.threshold || 0.25
-
-      const scored = []
-      for (const row of cache) {
-        const score = cosineSimilarity(queryVec, row.embedding)
-        if (score >= threshold) {
-          scored.push({ messageId: row.messageId, sessionId: row.sessionId, score })
-        }
-      }
-      scored.sort((a, b) => b.score - a.score)
-      const top = scored.slice(0, limit)
-      parentPort.postMessage({ type: 'result', data: top })
-    } catch (err) {
-      parentPort.postMessage({ type: 'error', error: err.message || String(err) })
-    }
-  } else if (msg.type === 'invalidate') {
-    cache = null
-  }
-})
-`
-
 let worker: Worker | null = null
 let workerReady = false
 let useFallback = false
@@ -120,7 +53,8 @@ let useFallback = false
 function initWorker(): void {
   if (worker || useFallback) return
   try {
-    worker = new Worker(workerCode, { eval: true })
+    // 独立 worker 文件，消除 eval:true 安全隐患
+    worker = new Worker(join(__dirname, 'semantic.worker.js'))
     worker.on('message', (msg: { type: string; error?: string }) => {
       if (msg.type === 'ready') {
         workerReady = true
@@ -199,11 +133,13 @@ function getAllEmbeddingsSync(): FallbackRow[] {
   const db = getDatabase()
   const rows = db
     .prepare('SELECT message_id, session_id, embedding, model FROM message_embeddings')
-    .all() as Array<{ message_id: string; session_id: string; embedding: string; model: string }>
+    .all() as Array<{ message_id: string; session_id: string; embedding: Buffer; model: string }>
   return rows.map((r) => ({
     messageId: r.message_id,
     sessionId: r.session_id,
-    embedding: JSON.parse(r.embedding) as number[],
+    embedding: Array.from(
+      new Float32Array(r.embedding.buffer, r.embedding.byteOffset, r.embedding.byteLength / 4)
+    ),
     model: r.model
   }))
 }

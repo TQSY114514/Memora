@@ -10,6 +10,7 @@ import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
 import { useBgImportStore } from './stores/backgroundImportStore'
+import { useAiConfigStore } from './stores/aiConfigStore'
 import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
   const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
   const { backgroundImage, blur, opacity } = useThemeStore()
   const { loadConfig: loadBgConfig, loadStatus: loadBgStatus, attachListeners: attachBgListeners } = useBgImportStore()
+  const { loadApiKeys } = useAiConfigStore()
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showMemoryPanel, setShowMemoryPanel] = useState(false)
   const [showImportCenter, setShowImportCenter] = useState(false)
@@ -37,6 +39,8 @@ export default function App() {
       }
     }
     ensureDefaultWorkspace().catch(console.error)
+    // 从 main 加密存储加载 apiKey 到内存（不阻塞 UI）
+    loadApiKeys().catch(console.error)
   }, [])
 
   // 全局快捷键：Ctrl/Cmd+K 聚焦搜索框
@@ -156,15 +160,29 @@ export default function App() {
 }
 
 function ImportProgress() {
-  const { dragFiles, clear } = useImportStore()
+  const { dragFiles, clear, isImporting } = useImportStore()
   const last = dragFiles[dragFiles.length - 1]
+  const pct = last?.progress != null ? Math.round(last.progress * 100) : null
+  // 找到第一个仍在处理中（无 result）的条目
+  const pending = dragFiles.find((f) => f.result === null)
   return (
     <div className="absolute bottom-4 right-4 z-50 bg-bg-primary border border-border rounded-lg shadow-lg p-4 min-w-[300px]">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-        <span className="text-sm font-medium">导入中…</span>
+        <span className="text-sm font-medium">{isImporting ? '导入中…' : '导入完成'}</span>
       </div>
-      <p className="text-xs text-fg-muted mb-3 truncate">{last?.file ?? '处理中'}</p>
+      <p className="text-xs text-fg-muted mb-3 truncate">{pending?.file ?? last?.file ?? '处理中'}</p>
+      {pct !== null && pending && (
+        <div className="mb-3">
+          <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all duration-200"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-fg-muted mt-1">{pct}%</p>
+        </div>
+      )}
       {last?.result && (
         <div className="text-xs space-y-1">
           <p className="text-green-600">✓ 导入 {last.result.imported}</p>

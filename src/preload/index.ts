@@ -119,7 +119,16 @@ const api = {
     extracted: (
       sessions: ExtractedSession[],
       options?: { folderId?: string }
-    ): Promise<ImportResult> => ipcRenderer.invoke(IPC.IMPORT_EXTRACTED, sessions, options)
+    ): Promise<ImportResult> => ipcRenderer.invoke(IPC.IMPORT_EXTRACTED, sessions, options),
+    /** 监听大文件流式导入进度（main -> renderer 事件） */
+    onProgress: (
+      cb: (p: { filePath: string; loaded: number; total: number }) => void
+    ): (() => void) => {
+      const h = (_e: unknown, p: { filePath: string; loaded: number; total: number }): void =>
+        cb(p)
+      ipcRenderer.on(IPC.IMPORT_PROGRESS, h)
+      return () => ipcRenderer.removeListener(IPC.IMPORT_PROGRESS, h)
+    }
   },
 
   // ===== 扫描器（智能导入中心） =====
@@ -167,7 +176,13 @@ const api = {
     exportMd: (
       sessionId: string,
       options?: { customTitle?: string; customDescription?: string }
-    ): Promise<string | null> => ipcRenderer.invoke(IPC.SHARE_EXPORT_MD, sessionId, options)
+    ): Promise<string | null> => ipcRenderer.invoke(IPC.SHARE_EXPORT_MD, sessionId, options),
+    /** 导出为 Claude Code jsonl（用于跨平台迁移到 Claude Code） */
+    exportClaudeCode: (
+      sessionId: string,
+      options?: { customTitle?: string; customDescription?: string }
+    ): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.SHARE_EXPORT_CLAUDE_CODE, sessionId, options)
   },
 
   // ===== 批量操作 =====
@@ -219,6 +234,17 @@ const api = {
       embeddingModel: string
     }): Promise<{ ok: boolean; dim: number; error: string | undefined; message?: string }> =>
       ipcRenderer.invoke(IPC.TEST_AI_CONNECTION, config)
+  },
+
+  // ===== API Key 安全存储（safeStorage 加密） =====
+  secret: {
+    /** 批量获取所有 provider 的明文 apiKey（从加密存储读取） */
+    getAll: (): Promise<Record<string, string>> => ipcRenderer.invoke(IPC.SECRET_GET_ALL),
+    /** 加密保存某 provider 的 apiKey */
+    set: (provider: string, key: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.SECRET_SET, provider, key),
+    /** 删除某 provider 的 apiKey */
+    delete: (provider: string): Promise<void> => ipcRenderer.invoke(IPC.SECRET_DELETE, provider)
   },
 
   // ===== Project Memory（Phase 3） =====

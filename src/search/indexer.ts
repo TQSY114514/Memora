@@ -1,10 +1,13 @@
 import { getDatabase } from '../database/connection'
-import type { Message } from '@shared/types'
+import { segment } from './segmenter'
 
 /**
  * FTS5 索引器
  * 每条消息作为一行写入 chat_fts，便于按消息级别返回高亮片段
  * title 字段在每行重复（用于 title 匹配时检索到消息）
+ *
+ * 中文分词：写入前对 title/content 用 Intl.Segmenter 分词（空格分隔），
+ * 这样 unicode61 tokenizer 按空格切分就能正确命中中文词组。
  */
 
 interface FtsRow {
@@ -18,18 +21,21 @@ interface FtsRow {
 export function indexSessionForSearch(
   sessionId: string,
   title: string,
-  messages: Message[],
+  messages: Array<{ content: string }>,
   provider?: string
 ): void {
   const db = getDatabase()
   // 先删除旧索引（支持重新导入）
   unindexSession(sessionId)
 
+  // 中文分词预处理：让 FTS5 能正确命中中文词组
+  const segmentedTitle = segment(title)
+
   if (messages.length === 0) {
     // 无消息时仍索引 title
     db.prepare(
       'INSERT INTO chat_fts (session_id, title, content, provider) VALUES (?, ?, ?, ?)'
-    ).run(sessionId, title, '', provider ?? '')
+    ).run(sessionId, segmentedTitle, '', provider ?? '')
     return
   }
 
@@ -44,8 +50,8 @@ export function indexSessionForSearch(
 
   const rows: FtsRow[] = messages.map((m) => ({
     session_id: sessionId,
-    title,
-    content: m.content,
+    title: segmentedTitle,
+    content: segment(m.content),
     provider: provider ?? ''
   }))
 

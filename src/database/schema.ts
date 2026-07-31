@@ -111,12 +111,12 @@ CREATE INDEX IF NOT EXISTS idx_summaries_session ON session_summaries(session_id
 
 -- 向量嵌入（Phase 2：语义搜索）
 -- 每条消息一个向量，维度由模型决定（OpenAI text-embedding-3-small = 1536）
--- 存为 JSON 数组（简化 MVP，后续可换 sqlite-vss 原生扩展）
+-- 存为 BLOB（Float32Array 的二进制 buffer），读取零解析，性能远优于 JSON TEXT
 CREATE TABLE IF NOT EXISTS message_embeddings (
   id           TEXT PRIMARY KEY,
   message_id   TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   session_id   TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
-  embedding    TEXT NOT NULL,       -- JSON 数组，如 [0.1, 0.2, ...]
+  embedding    BLOB NOT NULL,       -- Float32Array 二进制 buffer
   model        TEXT NOT NULL,       -- 嵌入模型名
   dim          INTEGER NOT NULL,    -- 向量维度
   created_at   TEXT NOT NULL

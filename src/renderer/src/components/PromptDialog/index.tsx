@@ -22,13 +22,24 @@ export function useDialog() {
 
   const prompt = useCallback((title: string, defaultValue?: string) => {
     return new Promise<string | null>((resolve) => {
-      setState({ open: true, mode: 'prompt', title, defaultValue, resolve })
+      setState({
+        open: true,
+        mode: 'prompt',
+        title,
+        defaultValue,
+        resolve: (v) => resolve(v as string | null)
+      })
     })
   }, [])
 
   const confirm = useCallback((message: string) => {
     return new Promise<boolean>((resolve) => {
-      setState({ open: true, mode: 'confirm', title: message, resolve })
+      setState({
+        open: true,
+        mode: 'confirm',
+        title: message,
+        resolve: (v) => resolve(v as boolean)
+      })
     })
   }, [])
 

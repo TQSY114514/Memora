@@ -1,8 +1,9 @@
-﻿import Database from 'better-sqlite3'
+import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import { SCHEMA_SQL } from './schema'
+import { runMigrations } from './migrations'
 
 let dbInstance: Database.Database | null = null
 
@@ -16,7 +17,7 @@ export function getDbPath(): string {
   return join(dataDir, 'Memora.db')
 }
 
-/** 初始化数据库（建表 + 开启外键 + WAL） */
+/** 初始化数据库（建表 + 开启外键 + WAL + 版本化迁移） */
 export function initDatabase(dbPath?: string): Database.Database {
   if (dbInstance) return dbInstance
 
@@ -28,18 +29,11 @@ export function initDatabase(dbPath?: string): Database.Database {
   dbInstance.pragma('foreign_keys = ON')
   dbInstance.pragma('synchronous = NORMAL')
 
-  // 建表
+  // 建表（含 schema_version 表 + version 1/2 初始记录）
   dbInstance.exec(SCHEMA_SQL)
 
-  // 迁移：为已有数据库加新字段（ALTER TABLE 不支持 IF NOT EXISTS，需手动检查）
-  const addColumnIfMissing = (table: string, column: string, def: string) => {
-    const cols = dbInstance!.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
-    if (!cols.some(c => c.name === column)) {
-      dbInstance!.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
-    }
-  }
-  addColumnIfMissing('folders', 'rule', 'TEXT')
-
+  // 版本化迁移（version 3+ 的增量变更）
+  runMigrations(dbInstance)
 
   return dbInstance
 }

@@ -6,7 +6,7 @@ interface EmbeddingRow {
   id: string
   message_id: string
   session_id: string
-  embedding: string
+  embedding: Buffer
   model: string
   dim: number
   created_at: string
@@ -32,7 +32,8 @@ export function upsertEmbedding(
   const db = getDatabase()
   const now = new Date().toISOString()
   const dim = embedding.length
-  const json = JSON.stringify(embedding)
+  // 存为 BLOB：Float32Array 的二进制 buffer，读取零解析
+  const buf = Buffer.from(new Float32Array(embedding).buffer)
 
   const existing = db
     .prepare('SELECT id FROM message_embeddings WHERE message_id = ?')
@@ -43,14 +44,14 @@ export function upsertEmbedding(
       `UPDATE message_embeddings
        SET embedding = ?, model = ?, dim = ?, created_at = ?
        WHERE id = ?`
-    ).run(json, model, dim, now, existing.id)
+    ).run(buf, model, dim, now, existing.id)
     return
   }
 
   db.prepare(
     `INSERT INTO message_embeddings (id, message_id, session_id, embedding, model, dim, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(uuidv4(), messageId, sessionId, json, model, dim, now)
+  ).run(uuidv4(), messageId, sessionId, buf, model, dim, now)
 }
 
 /** 批量写入向量（事务） */
@@ -94,6 +95,12 @@ export function countSessionEmbeddings(sessionId: string): number {
   return row?.n ?? 0
 }
 
+/** BLOB buffer → number[]（Float32Array 二进制还原） */
+function bufferToNumbers(buf: Buffer): number[] {
+  const arr = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4)
+  return Array.from(arr)
+}
+
 /** 加载会话内全部向量（供本地相似度计算） */
 export function getSessionEmbeddings(sessionId: string): Array<{
   messageId: string
@@ -106,7 +113,7 @@ export function getSessionEmbeddings(sessionId: string): Array<{
     .all(sessionId) as EmbeddingRow[]
   return rows.map((r) => ({
     messageId: r.message_id,
-    embedding: JSON.parse(r.embedding) as number[],
+    embedding: bufferToNumbers(r.embedding),
     model: r.model
   }))
 }
@@ -125,7 +132,7 @@ export function getAllEmbeddings(): Array<{
   return rows.map((r) => ({
     messageId: r.message_id,
     sessionId: r.session_id,
-    embedding: JSON.parse(r.embedding) as number[],
+    embedding: bufferToNumbers(r.embedding),
     model: r.model
   }))
 }

@@ -18,7 +18,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/main/index.ts') }
+        input: {
+          index: resolve('src/main/index.ts'),
+          'semantic.worker': resolve('src/search/semantic.worker.ts')
+        }
       }
     }
   },

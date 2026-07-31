@@ -1,5 +1,6 @@
 import { getDatabase } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
+import { segmentQuery } from './segmenter'
 import type { SearchResult, SearchSnippet } from '@shared/types'
 
 interface FtsHitRow {
@@ -11,52 +12,64 @@ interface FtsHitRow {
 }
 
 /**
- * 转义 FTS5 查询字符串
- * 用户输入 "Electron IPC" → 转为带前缀匹配的 OR 查询
+ * 构造 FTS5 查询字符串
+ * - 用 Intl.Segmenter 做中文分词（解决 unicode61 逐字切分问题）
+ * - 每个词加前缀通配（*）匹配前缀
+ * - operator: 'AND'（精确，所有词必须命中）或 'OR'（宽松，任一词命中）
  */
-function buildFtsQuery(raw: string): string {
-  const trimmed = raw.trim()
-  if (!trimmed) return ''
+function buildFtsQuery(raw: string, operator: 'AND' | 'OR' = 'AND'): string {
+  const terms = segmentQuery(raw)
+  if (terms.length === 0) return ''
 
-  // 拆词，每个词加前缀通配（*）匹配前缀
-  const terms = trimmed
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((term) => {
-      // 转义双引号，包裹为 phrase
-      const safe = term.replace(/"/g, '""')
-      return `"${safe}"*`
-    })
+  const quoted = terms.map((term) => {
+    const safe = term.replace(/"/g, '""')
+    return `"${safe}"*`
+  })
 
-  return terms.join(' AND ')
+  return quoted.join(` ${operator} `)
 }
 
-/** 全文搜索 */
-export function search(
-  query: string,
-  options?: { limit?: number; provider?: string }
-): SearchResult[] {
-  const ftsQuery = buildFtsQuery(query)
-  if (!ftsQuery) return []
-
+/** 执行 FTS 查询并返回原始命中行 */
+function runFts(
+  ftsQuery: string,
+  limit: number,
+  provider?: string
+): FtsHitRow[] {
   const db = getDatabase()
-  const limit = options?.limit ?? 50
-
   let sql = `
     SELECT session_id, title, content, provider, rank
     FROM chat_fts
     WHERE chat_fts MATCH ?
   `
   const params: unknown[] = [ftsQuery]
-
-  if (options?.provider) {
+  if (provider) {
     sql += ' AND provider = ?'
-    params.push(options.provider)
+    params.push(provider)
   }
   sql += ' ORDER BY rank LIMIT ?'
   params.push(limit)
+  return db.prepare(sql).all(...params) as FtsHitRow[]
+}
 
-  const rows = db.prepare(sql).all(...params) as FtsHitRow[]
+/** 全文搜索（中文分词 + AND→OR 降级） */
+export function search(
+  query: string,
+  options?: { limit?: number; provider?: string }
+): SearchResult[] {
+  const limit = options?.limit ?? 50
+
+  // 1. 先用 AND（精确匹配，所有词都要命中）
+  let ftsQuery = buildFtsQuery(query, 'AND')
+  if (!ftsQuery) return []
+  let rows = runFts(ftsQuery, limit, options?.provider)
+
+  // 2. AND 无结果时降级为 OR（宽松召回，任一词命中即可）
+  if (rows.length === 0) {
+    const orQuery = buildFtsQuery(query, 'OR')
+    if (orQuery && orQuery !== ftsQuery) {
+      rows = runFts(orQuery, limit, options?.provider)
+    }
+  }
 
   // 聚合：同一会话的多条命中合并为一个 SearchResult
   const map = new Map<string, SearchResult>()

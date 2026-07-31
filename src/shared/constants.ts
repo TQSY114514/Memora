@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '0.1.0'
+export const APP_VERSION = '1.0.0'
 
 /** IPC 通道命名空间 */
 export const IPC = {
@@ -65,6 +65,9 @@ export const IPC = {
   IMPORT_BG_PROGRESS: 'import:bg-progress',  // event: main -> renderer
   IMPORT_BG_DONE: 'import:bg-done',           // event: main -> renderer
 
+  // 大文件流式导入进度（P3）
+  IMPORT_PROGRESS: 'import:progress',          // event: main -> renderer
+
   // Search
   SEARCH_QUERY: 'search:query',
 
@@ -72,6 +75,7 @@ export const IPC = {
   SHARE_EXPORT_HTML: 'share:export-html',
   SHARE_EXPORT_HTML_BATCH: 'share:export-html-batch',
   SHARE_EXPORT_MD: 'share:export-md',
+  SHARE_EXPORT_CLAUDE_CODE: 'share:export-claude-code',
   DB_VACUUM: 'db:vacuum',
   DB_CLEAN_ORPHANS: 'db:clean-orphans',
 
@@ -97,6 +101,11 @@ export const IPC = {
 
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',
+
+  // API Key 安全存储（safeStorage 加密）
+  SECRET_GET_ALL: 'secret:get-all',
+  SECRET_SET: 'secret:set',
+  SECRET_DELETE: 'secret:delete',
 
   // 系统
   DIALOG_OPEN_FILE: 'dialog:open-file',
