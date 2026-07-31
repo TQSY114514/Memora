@@ -88,7 +88,17 @@ export function search(
   return Array.from(map.values()).sort((a, b) => a.rank - b.rank)
 }
 
-/** 生成高亮片段（截取匹配关键词前后文） */
+/** HTML 转义，防止 AI 生成内容中的 HTML 注入 */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/** 生成高亮片段（截取匹配关键词前后文，关键词用 <mark> 包裹） */
 function buildSnippet(content: string, query: string, radius = 60): string {
   if (!content) return ''
   const lowerContent = content.toLowerCase()
@@ -107,14 +117,25 @@ function buildSnippet(content: string, query: string, radius = 60): string {
 
   if (pos < 0) {
     // 无匹配，截取开头
-    return content.length > radius * 2
-      ? content.slice(0, radius * 2) + '…'
-      : content
+    const raw = content.length > radius * 2 ? content.slice(0, radius * 2) + '…' : content
+    return escapeHtml(raw)
   }
 
   const start = Math.max(0, pos - radius)
   const end = Math.min(content.length, pos + radius)
+  const raw = content.slice(start, end)
+
+  // 先转义，再加高亮（在已转义文本上做大小写不敏感替换）
+  let escaped = escapeHtml(raw)
+  for (const term of terms) {
+    if (!term) continue
+    const escapedTerm = escapeHtml(term)
+    // 转义正则特殊字符
+    const safe = escapedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    escaped = escaped.replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>')
+  }
+
   const prefix = start > 0 ? '…' : ''
   const suffix = end < content.length ? '…' : ''
-  return prefix + content.slice(start, end) + suffix
+  return prefix + escaped + suffix
 }

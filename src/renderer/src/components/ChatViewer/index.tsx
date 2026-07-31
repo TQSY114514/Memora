@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, Message, SessionSummary, RelatedSession } from '@shared/types'
+import { Dashboard } from '../Dashboard'
 
 interface ChatViewerProps {
   onOpenAiSettings: () => void
@@ -14,14 +16,7 @@ export function ChatViewer({ onOpenAiSettings }: ChatViewerProps) {
   const { activeSession, setActiveSessionData } = useStore()
 
   if (!activeSession) {
-    return (
-      <div className="flex-1 bg-bg-tertiary flex items-center justify-center text-fg-muted">
-        <div className="text-center">
-          <div className="text-4xl mb-3 opacity-40">💬</div>
-          <p className="text-sm">选择一段对话查看内容</p>
-        </div>
-      </div>
-    )
+    return <Dashboard />
   }
 
   return <ChatViewerContent onOpenAiSettings={onOpenAiSettings} />
@@ -48,7 +43,16 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
   const [relatedSessions, setRelatedSessions] = useState<RelatedSession[]>([])
   const [showRelated, setShowRelated] = useState(false)
 
-  // 切换会话时加载总结和嵌入状态
+  // 虚拟列表
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 200, // 消息高度差异大，初始估值 200，动态测量修正
+    overscan: 4
+  })
+
+  // 切换会话时加载总结和嵌入状态，并滚动到顶部
   useEffect(() => {
     setSummary(null)
     setSummaryError(null)
@@ -61,6 +65,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     if (!session) return
     window.Memora.ai.getSummary(session.id).then(setSummary).catch(() => {})
     window.Memora.ai.getEmbedStatus(session.id).then(setEmbedStatus).catch(() => {})
+    // 切换会话时滚动到顶部
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [session?.id])
 
   async function handleShare() {
@@ -137,7 +143,6 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       setShowRelated(true)
       return
     }
-    // 动态加载
     setShowRelated(true)
     try {
       const related = await window.Memora.memory.findRelated(session.id, { limit: 5 })
@@ -347,13 +352,41 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
         </div>
       )}
 
-      {/* 消息流 */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-6 space-y-4">
-          {messages.map((msg, idx) => (
-            <MessageBubble key={msg.id || idx} message={msg} />
-          ))}
-        </div>
+      {/* 消息流（虚拟滚动） */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        {messages.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-fg-muted">此对话没有消息</div>
+        ) : (
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative'
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const msg = messages[virtualItem.index]
+              return (
+                <div
+                  key={msg.id || virtualItem.index}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`
+                  }}
+                >
+                  <div className="max-w-3xl mx-auto px-6 py-3">
+                    <MessageBubble message={msg} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

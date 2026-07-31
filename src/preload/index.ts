@@ -14,6 +14,7 @@ import type {
   RelatedSession,
   ScanResult,
   DetectedApp,
+  DashboardStats,
   ExtractedSession
 } from '../shared/types'
 
@@ -216,6 +217,10 @@ const api = {
       options?: { limit?: number; threshold?: number }
     ): Promise<RelatedSession[]> =>
       ipcRenderer.invoke(IPC.AI_RELATED_SESSIONS, sessionId, options)
+  },
+  // ===== Dashboard 统计 =====
+  stats: {
+    get: (): Promise<DashboardStats> => ipcRenderer.invoke(IPC.STATS_GET)
   }
 }
 

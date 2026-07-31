@@ -145,6 +145,18 @@ export interface SearchResult {
   rank: number
 }
 
+/** Dashboard 统计数据 */
+export interface DashboardStats {
+  sessionCount: number
+  messageCount: number
+  providerCount: number
+  indexedCount: number
+  favoriteCount: number
+  providerBreakdown: Array<{ provider: string; count: number }>
+  recentSessions: ChatSession[]
+}
+
+
 /** 导入结果 */
 export interface ImportResult {
   /** 导入的对话数 */

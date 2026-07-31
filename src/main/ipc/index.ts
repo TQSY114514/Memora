@@ -2,6 +2,7 @@ import { ipcMain, dialog, app } from 'electron'
 import { writeFileSync, existsSync } from 'fs'
 import { basename } from 'path'
 import { IPC } from '@shared/constants'
+import { getDatabase } from '@db/connection'
 import {
   createWorkspace,
   listWorkspaces,
@@ -384,4 +385,27 @@ export function registerIpcHandlers(): void {
       message: undefined
     }
   })
+
+  // ===== Dashboard 统计 =====
+  ipcMain.handle(IPC.STATS_GET, () => {
+    const db = getDatabase()
+    const sessionCount = (db.prepare('SELECT COUNT(*) as n FROM chat_sessions').get() as { n: number }).n
+    const messageCount = (db.prepare('SELECT COUNT(*) as n FROM messages').get() as { n: number }).n
+    const indexedCount = (db.prepare('SELECT COUNT(DISTINCT session_id) as n FROM message_embeddings').get() as { n: number }).n
+    const favoriteCount = (db.prepare('SELECT COUNT(*) as n FROM chat_sessions WHERE is_favorite = 1').get() as { n: number }).n
+    const providerRows = db.prepare('SELECT provider, COUNT(*) as n FROM chat_sessions GROUP BY provider ORDER BY n DESC').all() as Array<{ provider: string; n: number }>
+    const recentRows = db.prepare('SELECT id FROM chat_sessions ORDER BY updated_at DESC LIMIT 5').all() as Array<{ id: string }>
+    const recentSessions = recentRows.map(r => getSession(r.id, false)).filter(Boolean) as ChatSession[]
+
+    return {
+      sessionCount,
+      messageCount,
+      providerCount: providerRows.length,
+      indexedCount,
+      favoriteCount,
+      providerBreakdown: providerRows.map(r => ({ provider: r.provider, count: r.n })),
+      recentSessions
+    }
+  })
+
 }

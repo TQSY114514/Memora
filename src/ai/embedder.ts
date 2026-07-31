@@ -6,6 +6,7 @@ import {
   hasSessionEmbeddings,
   countSessionEmbeddings
 } from '../database/repositories/embeddingRepo'
+import { invalidateEmbeddingCache } from '../search/semantic'
 
 /**
  * 向量嵌入模块
@@ -133,6 +134,7 @@ export async function embedSession(
     embedded += batch.length
   }
 
+  invalidateEmbeddingCache()
   return {
     total: session.messages.length,
     embedded,

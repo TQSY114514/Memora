@@ -86,6 +86,7 @@ export const IPC = {
   // 系统
   DIALOG_OPEN_FILE: 'dialog:open-file',
   DIALOG_SAVE_FILE: 'dialog:save-file',
+  STATS_GET: 'stats:get',
   APP_GET_DATA_DIR: 'app:get-data-dir'
 } as const
 
