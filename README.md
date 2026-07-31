@@ -1,36 +1,42 @@
 <div align="center">
 
-<!-- SVG Hero：项目原生视觉，可编辑、GitHub-safe -->
-<svg width="480" height="160" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Memora">
+<!-- Hero：书架 M 品牌视觉，GitHub-safe inline SVG -->
+<svg width="560" height="180" viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Memora">
   <defs>
-    <linearGradient id="aetherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#43B9B0"/>
-      <stop offset="100%" stop-color="#74E0C1"/>
+    <linearGradient id="heroOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316"/>
+      <stop offset="100%" stop-color="#EA580C"/>
     </linearGradient>
-    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#43B9B0"/>
-      <stop offset="100%" stop-color="#74E0C1"/>
+    <linearGradient id="heroYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="heroShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#EA580C" flood-opacity="0.22"/>
     </filter>
   </defs>
 
-  <!-- Logo 标记 -->
-  <g transform="translate(40, 40)">
-    <rect width="80" height="80" rx="16" fill="url(#aetherGrad)" filter="url(#glow)"/>
-    <rect x="18" y="22" width="44" height="44" rx="9" fill="#43B9B0" fill-opacity=".35"/><rect x="9" y="11" width="44" height="44" rx="9" fill="#74E0C1" fill-opacity=".6"/><circle cx="60" cy="60" r="6" fill="#FF7458"/>
+  <!-- Logo 标记（书架 M，左侧） -->
+  <g transform="translate(36, 28) scale(0.85)">
+    <rect x="44" y="40" width="32" height="160" rx="8" fill="url(#heroOrange)" filter="url(#heroShadow)"/>
+    <rect x="180" y="40" width="32" height="160" rx="8" fill="url(#heroOrange)" filter="url(#heroShadow)"/>
+    <line x1="60" y1="40" x2="128" y2="100" stroke="url(#heroYellow)" stroke-width="22" stroke-linecap="round"/>
+    <line x1="196" y1="40" x2="128" y2="100" stroke="url(#heroYellow)" stroke-width="22" stroke-linecap="round"/>
+    <line x1="76" y1="78" x2="180" y2="78" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+    <line x1="76" y1="128" x2="180" y2="128" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+    <line x1="76" y1="178" x2="180" y2="178" stroke="#FDE68A" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="128" cy="128" r="16" fill="#ffffff" filter="url(#heroShadow)"/>
+    <circle cx="128" cy="128" r="7" fill="#EA580C"/>
+    <line x1="140" y1="140" x2="154" y2="154" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
   </g>
 
   <!-- 标题 -->
-  <text x="160" y="80" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="42" font-weight="700" fill="url(#textGrad)">Memora</text>
-  <text x="160" y="108" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="14" fill="#6b7280">Your AI memory workspace — Memory + Aura</text>
+  <text x="300" y="78" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="44" font-weight="800" letter-spacing="3" fill="url(#heroOrange)">Memora</text>
+  <text x="300" y="108" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="15" font-weight="500" letter-spacing="4" fill="#F59E0B" opacity="0.8">AI MEMORY WORKSPACE</text>
+  <text x="300" y="132" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="12" font-weight="400" letter-spacing="2" fill="#D97706" opacity="0.6">Unified · Searchable · Local-first</text>
 </svg>
 
 <p>
@@ -40,16 +46,17 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-0.1.0-43B9B0" alt="version"/>
+  <img src="https://img.shields.io/badge/version-0.1.0-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/SQLite-FTS5-003B57" alt="SQLite"/>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/Local_First-✓-43B9B0" alt="Local First"/>
+  <img src="https://img.shields.io/badge/Local_First-✓-F97316" alt="Local First"/>
 </p>
 
 <p>
+  <a href="#为什么需要-memora">为什么</a> ·
   <a href="#核心功能">功能</a> ·
   <a href="#支持平台">平台</a> ·
   <a href="#安装与运行">安装</a> ·
@@ -81,7 +88,8 @@ Memora 是一个 **Local-First 的 AI 记忆工作台**。它不是另一个 AI 
 - ✅ 统一数据模型：屏蔽平台差异，所有对话归一为 `ChatSession`
 - ✅ 全文 + 语义搜索：FTS5 关键词搜索 + 向量语义检索
 - ✅ AI 增强：自动总结、knowledge.md 生成、Project Memory 智能问答
-- ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看`n- ✅ **智能导入中心**：自动检测已安装的 AI 应用，一键扒取本地记录
+- ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看
+- ✅ **智能导入中心**：自动检测已安装的 AI 应用，一键扒取本地记录
 
 ## 核心功能
 
@@ -93,7 +101,7 @@ Memora 是一个 **Local-First 的 AI 记忆工作台**。它不是另一个 AI 
 | 应用 | 检测方式 | 本地扒取 | 说明 |
 |------|---------|:-------:|------|
 | **Cursor** | state.vscdb | ✅ | 只读 SQLite |
-| **Claude Code** | ~/.claude/projects | ✅ | .jsonl 日志 |
+| **Claude Code** | ~/.claude/projects | ✅ | .jsonl 日志，支持 custom-title 优先级 |
 | **OpenCode** | ~/.opencode | ✅ | 本地数据 |
 | **Windsurf** | %APPDATA%\Windsurf | ✅ | 复用 Cursor 逻辑 |
 | **Cline** | VSCode 扩展 | ✅ | SQLite |
@@ -132,6 +140,7 @@ Workspace（工作区）
 
 - 创建 / 重命名 / 删除 Workspace、Folder
 - 标签（多对多）与收藏（星标）
+- 对话置顶 / 改名 / 单条删除 / 全选删除
 - 按 provider / 时间 / 收藏筛选
 - 拖拽移动对话
 
@@ -157,6 +166,25 @@ Workspace（工作区）
 5. 返回答案 + 引用来源（可点击跳转到原对话）
 
 **相关讨论推荐**：基于会话向量质心，自动推荐与当前对话相关的其他讨论。
+
+### 主题系统与个性化
+
+- **深色 / 浅色 / 跟随系统**三种主题模式
+- **自定义背景图片**：上传图片作为应用背景
+- **模糊度与不透明度**调节：让背景图与界面和谐共存
+- **多语言支持**：简体中文 / English / 日本語
+
+### 多供应商 AI 配置
+
+每个供应商独立配置，互不干扰：
+
+| 供应商 | Chat | Embeddings | 说明 |
+|--------|:----:|:----------:|------|
+| OpenAI | ✅ | ✅ | 官方接口 |
+| DeepSeek | ✅ | — | 对话可用，语义搜索需另配 |
+| 自定义 | ✅ | ✅ | 任何 OpenAI 兼容接口 |
+
+配置仅保存在本地 localStorage，不会上传。测试连接通过 main 进程代理（避免 CORS 限制）。
 
 ### MCP Server
 
@@ -214,7 +242,12 @@ npm run dev
 npm run typecheck
 
 # 打包
-npm run build`n`n# 打包为 Windows 安装包`nnpm run dist:win`n`n# 预览生产版本
+npm run build
+
+# 打包为 Windows 安装包
+npm run dist:win
+
+# 预览生产版本
 npm run preview
 ```
 
@@ -229,8 +262,8 @@ npm run mcp
 
 在使用 AI 总结、语义搜索、Project Memory 之前，需要配置 OpenAI 兼容的 API：
 
-1. 启动 Memora，点击左上角「⚙ AI」
-2. 选择服务商（OpenAI / DeepSeek / 自定义）
+1. 启动 Memora，点击侧边栏「⚙ 设置」→ AI 配置
+2. 选择供应商（OpenAI / DeepSeek / 自定义），各供应商独立配置
 3. 填入 API Base URL、API Key、对话模型、嵌入模型、向量维度
 4. 点击「测试连接」验证配置
 
@@ -285,10 +318,12 @@ memora/
 │   ├── renderer/          # React UI
 │   │   └── src/components/
 │   │       ├── Sidebar/   # 工作区导航 + 搜索
-│   │       ├── ChatList/  # 对话列表（多选/批量）
+│   │       ├── ChatList/  # 对话列表（多选/批量/置顶）
 │   │       ├── ChatViewer/# 对话查看 + AI 工具栏
 │   │       ├── ProjectMemory/ # RAG 问答面板
-│   │       └── AiSettings/# AI 配置弹窗
+│   │       ├── ImportCenter/  # 导入中心（扒取+扫描）
+│   │       ├── Settings/      # 主题+AI配置+背景图
+│   │       └── AiSettings/    # 多供应商 AI 配置
 │   ├── importer/          # 导入器 + 扫描器 + 应用探测器 + 本地扒取器
 │   ├── database/          # SQLite + 6 个 Repository
 │   ├── search/            # FTS5 + 语义搜索
@@ -296,7 +331,8 @@ memora/
 │   ├── mcp/               # MCP Server
 │   ├── sharing/           # HTML 导出
 │   └── shared/            # 跨进程类型与常量
-├── resources/             # 静态资源（logo）
+├── assets/                # 品牌资源（logo / banner）
+├── build/                 # 打包图标
 └── package.json
 ```
 
@@ -327,7 +363,13 @@ memora/
 - [x] Project Memory 智能问答（RAG）
 - [x] 相关讨论推荐（基于向量相似度）
 - [x] MCP Server（暴露对话数据给外部工具）
-- [x] Gemini / Grok / Cursor 导入器`r`n- [x] 智能导入中心（自动检测 + 本地扒取）`r`n- [x] 系统托盘 + 应用图标`r`n- [x] Windows 安装包打包
+- [x] Gemini / Grok / Cursor 导入器
+- [x] 智能导入中心（自动检测 + 本地扒取）
+- [x] 主题系统（深色/浅色/系统 + 背景图片）
+- [x] 多供应商 AI 配置（独立存储，互不干扰）
+- [x] 多语言支持（中/英/日）
+- [x] 系统托盘 + 应用图标
+- [x] Windows 安装包打包
 
 ### 后续规划
 
@@ -356,6 +398,6 @@ memora/
 <div align="center">
 
 <sub>Built with Electron · React · TypeScript · SQLite</sub><br/>
-<sub>© 2026 Memora</sub>
+<sub>© 2026 Memora · Memory + Aura</sub>
 
 </div>
