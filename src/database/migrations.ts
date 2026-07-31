@@ -46,6 +46,11 @@ const migrations: Migration[] = [
     version: 6,
     description: '回填：把旧 session_summaries 的 key_points/todos 转为 knowledge_entries',
     up: (db) => backfillKnowledgeEntries(db)
+  },
+  {
+    version: 7,
+    description: '建 preferences + preferences_fts 表（Memory Lifecycle：用户偏好 + 冲突检测 + 衰减）',
+    up: (db) => migrateToPreferences(db)
   }
 ]
 
@@ -283,6 +288,46 @@ function backfillKnowledgeEntries(db: Database.Database): void {
   })
   tx()
   console.log(`[db] v6 回填 ${count} 条 knowledge_entries`)
+}
+
+/**
+ * v7：用户偏好表（Memory Lifecycle）
+ * - preferences：结构化记忆（subject + value + confidence + status）
+ * - preferences_fts：FTS5 全文索引
+ *
+ * 注：新库由 schema.ts 直接建表；本迁移服务旧库（已存在但无 preferences 表）。
+ */
+function migrateToPreferences(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS preferences (
+      id              TEXT PRIMARY KEY,
+      workspace_id    TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      session_id      TEXT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+      subject         TEXT NOT NULL,
+      value           TEXT NOT NULL,
+      confidence      REAL DEFAULT 0.5,
+      source          TEXT DEFAULT 'manual',
+      status          TEXT DEFAULT 'active',
+      superseded_by   TEXT REFERENCES preferences(id) ON DELETE SET NULL,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL,
+      last_accessed_at TEXT,
+      access_count    INTEGER DEFAULT 0
+    )
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_pref_workspace ON preferences(workspace_id)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_pref_subject ON preferences(subject)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_pref_status ON preferences(status)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_pref_session ON preferences(session_id)')
+
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS preferences_fts USING fts5(
+      pref_id UNINDEXED,
+      subject,
+      value,
+      tokenize = 'unicode61 remove_diacritics 2'
+    )
+  `)
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */

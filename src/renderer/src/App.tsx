@@ -7,6 +7,7 @@ import { ImportCenter } from './components/ImportCenter'
 import { Settings } from './components/Settings'
 import { ProjectMemoryPanel } from './components/ProjectMemory'
 import { KnowledgePanel } from './components/Knowledge'
+import { PreferenceExplorer } from './components/PreferenceExplorer'
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
@@ -24,6 +25,7 @@ export default function App() {
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showMemoryPanel, setShowMemoryPanel] = useState(false)
   const [showKnowledgePanel, setShowKnowledgePanel] = useState(false)
+  const [showPreferencePanel, setShowPreferencePanel] = useState(false)
   const [showImportCenter, setShowImportCenter] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
@@ -119,6 +121,7 @@ export default function App() {
         onOpenAiSettings={() => setShowAiSettings(true)}
         onOpenMemory={() => setShowMemoryPanel(true)}
         onOpenKnowledge={() => setShowKnowledgePanel(true)}
+        onOpenPreferences={() => setShowPreferencePanel(true)}
         onOpenImportCenter={() => setShowImportCenter(true)}
         onOpenSettings={() => setShowSettings(true)}
       />
@@ -126,6 +129,8 @@ export default function App() {
         <ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} />
       ) : showKnowledgePanel ? (
         <KnowledgePanel onClose={() => setShowKnowledgePanel(false)} />
+      ) : showPreferencePanel ? (
+        <PreferenceExplorer onClose={() => setShowPreferencePanel(false)} />
       ) : (
         <>
           <ChatList />

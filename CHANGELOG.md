@@ -2,6 +2,51 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.0] - 2026-07-31
+
+### 定位升级
+
+从「Personal AI Knowledge Vault」升级为 **Agent Memory OS**——给 AI Agent 提供类人长期记忆的本地优先系统。
+
+### Added
+
+#### Memory Lifecycle 记忆生命周期
+- **Preference 实体**：结构化用户偏好（subject + value + confidence + status），第四类一等公民实体
+- **冲突检测**：同 subject 不同 value → 旧记忆自动标记 `superseded`，新记忆为 `active`
+- **复现增强**：相同偏好再次出现时 confidence +0.15（最高 1.0）
+- **置信度衰减**：超过 30 天未访问的偏好，启动时降低 0.1；低于 0.05 自动归档
+- **软删除（遗忘）**：`archived` 状态保留审计痕迹，不物理删除
+- **用户画像**：按类别分组的偏好聚合，MCP `memory_profile` 工具暴露给 AI
+
+#### MCP 记忆工具（+4 个，共 17 个）
+- `memory_profile`：返回用户全部偏好（按类别分组）
+- `memory_save_preference`：保存用户偏好，自动检测冲突
+- `memory_forget`：遗忘（软删除）偏好
+- `preference_search`：FTS 搜索用户偏好
+
+#### AI 蒸馏自动提取偏好
+- 记忆蒸馏时 AI 自动识别用户偏好（如「喜欢初音未来」「用 VSCode」）
+- 提取的偏好自动写入 preferences 表，confidence=0.6，source=conversation
+
+#### PreferenceExplorer UI
+- 偏好画像视图（按类别分组展示）
+- 置信度可视化（颜色条：绿 >0.7 / 黄 >0.3 / 红 ≤0.3）
+- 手动创建 / 编辑 / 归档 / 删除偏好
+- 一键运行衰减操作
+- FTS 搜索 + 状态筛选（全部 / 生效中 / 已取代 / 已归档）
+
+### Changed
+
+- **README 重写**：定位为 Agent Memory OS，添加 Before/After 对比、记忆生命周期图、Phase 4 路线图
+- **MCP server version** 更新为 1.4.0
+
+### Security（继承自 v1.3.1）
+
+- Electron `sandbox: true` 沙箱模式
+- Content-Security-Policy 头
+- `unhandledRejection` / `uncaughtException` 全局异常处理器
+- `SnippetRenderer` 替代 `dangerouslySetInnerHTML`
+
 ## [1.3.1] - 2026-07-31
 
 ### Security

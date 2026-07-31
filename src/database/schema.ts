@@ -166,4 +166,35 @@ CREATE TABLE IF NOT EXISTS knowledge_relations (
 );
 CREATE INDEX IF NOT EXISTS idx_kr_from ON knowledge_relations(from_id);
 CREATE INDEX IF NOT EXISTS idx_kr_to ON knowledge_relations(to_id);
+
+-- 用户偏好（Preference 实体，v1.4 Memory Lifecycle）
+-- 结构化记忆：用户喜欢什么、用什么、偏好什么
+-- 支持冲突检测（同 subject 不同 value → 旧记忆标记 superseded）和置信度衰减
+CREATE TABLE IF NOT EXISTS preferences (
+  id              TEXT PRIMARY KEY,
+  workspace_id    TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  session_id      TEXT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  subject         TEXT NOT NULL,           -- 偏好类别：music / phone / language / editor...
+  value           TEXT NOT NULL,           -- 偏好值：初音未来 / android / Python...
+  confidence      REAL DEFAULT 0.5,        -- 置信度 0.0-1.0
+  source          TEXT DEFAULT 'manual',   -- conversation / manual / mcp / inferred
+  status          TEXT DEFAULT 'active',   -- active / superseded / archived
+  superseded_by   TEXT REFERENCES preferences(id) ON DELETE SET NULL,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  last_accessed_at TEXT,
+  access_count    INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_pref_workspace ON preferences(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_pref_subject ON preferences(subject);
+CREATE INDEX IF NOT EXISTS idx_pref_status ON preferences(status);
+CREATE INDEX IF NOT EXISTS idx_pref_session ON preferences(session_id);
+
+-- 偏好全文索引（subject + value，中文分词）
+CREATE VIRTUAL TABLE IF NOT EXISTS preferences_fts USING fts5(
+  pref_id UNINDEXED,
+  subject,
+  value,
+  tokenize = 'unicode61 remove_diacritics 2'
+);
 `

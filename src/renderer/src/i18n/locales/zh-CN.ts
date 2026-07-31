@@ -11,6 +11,8 @@ export const zhCN: Record<string, string> = {
   'sidebar.memory': '🧠 Project Memory',
   'sidebar.knowledge': '📚 知识库',
   'sidebar.knowledgeTip': '决策 · 任务 · 知识一等公民实体',
+  'sidebar.preferences': '🧠 偏好记忆',
+  'sidebar.preferencesTip': '用户偏好 · 冲突检测 · 置信度衰减',
   'sidebar.importCenter': '🔎 导入中心',
   'sidebar.manualImport': '⬆ 手动导入',
   'sidebar.settings': '⚙ 设置',

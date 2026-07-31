@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.3.1'
+export const APP_VERSION = '1.4.0'
 
 /**
  * AI API 协议风格元信息（v1.2）
@@ -148,6 +148,18 @@ export const IPC = {
   KNOWLEDGE_RELATION_REMOVE: 'knowledge:relation-remove',
   KNOWLEDGE_RELATION_LIST: 'knowledge:relation-list',
   KNOWLEDGE_GRAPH_DATA: 'knowledge:graph-data',
+
+  // Preference（v1.4 Memory Lifecycle）—— 用户偏好 + 冲突检测 + 衰减
+  PREF_LIST: 'pref:list',
+  PREF_GET: 'pref:get',
+  PREF_CREATE: 'pref:create',
+  PREF_UPDATE: 'pref:update',
+  PREF_DELETE: 'pref:delete',
+  PREF_ARCHIVE: 'pref:archive',
+  PREF_SEARCH: 'pref:search',
+  PREF_COUNT: 'pref:count',
+  PREF_PROFILE: 'pref:profile',
+  PREF_DECAY: 'pref:decay',
 
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',

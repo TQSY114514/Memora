@@ -11,6 +11,8 @@ export const ja: Record<string, string> = {
   'sidebar.memory': '🧠 プロジェクトメモリ',
   'sidebar.knowledge': '📚 ナレッジ',
   'sidebar.knowledgeTip': '決定 · タスク · 知識を第一級エンティティとして',
+  'sidebar.preferences': '🧠 プリファレンス',
+  'sidebar.preferencesTip': 'ユーザー設定 · 競合検出 · 信頼度減衰',
   'sidebar.importCenter': '🔎 インポートセンター',
   'sidebar.manualImport': '⬆ 手動インポート',
   'sidebar.settings': '⚙ 設定',

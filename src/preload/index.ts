@@ -25,7 +25,11 @@ import type {
   KnowledgeEntry,
   KnowledgeType,
   KnowledgeRelation,
-  KnowledgeGraphData
+  KnowledgeGraphData,
+  Preference,
+  PreferenceStatus,
+  PreferenceSource,
+  UserProfile
 } from '../shared/types'
 
 /**
@@ -376,6 +380,46 @@ const api = {
     /** 获取工作区知识图谱数据（节点 + 边，含显式关系和隐式关联） */
     graphData: (workspaceId: string): Promise<KnowledgeGraphData> =>
       ipcRenderer.invoke(IPC.KNOWLEDGE_GRAPH_DATA, workspaceId)
+  },
+
+  // ===== Preference（v1.4 Memory Lifecycle） =====
+  preference: {
+    list: (options?: {
+      workspaceId?: string
+      status?: PreferenceStatus
+      subject?: string
+      limit?: number
+      offset?: number
+    }): Promise<Preference[]> => ipcRenderer.invoke(IPC.PREF_LIST, options),
+    get: (id: string): Promise<Preference | null> => ipcRenderer.invoke(IPC.PREF_GET, id),
+    create: (input: {
+      workspaceId: string
+      sessionId?: string
+      subject: string
+      value: string
+      confidence?: number
+      source?: PreferenceSource
+    }): Promise<Preference> => ipcRenderer.invoke(IPC.PREF_CREATE, input),
+    update: (
+      id: string,
+      patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject'>>
+    ): Promise<Preference | null> => ipcRenderer.invoke(IPC.PREF_UPDATE, id, patch),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PREF_DELETE, id),
+    archive: (id: string): Promise<Preference | null> => ipcRenderer.invoke(IPC.PREF_ARCHIVE, id),
+    search: (
+      query: string,
+      options?: { workspaceId?: string; limit?: number }
+    ): Promise<Preference[]> => ipcRenderer.invoke(IPC.PREF_SEARCH, query, options),
+    count: (workspaceId: string): Promise<{
+      total: number
+      active: number
+      superseded: number
+      archived: number
+    }> => ipcRenderer.invoke(IPC.PREF_COUNT, workspaceId),
+    profile: (workspaceId: string): Promise<UserProfile> =>
+      ipcRenderer.invoke(IPC.PREF_PROFILE, workspaceId),
+    decay: (workspaceId?: string, daysThreshold?: number, decayRate?: number): Promise<number> =>
+      ipcRenderer.invoke(IPC.PREF_DECAY, workspaceId, daysThreshold, decayRate)
   }
 }
 

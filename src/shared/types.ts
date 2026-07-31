@@ -384,6 +384,51 @@ export interface RelatedSession {
   reason: string            // 为什么相关（命中消息摘要）
 }
 
+/** 偏好状态 */
+export type PreferenceStatus = 'active' | 'superseded' | 'archived'
+
+/** 偏好来源 */
+export type PreferenceSource = 'conversation' | 'manual' | 'mcp' | 'inferred'
+
+/**
+ * 用户偏好（Preference 实体）
+ * 结构化记忆：用户喜欢什么、用什么、偏好什么
+ * 支持冲突检测（新旧矛盾时自动标记旧记忆为 superseded）和置信度衰减
+ */
+export interface Preference {
+  id: string
+  workspaceId: string
+  /** 来源对话 ID（可空） */
+  sessionId?: string
+  /** 偏好类别：如 'music' / 'phone' / 'language' / 'editor' / 'framework' */
+  subject: string
+  /** 偏好值：如 '初音未来' / 'android' / 'Python' */
+  value: string
+  /** 置信度 0.0-1.0，初始 0.5，每次复现增加，长期未访问衰减 */
+  confidence: number
+  /** 来源 */
+  source: PreferenceSource
+  /** 状态：active / superseded / archived */
+  status: PreferenceStatus
+  /** 被哪条新偏好取代（superseded 时非空） */
+  supersededBy?: string
+  createdAt: string
+  updatedAt: string
+  /** 最后访问时间（用于衰减计算） */
+  lastAccessedAt?: string
+  /** 访问次数 */
+  accessCount: number
+}
+
+/** 用户画像（聚合偏好，用于 MCP memory_profile） */
+export interface UserProfile {
+  workspaceId: string
+  totalPreferences: number
+  activePreferences: number
+  /** 按类别分组的偏好 */
+  bySubject: Array<{ subject: string; preferences: Preference[] }>
+}
+
 /** 后台静默导入配置 */
 export interface BackgroundImportConfig {
   enabled: boolean

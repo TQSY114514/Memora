@@ -4,13 +4,13 @@
 <img src="assets/banner.svg" width="600" alt="Memora - Personal AI Knowledge Vault"/>
 
 <p>
-  <strong>Your Personal AI Knowledge Vault</strong><br/>
-  本地优先 · 聚合全平台 AI 对话 · 蒸馏为可复用的个人知识库
+  <strong>Agent Memory OS — Give your AI a human-like long-term memory</strong><br/>
+  本地优先 · 跨平台 AI 对话聚合 · 记忆蒸馏 · 偏好追踪 · MCP 记忆层
 </p>
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.3.0-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.4.0-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -62,28 +62,38 @@ Memora 是一个实验性项目，初衷是验证「AI 能否从零构建一个�
 ## Before / After
 
 ```
-Before:                              After:
+Before Memora:                       After Memora:
 
-ChatGPT   ─┐                        ┌─ Memora ──────────────────┐
-Claude    ─┤   各自为政             │  📁 Aether 项目           │
-DeepSeek  ─┤   搜索靠翻记录         │  ├─ Claude 架构讨论       │
-Cursor    ─┤   换平台丢上下文       │  ├─ DeepSeek Bug 分析     │
-Kimi      ─┘                        │  ├─ Cursor 代码方案       │
-                                    │  └─ ✨ 蒸馏出的知识要点   │
-                                    └──────────────────────────┘
+User: "你记得我喜欢什么吗?"          AI: "当然，你喜欢初音未来，
+AI:  "抱歉，我没有之前的信息"              也正在学习 C++，
+                                          之前用 Python 但最近
+                                          换成了 Rust。"
+
+ChatGPT   ─┐                        ┌─ Memora (Agent Memory OS) ─┐
+Claude    ─┤   各自为政             │  📁 Aether 项目             │
+DeepSeek  ─┤   搜索靠翻记录         │  ├─ Claude 架构讨论         │
+Cursor    ─┤   换平台丢上下文       │  ├─ DeepSeek Bug 分析       │
+Kimi      ─┘                        │  ├─ Cursor 代码方案         │
+                                    │  ├─ ✨ 蒸馏出的知识要点     │
+                                    │  └─ 🧠 用户偏好画像         │
+                                    └────────────────────────────┘
 ```
 
 ## Memora 是什么
 
-Memora 是一个 **Local-First 的个人 AI 知识库**。它不是另一个 AI Agent，也不是简单的聊天导出工具——它是一个跨平台的 **AI 对话聚合层 + 知识蒸馏系统**，把分散在各处的 AI 对话沉淀为可搜索、可复用的长期知识资产。
+Memora 是一个 **Agent Memory OS**——给 AI Agent 提供类人长期记忆的本地优先系统。
+
+它不是简单的聊天导出工具，也不是又一个 RAG 框架。它是一个完整的 **记忆生命周期管理系统**：
 
 - ✅ 跨平台聚合：ChatGPT / Claude / Gemini / DeepSeek / Kimi / 通义 / Cursor / Grok ……
+- ✅ **记忆类型系统**：知识 / 决策 / 任务 / **偏好**（Preference）四类一等公民实体
+- ✅ **记忆生命周期**：创建 → 巩固 → 冲突检测 → 遗忘（置信度衰减）
+- ✅ **MCP 记忆层**：17 个 MCP 工具，让 Claude Code / Cursor / 任何 MCP 客户端读写记忆
 - ✅ 本地优先：数据存储在本地 SQLite，离线可用，隐私可控
-- ✅ 统一数据模型：屏蔽平台差异，所有对话归一为 `ChatSession`
 - ✅ 全文 + 语义搜索：FTS5 关键词搜索 + 向量语义检索
-- ✅ 记忆蒸馏：自动总结、knowledge.md 生成、Project Memory 智能问答
+- ✅ 记忆蒸馏：AI 自动总结对话、提取偏好、生成知识文档
+- ✅ 可视化：知识图谱（SVG）+ 偏好画像 + 时间线
 - ✅ 可分享：导出为自包含 HTML，任何人用浏览器即可查看
-- ✅ **智能导入中心**：自动检测已安装的 AI 应用，一键扒取本地记录
 
 ## 演示
 
@@ -190,6 +200,26 @@ Workspace（工作区）
 - **轻量 Memory Graph**：关系类型（supports / contradicts / derived-from / relates-to）
 - **「提炼到知识库」按钮**：在对话蒸馏工具栏，一键把当前对话提炼为知识库条目（幂等）
 
+### Memory Lifecycle 记忆生命周期（v1.4）
+
+类人脑的记忆管理——不只是存储，还有遗忘和进化：
+
+```
+对话蒸馏                冲突检测                    衰减
+    │                      │                        │
+    ▼                      ▼                        ▼
+创建偏好              新旧矛盾时               30天未访问
+(subject+value)       旧记忆→superseded         confidence↓
+confidence=0.6        新记忆→active             ≤0.05→archived
+```
+
+- **自动提取**：AI 蒸馏对话时自动识别用户偏好（如「喜欢初音未来」「用 VSCode」）
+- **冲突检测**：用户改变偏好时（如从 iPhone 换 Android），旧记忆自动标记为 `superseded`，新记忆为 `active`
+- **复现增强**：相同偏好再次出现时，confidence +0.15（最高 1.0）
+- **置信度衰减**：超过 30 天未访问的偏好，每次启动降低 0.1；低于 0.05 自动归档
+- **软删除（遗忘）**：archived 状态保留审计痕迹，不物理删除
+- **用户画像**：按类别分组的偏好聚合，让 AI 快速了解用户
+
 ### 后台静默导入（v1.1）
 
 后台定时轮询已安装的 AI 应用（Cursor / Claude Code / OpenCode / Windsurf / Cline），自动检测新增对话并导入：
@@ -236,7 +266,7 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 }
 ```
 
-暴露 13 个工具：
+暴露 17 个工具：
 
 | 工具 | 用途 |
 |------|------|
@@ -253,8 +283,12 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 | `knowledge_search` | **知识搜索**：FTS 搜索知识/决策/任务条目 |
 | `decision_search` | **决策搜索**：专搜架构决策 |
 | `project_context` | **项目上下文**：组装近期决策 + 未完成任务 + 核心知识 |
+| `memory_profile` | **用户画像**：返回用户全部偏好（按类别分组），让 AI 了解用户 |
+| `memory_save_preference` | **保存偏好**：写入用户偏好，自动检测冲突（旧记忆标记 superseded） |
+| `memory_forget` | **遗忘**：将偏好标记为 archived（软删除） |
+| `preference_search` | **偏好搜索**：FTS 搜索用户偏好记忆 |
 
-`memory_recall` 和 `memory_write` 让 Memora 从「对话管理器」升级为真正的 **AI Memory 层**——AI Agent 可主动召回历史知识、沉淀新知识。
+`memory_recall` / `memory_write` / `memory_profile` / `memory_save_preference` / `memory_forget` 让 Memora 从「对话管理器」升级为真正的 **Agent Memory OS**——AI Agent 可主动召回历史知识、了解用户偏好、沉淀新知识、遗忘过时信息。
 
 ### 分享导出
 
@@ -438,6 +472,16 @@ memora/
 - [x] 多语言支持（中/英/日）
 - [x] 系统托盘 + 应用图标
 - [x] Windows 安装包打包
+
+### Phase 4：Agent Memory OS（v1.4）✅
+
+- [x] Preference 实体（结构化用户偏好：subject + value + confidence）
+- [x] 记忆生命周期（创建 → 冲突检测 → 衰减 → 遗忘）
+- [x] MCP 记忆工具（memory_profile / memory_save_preference / memory_forget / preference_search）
+- [x] AI 蒸馏自动提取偏好
+- [x] PreferenceExplorer UI（偏好画像 + 置信度可视化 + 衰减操作）
+- [x] 安全加固（Electron sandbox + CSP + 异常处理器 + SnippetRenderer）
+- [x] README AI 项目声明 + 安全披露
 
 ### 后续规划
 

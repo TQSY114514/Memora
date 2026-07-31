@@ -7,6 +7,7 @@ import { registerAiHandlers } from './handlers/ai.ipc'
 import { registerSharingHandlers } from './handlers/sharing.ipc'
 import { registerBgImportHandlers } from './handlers/bgImport.ipc'
 import { registerKnowledgeHandlers } from './handlers/knowledge.ipc'
+import { registerPreferenceHandlers } from './handlers/preferences.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -18,4 +19,5 @@ export function registerIpcHandlers(): void {
   registerSharingHandlers()
   registerBgImportHandlers()
   registerKnowledgeHandlers()
+  registerPreferenceHandlers()
 }

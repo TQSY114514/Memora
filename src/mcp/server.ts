@@ -41,6 +41,13 @@ import {
   countEntries,
   createEntry
 } from '../database/repositories/knowledgeRepo'
+import {
+  getUserProfile,
+  createPreference,
+  archivePreference,
+  searchPreferences,
+  decayConfidence
+} from '../database/repositories/preferencesRepo'
 import { search } from '../search/query'
 import { semanticSearch } from '../search/semantic'
 import { loadAiConfigFile } from '../main/aiConfigFile'
@@ -243,6 +250,60 @@ const TOOLS: McpTool[] = [
         workspaceId: { type: 'string', description: '目标工作区 ID' }
       },
       required: ['workspaceId']
+    }
+  },
+  {
+    name: 'memory_profile',
+    description:
+      '用户画像：返回当前用户的全部偏好（preferences），按类别分组。包括用户喜欢什么、用什么、偏好什么。让 AI 快速了解用户。「用户喜欢什么？」「用户用什么编辑器？」「用户偏好什么框架？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID' }
+      },
+      required: ['workspaceId']
+    }
+  },
+  {
+    name: 'memory_save_preference',
+    description:
+      '保存用户偏好：把一条用户偏好（如「喜欢初音未来」「用 VSCode」「偏好 Python」）写入记忆。自动检测冲突——如果同类别已有不同偏好，旧记忆自动标记为 superseded。「用户说他换安卓了」「用户提到喜欢 Python」时用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID' },
+        subject: { type: 'string', description: '偏好类别，如 music / phone / language / editor / framework' },
+        value: { type: 'string', description: '偏好值，如 初音未来 / android / Python' },
+        sessionId: { type: 'string', description: '来源对话 ID（可选）' },
+        confidence: { type: 'number', description: '置信度 0-1，默认 0.5' }
+      },
+      required: ['workspaceId', 'subject', 'value']
+    }
+  },
+  {
+    name: 'memory_forget',
+    description:
+      '遗忘：将一条偏好标记为 archived（软删除，保留审计痕迹）。用户说「忘掉我之前说的」「那条信息过时了」时用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        preferenceId: { type: 'string', description: '要遗忘的偏好 ID' }
+      },
+      required: ['preferenceId']
+    }
+  },
+  {
+    name: 'preference_search',
+    description:
+      '搜索用户偏好：FTS 全文搜索偏好记忆。「用户有没有提到过喜欢什么音乐？」「用户用什么手机？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '搜索关键词' },
+        workspaceId: { type: 'string', description: '限定工作区（可选）' },
+        limit: { type: 'number', description: '返回数量上限，默认 10' }
+      },
+      required: ['query']
     }
   }]
 
@@ -550,6 +611,66 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       }
     }
 
+    case 'memory_profile': {
+      const workspaceId = String(args.workspaceId ?? '')
+      if (!workspaceId) throw new Error('workspaceId 不能为空')
+      return getUserProfile(workspaceId)
+    }
+
+    case 'memory_save_preference': {
+      const workspaceId = String(args.workspaceId ?? '')
+      const subject = String(args.subject ?? '')
+      const value = String(args.value ?? '')
+      if (!workspaceId) throw new Error('workspaceId 不能为空')
+      if (!subject) throw new Error('subject 不能为空')
+      if (!value) throw new Error('value 不能为空')
+      const sessionId = args.sessionId ? String(args.sessionId) : undefined
+      const confidence = args.confidence ? Number(args.confidence) : undefined
+      const pref = createPreference({
+        workspaceId,
+        sessionId,
+        subject,
+        value,
+        confidence,
+        source: 'mcp'
+      })
+      return {
+        preferenceId: pref.id,
+        subject: pref.subject,
+        value: pref.value,
+        confidence: pref.confidence,
+        status: pref.status,
+        note: pref.status === 'active' ? '新偏好已保存' : '已更新已有偏好（复现增强）'
+      }
+    }
+
+    case 'memory_forget': {
+      const preferenceId = String(args.preferenceId ?? '')
+      if (!preferenceId) throw new Error('preferenceId 不能为空')
+      const pref = archivePreference(preferenceId)
+      if (!pref) throw new Error('偏好不存在')
+      return { preferenceId, status: 'archived', note: '偏好已遗忘（archived）' }
+    }
+
+    case 'preference_search': {
+      const query = String(args.query ?? '')
+      if (!query) throw new Error('query 不能为空')
+      const limit = Number(args.limit ?? 10)
+      const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
+      const results = searchPreferences(query, { workspaceId, limit })
+      return results.map((p) => ({
+        id: p.id,
+        subject: p.subject,
+        value: p.value,
+        confidence: p.confidence,
+        status: p.status,
+        source: p.source,
+        createdAt: p.createdAt,
+        lastAccessedAt: p.lastAccessedAt,
+        accessCount: p.accessCount
+      }))
+    }
+
     default:
       throw new Error(`未知工具: ${name}`)
   }
@@ -590,7 +711,7 @@ export async function startMcpServer(): Promise<void> {
               capabilities: { tools: {} },
               serverInfo: {
                 name: 'Memora',
-                version: '1.0.1'
+                version: '1.4.0'
               }
             }
           })

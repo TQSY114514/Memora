@@ -1,6 +1,8 @@
 import type { AiConfig, SessionSummary } from '@shared/types'
 import { getSession } from '../database/repositories/sessionRepo'
 import { upsertSummary, getSummary } from '../database/repositories/summaryRepo'
+import { createPreference } from '../database/repositories/preferencesRepo'
+import { getDatabase } from '../database/connection'
 import { callChat } from './apiClient'
 
 /**
@@ -23,7 +25,8 @@ const SYSTEM_PROMPT = `你是一个 AI 对话总结助手。用户会给你一�
   "keyPoints": ["关键决定1", "关键要点2", "..."],
   "todos": ["待办事项1", "待办事项2", "..."],
   "knowledge": ["可复用知识要点1", "可复用知识要点2", "..."],
-  "suggestedTags": ["建议标签1", "建议标签2", "..."]
+  "suggestedTags": ["建议标签1", "建议标签2", "..."],
+  "preferences": [{"subject": "类别", "value": "值"}, ...]
 }
 
 要求：
@@ -32,7 +35,8 @@ const SYSTEM_PROMPT = `你是一个 AI 对话总结助手。用户会给你一�
 - todos 提取对话中提到的待办事项、后续行动项（若没有则返回空数组）
 - knowledge 提取对话中产生的、未来可复用的知识要点（如技术原理、最佳实践、踩坑经验；若没有则返回空数组）
 - suggestedTags 提取 2-5 个能概括对话主题的简短标签（不带 # 号，每个 2-6 字）
-- 如果对话内容很短或无实质内容，keyPoints / todos / knowledge / suggestedTags 可以为空数组`
+- preferences 提取对话中反映的用户偏好（如用户提到喜欢/使用/选择某物）。subject 是类别（如 music/phone/language/editor/framework/food/hobby），value 是具体值。只提取明确表达的偏好，不要推断。若没有则返回空数组
+- 如果对话内容很短或无实质内容，所有数组字段可以为空`
 
 /** 把对话渲染为文本（截断超长对话） */
 function renderSession(session: {
@@ -71,6 +75,7 @@ function parseSummaryJson(raw: string): {
   todos: string[]
   knowledge: string[]
   suggestedTags: string[]
+  preferences: Array<{ subject: string; value: string }>
 } {
   let jsonStr = raw.trim()
   // 剥离 ```json ... ``` 包裹
@@ -83,6 +88,7 @@ function parseSummaryJson(raw: string): {
     todos?: string[]
     knowledge?: string[]
     suggestedTags?: string[]
+    preferences?: Array<{ subject: string; value: string }>
   }
 
   return {
@@ -90,7 +96,8 @@ function parseSummaryJson(raw: string): {
     keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
     todos: Array.isArray(parsed.todos) ? parsed.todos : [],
     knowledge: Array.isArray(parsed.knowledge) ? parsed.knowledge : [],
-    suggestedTags: Array.isArray(parsed.suggestedTags) ? parsed.suggestedTags : []
+    suggestedTags: Array.isArray(parsed.suggestedTags) ? parsed.suggestedTags : [],
+    preferences: Array.isArray(parsed.preferences) ? parsed.preferences : []
   }
 }
 
@@ -109,7 +116,7 @@ export async function generateSummary(
   const raw = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3 })
   const parsed = parseSummaryJson(raw)
 
-  return upsertSummary(sessionId, {
+  const summary = upsertSummary(sessionId, {
     summary: parsed.summary,
     keyPoints: parsed.keyPoints,
     todos: parsed.todos,
@@ -117,6 +124,40 @@ export async function generateSummary(
     suggestedTags: parsed.suggestedTags,
     model: config.chatModel
   })
+
+  // 自动提取偏好（v1.4 Memory Lifecycle）
+  if (parsed.preferences.length > 0) {
+    try {
+      const db = getDatabase()
+      const wsRow = db
+        .prepare(
+          `SELECT f.workspace_id as wid
+           FROM chat_sessions cs
+           LEFT JOIN folders f ON cs.folder_id = f.id
+           WHERE cs.id = ?`
+        )
+        .get(sessionId) as { wid: string | null } | undefined
+
+      if (wsRow?.wid) {
+        for (const pref of parsed.preferences) {
+          if (pref.subject && pref.value) {
+            createPreference({
+              workspaceId: wsRow.wid,
+              sessionId,
+              subject: pref.subject,
+              value: pref.value,
+              confidence: 0.6,
+              source: 'conversation'
+            })
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[summarizer] 偏好提取失败（不影响总结）:', e)
+    }
+  }
+
+  return summary
 }
 
 /** 获取会话总结（不触发生成） */

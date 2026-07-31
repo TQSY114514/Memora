@@ -6,6 +6,7 @@ import { registerIpcHandlers } from './ipc'
 import { listWorkspaces, deleteWorkspace } from '../database/repositories/workspaceRepo'
 import { backgroundImporter } from '../importer/backgroundImporter'
 import { shutdownSemanticWorker } from '../search/semantic'
+import { decayConfidence } from '../database/repositories/preferencesRepo'
 
 // ===== 全局异常处理器 =====
 // 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
@@ -179,6 +180,16 @@ function startGui(): void {
 
     // 清理重复的默认工作区
     cleanupDuplicateDefaultWorkspaces()
+
+    // 记忆衰减：启动时对超过 30 天未访问的偏好降低置信度
+    try {
+      const decayed = decayConfidence()
+      if (decayed > 0) {
+        console.log(`[memory] 启动时衰减 ${decayed} 条偏好（30 天未访问）`)
+      }
+    } catch (e) {
+      console.warn('[memory] 衰减失败（不影响启动）:', e)
+    }
 
     // 注册 IPC 处理器
     registerIpcHandlers()
