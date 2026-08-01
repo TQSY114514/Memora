@@ -46,10 +46,12 @@ jobs:
         run: npm ci
 
       # Linux: electron-builder 的 icon-tool 不支持 .ico，只支持 .png/.svg/.icns
-      # 用 ImageMagick（ubuntu-latest 预装）从 icon.ico 生成 512x512 PNG
+      # 用 Python Pillow 从 icon.ico 生成 512x512 PNG（ubuntu-latest 预装 Python）
       - name: Generate Linux PNG icon (512x512)
         if: matrix.platform == 'linux'
-        run: convert build/icon.ico -resize 512x512 build/icon.png
+        run: |
+          pip install Pillow
+          python -c "from PIL import Image; img = Image.open('build/icon.ico'); img.convert('RGBA').resize((512, 512)).save('build/icon.png')"
 
       - name: Build (electron-vite)
         run: npm run build
