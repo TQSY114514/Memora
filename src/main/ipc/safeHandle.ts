@@ -53,7 +53,7 @@ export function assertSafeFilename(name: unknown, field = 'filename'): string {
   if (typeof name !== 'string' || name.length === 0 || name.length > 255) {
     throw new Error(`[IPC] 非法 ${field}`)
   }
-  if (/[\\/\u0000]/.test(name) || name === '.' || name === '..' || name.includes('..')) {
+  if (/[\\/]/.test(name) || name.includes('\u0000') || name === '.' || name === '..' || name.includes('..')) {
     throw new Error(`[IPC] 非法 ${field}: 含路径分隔符`)
   }
   return name

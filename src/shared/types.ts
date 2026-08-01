@@ -458,6 +458,8 @@ export interface BackupEntry {
   createdAt: string
   /** 是否加密（v1.6.1） */
   encrypted: boolean
+  /** SHA-256 校验和（v1.8，旧备份可能缺失） */
+  sha256?: string
 }
 
 /** 后台静默导入配置 */

@@ -1,5 +1,5 @@
 /**
- * 自动热备份服务（v1.6 + v1.6.1 加密增强）
+ * 自动热备份服务（v1.6 + v1.6.1 加密增强 + v1.8 校验和/配置持久化）
  *
  * 定时自动压缩 SQLite 数据库文件到备份目录，支持 AES-256-GCM 加密。
  *
@@ -9,17 +9,19 @@
  * - 备份内容: 完整 SQLite 数据库文件（WAL checkpoint → Gzip 压缩 → AES-256-GCM 加密）
  * - 保留数量: 默认 10 份，可配置
  * - 加密: 可选，通过 PBKDF2 从密码派生 AES-256 密钥
+ * - 校验和: 每份备份生成 sidecar {filename}.sha256（标准 sha256sum 格式），恢复时强制校验
+ * - 配置持久化: 写入 {userData}/backup-config.json，重启后保留
  *
  * 恢复流程：
- * - 关闭当前数据库连接 → 解密 → 解压 → 校验完整性 → 替换数据库 → 重新初始化
+ * - SHA-256 校验 → 关闭当前数据库连接 → 解密 → 解压 → 校验完整性 → 替换数据库 → 重新初始化
  */
 import { app } from 'electron'
 import { join } from 'path'
-import { mkdirSync, readdirSync, statSync, unlinkSync, copyFileSync, existsSync, openSync, writeSync, closeSync, fstatSync, readSync } from 'fs'
+import { mkdirSync, readdirSync, statSync, unlinkSync, copyFileSync, existsSync, openSync, writeSync, closeSync, fstatSync, readSync, readFileSync, writeFileSync } from 'fs'
 import { createGzip, createGunzip } from 'zlib'
 import { pipeline } from 'stream/promises'
 import { createReadStream, createWriteStream } from 'fs'
-import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from 'crypto'
+import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync, createHash } from 'crypto'
 import { getDatabase, closeDatabase, initDatabase } from '../database/connection'
 import { logger } from './logger'
 
@@ -40,6 +42,8 @@ export interface BackupEntry {
   createdAt: string
   /** 是否加密 */
   encrypted: boolean
+  /** SHA-256 校验和（v1.8，旧备份可能缺失） */
+  sha256?: string
 }
 
 const AES_ALGORITHM = 'aes-256-gcm'
@@ -69,9 +73,53 @@ class BackupService {
   }
   private timer: ReturnType<typeof setInterval> | null = null
   private backupDir: string
+  private configPath: string
 
   constructor() {
     this.backupDir = join(app.getPath('userData'), 'backups')
+    this.configPath = join(app.getPath('userData'), 'backup-config.json')
+    this.loadConfig()
+  }
+
+  /** 配置持久化：从 backup-config.json 读取（v1.8） */
+  private loadConfig(): void {
+    try {
+      if (!existsSync(this.configPath)) return
+      const raw = readFileSync(this.configPath, 'utf-8')
+      const parsed = JSON.parse(raw) as Partial<BackupConfig>
+      if (typeof parsed.intervalMinutes === 'number' && parsed.intervalMinutes >= 10) {
+        this.config.intervalMinutes = parsed.intervalMinutes
+      }
+      if (typeof parsed.maxBackups === 'number' && parsed.maxBackups >= 1) {
+        this.config.maxBackups = parsed.maxBackups
+      }
+      if (typeof parsed.enabled === 'boolean') {
+        this.config.enabled = parsed.enabled
+      }
+      // 注意：encryptionKey 不持久化（明文密码写盘有风险），每次启动需重新设置
+      logger.info('Backup config loaded', {
+        intervalMinutes: this.config.intervalMinutes,
+        maxBackups: this.config.maxBackups,
+        enabled: this.config.enabled
+      })
+    } catch (err) {
+      logger.warn('Failed to load backup config, using defaults', { error: String(err) })
+    }
+  }
+
+  /** 配置持久化：写入 backup-config.json（v1.8，不写 encryptionKey） */
+  private saveConfig(): void {
+    try {
+      const safe: BackupConfig = {
+        intervalMinutes: this.config.intervalMinutes,
+        maxBackups: this.config.maxBackups,
+        enabled: this.config.enabled
+        // encryptionKey 故意不持久化
+      }
+      writeFileSync(this.configPath, JSON.stringify(safe, null, 2), 'utf-8')
+    } catch (err) {
+      logger.warn('Failed to persist backup config', { error: String(err) })
+    }
   }
 
   private ensureDir(): void {
@@ -82,6 +130,31 @@ class BackupService {
 
   private getDbPath(): string {
     return join(app.getPath('userData'), 'memora.db')
+  }
+
+  /**
+   * 计算文件 SHA-256（v1.8）
+   * 使用流式哈希，避免大备份文件一次性读入内存。
+   */
+  private async computeSha256(filePath: string): Promise<string> {
+    const hash = createHash('sha256')
+    await pipeline(createReadStream(filePath), hash)
+    // hash.read() 在 stream/promises pipeline 完成后可同步读出
+    return hash.digest('hex')
+  }
+
+  /** 读取 sidecar .sha256 文件中的校验和（无则返回 null） */
+  private readSidecarSha256(backupFilename: string): string | null {
+    const sidecar = join(this.backupDir, backupFilename + '.sha256')
+    if (!existsSync(sidecar)) return null
+    try {
+      // 标准 sha256sum 格式: "<hex>  <filename>"，取第一个字段
+      const content = readFileSync(sidecar, 'utf-8').trim()
+      const hex = content.split(/\s+/)[0]?.toLowerCase()
+      return /^[0-9a-f]{64}$/.test(hex) ? hex : null
+    } catch {
+      return null
+    }
   }
 
   /** 启动定时备份 */
@@ -172,7 +245,18 @@ class BackupService {
 
     const stat = statSync(zipPath)
 
-    logger.info('Backup created', { filename, size: stat.size, encrypted })
+    // 计算并写入 SHA-256 校验和 sidecar（v1.8）
+    // 标准 sha256sum 格式，便于用 `sha256sum -c` 离线校验
+    let sha256: string | undefined
+    try {
+      sha256 = await this.computeSha256(zipPath)
+      const sidecarPath = zipPath + '.sha256'
+      writeFileSync(sidecarPath, `${sha256}  ${filename}\n`, 'utf-8')
+    } catch (err) {
+      logger.warn('Failed to compute backup SHA-256', { filename, error: String(err) })
+    }
+
+    logger.info('Backup created', { filename, size: stat.size, encrypted, sha256: !!sha256 })
 
     // 清理旧备份
     this.cleanupOldBackups()
@@ -181,7 +265,8 @@ class BackupService {
       filename,
       size: stat.size,
       createdAt: now.toISOString(),
-      encrypted
+      encrypted,
+      sha256
     }
   }
 
@@ -197,7 +282,8 @@ class BackupService {
           filename: f,
           size: stat.size,
           createdAt: stat.birthtime.toISOString(),
-          encrypted: f.endsWith('.enc')
+          encrypted: f.endsWith('.enc'),
+          sha256: this.readSidecarSha256(f) ?? undefined
         }
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -215,6 +301,19 @@ class BackupService {
     const isEncrypted = filename.endsWith('.enc')
     if (isEncrypted && !password) {
       throw new Error('加密备份需要提供解密密码')
+    }
+
+    // SHA-256 完整性校验（v1.8）：有 sidecar 则强制校验，缺失则告警放行（兼容旧备份）
+    const expectedSha = this.readSidecarSha256(filename)
+    if (expectedSha) {
+      const actualSha = await this.computeSha256(zipPath)
+      if (actualSha !== expectedSha) {
+        logger.error('Backup SHA-256 mismatch, abort restore', { filename, expected: expectedSha, actual: actualSha })
+        throw new Error(`备份文件校验失败：SHA-256 不匹配，文件可能已损坏或被篡改`)
+      }
+      logger.info('Backup SHA-256 verified', { filename })
+    } else {
+      logger.warn('No SHA-256 sidecar for backup, skipping integrity check', { filename })
     }
 
     const dbPath = this.getDbPath()
@@ -322,6 +421,15 @@ class BackupService {
       throw new Error(`备份文件不存在: ${filename}`)
     }
     unlinkSync(path)
+    // 同时清理 sidecar 校验和文件（v1.8）
+    const sidecar = join(this.backupDir, filename + '.sha256')
+    if (existsSync(sidecar)) {
+      try {
+        unlinkSync(sidecar)
+      } catch {
+        // sidecar 删除失败不阻塞
+      }
+    }
     logger.info('Backup deleted', { filename })
     return { deleted: true }
   }
@@ -331,13 +439,16 @@ class BackupService {
     return { ...this.config }
   }
 
-  /** 更新配置 */
+  /** 更新配置（变更会持久化到 backup-config.json，v1.8） */
   setConfig(patch: Partial<BackupConfig>): BackupConfig {
+    let changed = false
     if (patch.intervalMinutes !== undefined) {
       this.config.intervalMinutes = Math.max(10, patch.intervalMinutes)
+      changed = true
     }
     if (patch.maxBackups !== undefined) {
       this.config.maxBackups = Math.max(1, patch.maxBackups)
+      changed = true
     }
     if (patch.enabled !== undefined) {
       this.config.enabled = patch.enabled
@@ -346,10 +457,13 @@ class BackupService {
       } else {
         this.stop()
       }
+      changed = true
     }
     if (patch.encryptionKey !== undefined) {
+      // encryptionKey 仅存内存，不持久化
       this.config.encryptionKey = patch.encryptionKey || undefined
     }
+    if (changed) this.saveConfig()
     return { ...this.config }
   }
 
@@ -362,6 +476,9 @@ class BackupService {
     for (const b of toDelete) {
       try {
         unlinkSync(join(this.backupDir, b.filename))
+        // 一并清理 sidecar（v1.8）
+        const sidecar = join(this.backupDir, b.filename + '.sha256')
+        if (existsSync(sidecar)) unlinkSync(sidecar)
       } catch {
         // 删除失败不阻塞
       }

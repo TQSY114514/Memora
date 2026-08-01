@@ -331,13 +331,13 @@ const api = {
   backup: {
     export: (): Promise<BackupData> => ipcRenderer.invoke(IPC.BACKUP_EXPORT),
     import: (data: BackupData): Promise<{ restored: number }> => ipcRenderer.invoke(IPC.BACKUP_IMPORT, data),
-    /** 列出所有热备份（v1.6） */
-    list: (): Promise<Array<{ filename: string; size: number; createdAt: string }>> =>
+    /** 列出所有热备份（v1.6，sha256 为 v1.8） */
+    list: (): Promise<Array<{ filename: string; size: number; createdAt: string; encrypted: boolean; sha256?: string }>> =>
       ipcRenderer.invoke(IPC.BACKUP_LIST),
-    /** 手动创建一次热备份（v1.6） */
-    create: (): Promise<{ filename: string; size: number; createdAt: string }> =>
+    /** 手动创建一次热备份（v1.6，sha256 为 v1.8） */
+    create: (): Promise<{ filename: string; size: number; createdAt: string; encrypted: boolean; sha256?: string }> =>
       ipcRenderer.invoke(IPC.BACKUP_CREATE),
-    /** 从热备份恢复（v1.6，password 用于加密备份 v1.6.1） */
+    /** 从热备份恢复（v1.6，password 用于加密备份 v1.6.1，校验和强制校验 v1.8） */
     restore: (filename: string, password?: string): Promise<{ restored: boolean }> =>
       ipcRenderer.invoke(IPC.BACKUP_RESTORE, filename, password),
     /** 删除指定热备份（v1.6） */
@@ -346,7 +346,7 @@ const api = {
     /** 获取热备份配置（v1.6） */
     getConfig: (): Promise<{ intervalMinutes: number; maxBackups: number; enabled: boolean }> =>
       ipcRenderer.invoke(IPC.BACKUP_CONFIG_GET),
-    /** 设置热备份配置（v1.6） */
+    /** 设置热备份配置（v1.6，变更持久化 v1.8） */
     setConfig: (config: { intervalMinutes?: number; maxBackups?: number; enabled?: boolean }): Promise<{ intervalMinutes: number; maxBackups: number; enabled: boolean }> =>
       ipcRenderer.invoke(IPC.BACKUP_CONFIG_SET, config)
   },

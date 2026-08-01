@@ -1,5 +1,5 @@
 {
-  "name": "Memora",
+  "name": "memora",
   "version": "1.7.1",
   "description": "Memora - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
   "author": "Memora",
@@ -24,6 +24,8 @@
     "test:watch": "vitest",
     "benchmark": "node scripts/run-benchmark.js",
     "dist:win": "electron-vite build && electron-builder --win",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:linux": "electron-vite build && electron-builder --linux",
     "dist": "electron-vite build && electron-builder"
   },
   "devDependencies": {
@@ -89,6 +91,26 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Memora"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSDocumentsFolderUsageDescription": "Memora 需要访问文档文件夹以导入 AI 对话记录。"
+      }
+    },
+    "linux": {
+      "category": "Office",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "maintainer": "Memora"
     },
     "files": [
       "out/**/*",

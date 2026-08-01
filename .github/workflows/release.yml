@@ -1,0 +1,77 @@
+name: Release
+
+# 触发条件：推送 v* 版本标签时自动构建三平台产物并发布到 GitHub Releases
+# 配合 package.json 中的 `publish: github` 与 electron-updater 实现自动更新链路。
+# 用法：git tag v1.8.0 && git push origin v1.8.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # 创建 Release / 上传资产所需
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false  # 发布任务不取消，避免产物残缺
+
+jobs:
+  release:
+    name: Build & Publish (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # 单平台失败不影响其它平台产物
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            artifact: memora-mac
+          - os: ubuntu-latest
+            platform: linux
+            artifact: memora-linux
+          - os: windows-latest
+            platform: win
+            artifact: memora-win
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (electron-vite)
+        run: npm run build
+
+      # 为 Electron 重建原生模块（better-sqlite3），确保 ABI 匹配
+      # package.json 中 npmRebuild:false 不会在打包阶段重建，这里显式处理
+      - name: Rebuild native modules for Electron
+        run: npx electron-builder install-app-deps
+
+      - name: Build & publish installer
+        run: npx electron-builder --${{ matrix.platform }} --publish always
+        env:
+          # electron-builder 用 GH_TOKEN 向 Release 上传产物 + latest*.yml（auto-updater 依赖）
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS/Linux 无代码签名证书时跳过签名（个人项目可接受，用户首次启动需手动放行）
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload artifacts (fallback)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/latest*.yml
+          retention-days: 14
+          if-no-files-found: ignore
