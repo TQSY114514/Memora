@@ -302,7 +302,9 @@ const api = {
     set: (provider: string, key: string): Promise<void> =>
       ipcRenderer.invoke(IPC.SECRET_SET, provider, key),
     /** 删除某 provider 的 apiKey */
-    delete: (provider: string): Promise<void> => ipcRenderer.invoke(IPC.SECRET_DELETE, provider)
+    delete: (provider: string): Promise<void> => ipcRenderer.invoke(IPC.SECRET_DELETE, provider),
+    /** 加密存储是否可用（false = 明文降级模式，UI 应警告用户） */
+    isEncryptionAvailable: (): Promise<boolean> => ipcRenderer.invoke(IPC.SECRET_ENCRYPTION_AVAILABLE)
   },
 
   // ===== Project Memory（Phase 3） =====

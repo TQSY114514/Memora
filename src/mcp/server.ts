@@ -7,13 +7,16 @@
  * - tools/list 列出可用工具
  * - tools/call 调用工具
  *
- * 暴露的工具：
- * 1. search_sessions      — 全文搜索对话
- * 2. get_session          — 获取指定对话完整内容
- * 3. list_sessions        — 列出对话（支持分页/筛选）
- * 4. list_workspaces      — 列出工作区
- * 5. list_tags            — 列出标签
- * 6. get_session_summary  — 获取 AI 总结
+ * 暴露 25 个工具（v1.8），按域：
+ *   会话: search_sessions / get_session / list_sessions / add_session / add_message / update_session / delete_session
+ *   工作区/文件夹/标签: list_workspaces / list_folders / create_folder / list_tags
+ *   知识库: knowledge_search / knowledge_list / knowledge_entry_create / knowledge_entry_update / knowledge_entry_delete
+ *   偏好/画像: memory_search / memory_write / memory_save_preference / memory_forget / get_user_profile
+ *   总结/语义: get_session_summary / semantic_search
+ *
+ * 访问控制（v1.8，默认只读）：
+ *   默认只读；MEMORA_WRITE=true / --write 开启普通写；MEMORA_DESTRUCTIVE=true / --destructive 开启删除类。
+ *   所有写/破坏性调用均写入审计日志。
  *
  * 使用方式：
  *   在 Claude Desktop 的 config 中添加：
@@ -21,7 +24,7 @@
  *     "mcpServers": {
  *       "Memora": {
  *         "command": "node",
- *         "args": ["<Memora-path>/out/mcp/index.js"]
+ *         "args": ["<Memora-path>/out/main/index.js", "--mcp"]
  *       }
  *     }
  *   }
@@ -58,26 +61,65 @@ import { getAllApiKeys } from '../main/secretStore'
 import { getDatabase } from '../database/connection'
 import { v4 as uuidv4 } from 'uuid'
 import type { AiConfig } from '@shared/types'
+import { logger } from '../main/logger'
 
-// ===== MCP 只读模式（v1.6） =====
-// 通过环境变量或启动参数启用，限制写入操作
+// ===== MCP 访问控制（v1.8） =====
+// 安全默认：默认只读。需显式 opt-in 才能写入或执行破坏性操作。
+//   MEMORA_WRITE=true / --write         开启普通写操作（add/update/create）
+//   MEMORA_DESTRUCTIVE=true / --destructive  额外开启删除类操作（delete/forget）
+// 旧版 MEMORA_READONLY / --readonly 仍向后兼容（显式声明只读）。
 const isReadOnly =
   process.env['MEMORA_READONLY'] === 'true' ||
   process.argv.includes('--readonly')
+const isWriteEnabled =
+  !isReadOnly &&
+  (process.env['MEMORA_WRITE'] === 'true' ||
+    process.argv.includes('--write'))
+const isDestructiveEnabled =
+  isWriteEnabled &&
+  (process.env['MEMORA_DESTRUCTIVE'] === 'true' ||
+    process.argv.includes('--destructive'))
 
-/** 写入工具列表（只读模式下禁止调用） */
+/** 写入工具列表（需 --write 开启） */
 const WRITE_TOOLS = new Set([
   'add_session',
   'add_message',
   'memory_write',
   'memory_save_preference',
   'update_session',
-  'delete_session',
   'create_folder',
-  'knowledge_entry_update',
+  'knowledge_entry_update'
+])
+
+/** 破坏性工具列表（需 --destructive 额外开启，默认拒绝） */
+const DESTRUCTIVE_TOOLS = new Set([
+  'delete_session',
   'knowledge_entry_delete',
   'memory_forget'
 ])
+
+/** 审计日志：记录写/破坏性工具的调用，便于追溯 */
+function auditToolCall(name: string, args: Record<string,unknown>, allowed: boolean, reason?: string): void {
+  logger.info('[MCP audit] tool call', {
+    tool: name,
+    allowed,
+    reason,
+    args: sanitizeArgs(args)
+  })
+}
+
+/** 脱敏参数（隐藏过长的 message 内容，只保留长度信息） */
+function sanitizeArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(args)) {
+    if (typeof v === 'string' && v.length > 200) {
+      out[k] = `<string len=${v.length}>`
+    } else {
+      out[k] = v
+    }
+  }
+  return out
+}
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -430,12 +472,27 @@ const TOOLS: McpTool[] = [
 
 /** 调用工具 */
 async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-  // 只读模式检查（v1.6）
-  if (isReadOnly && WRITE_TOOLS.has(name)) {
-    throw new Error(
-      '[READONLY] 只读模式下不允许执行写入操作。' +
-      '如需写入，请移除 --readonly 参数或取消 MEMORA_READONLY 环境变量。'
-    )
+  // 破坏性工具检查（最高优先级，默认拒绝）
+  if (DESTRUCTIVE_TOOLS.has(name)) {
+    if (!isDestructiveEnabled) {
+      auditToolCall(name, args, false, 'destructive not enabled')
+      throw new Error(
+        '[DESTRUCTIVE] 破坏性操作（delete/forget）默认禁止。' +
+        '如需启用，请设置 MEMORA_DESTRUCTIVE=true 或传入 --destructive 参数（同时需 --write）。' +
+        '建议优先在 Memora GUI 中执行删除以便回收站找回。'
+      )
+    }
+    auditToolCall(name, args, true, 'destructive')
+  } else if (WRITE_TOOLS.has(name)) {
+    // 普通写工具检查（默认只读，需 opt-in）
+    if (!isWriteEnabled) {
+      auditToolCall(name, args, false, 'write not enabled')
+      throw new Error(
+        '[READONLY] MCP 默认只读，不允许执行写入操作。' +
+        '如需写入，请设置 MEMORA_WRITE=true 或传入 --write 参数。'
+      )
+    }
+    auditToolCall(name, args, true, 'write')
   }
 
   switch (name) {
@@ -928,6 +985,13 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
 export async function startMcpServer(): Promise<void> {
   // 初始化数据库
   initDatabase()
+
+  // 记录访问控制状态（便于审计与排障）
+  logger.info('MCP server starting', {
+    readOnly: isReadOnly,
+    writeEnabled: isWriteEnabled,
+    destructiveEnabled: isDestructiveEnabled
+  })
 
   const rl = createInterface({ input: process.stdin, terminal: false })
 

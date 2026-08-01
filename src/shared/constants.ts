@@ -174,6 +174,7 @@ export const IPC = {
   SECRET_GET_ALL: 'secret:get-all',
   SECRET_SET: 'secret:set',
   SECRET_DELETE: 'secret:delete',
+  SECRET_ENCRYPTION_AVAILABLE: 'secret:encryption-available',
 
   // 系统
   DIALOG_OPEN_FILE: 'dialog:open-file',

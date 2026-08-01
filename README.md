@@ -481,7 +481,7 @@ npm run dev
 | 层 | 技术 | 选型理由 |
 |----|------|----------|
 | 前端 | React 18 + TypeScript 5.7 | 生态成熟、类型安全 |
-| 桌面 | Electron 33 | 跨平台、better-sqlite3 集成成熟 |
+| 桌面 | Electron 39 | 跨平台、better-sqlite3 集成成熟 |
 | 构建 | Vite + electron-vite | 快速 HMR |
 | 存储 | SQLite (better-sqlite3) | 嵌入式、高性能、支持 FTS5 |
 | 搜索 | SQLite FTS5 + 向量检索 | 关键词 + 语义双层 |
@@ -583,7 +583,7 @@ memora/
 - **CSP 缺失**：v1.3.0 前未设置 Content-Security-Policy 头（v1.3.0 已修复）
 - **沙箱未启用**：v1.3.0 前渲染进程未启用 Electron sandbox 模式（v1.3.0 已修复）
 - **全局异常未捕获**：v1.3.0 前未注册 `unhandledRejection` / `uncaughtException` 处理器（v1.3.0 已修复）
-- **依赖漏洞**：`npm audit` 报告 20 个已知漏洞（18 个高风险），主要来自 Electron 33.x
+- **依赖漏洞**：依赖 Dependabot 持续跟踪，已升级至 Electron 39 / Vite 6 / electron-vite 5
 - **SQL 注入**：部分查询使用字符串拼接，虽经过参数校验但未经渗透测试
 - **IPC 安全**：preload 桥接层暴露了较宽的主进程 API 面，存在被恶意利用的可能
 

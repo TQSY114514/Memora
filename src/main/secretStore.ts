@@ -8,15 +8,21 @@
  *
  * v1.2：getAllApiKeys 不再硬编码 3 个 provider，改为从 aiConfigFile 动态读取
  *      已配置的 provider 列表，支持无限供应商
+ * v1.8：safeStorage 不可用时（无 libsecret 的 Linux）显式降级为明文 base64 存储，
+ *      值以 'plain:' 前缀标记，并通过 isPlaintextFallback() 暴露给 UI 警告用户
  */
 import { app, safeStorage } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { listConfiguredProviders } from './aiConfigFile'
+import { logger } from './logger'
 
 interface SecretsFile {
-  [provider: string]: string // base64 编码的加密 Buffer
+  [provider: string]: string // base64 编码的加密 Buffer，或 'plain:' 前缀的明文 base64
 }
+
+/** 明文降级值前缀 */
+const PLAIN_PREFIX = 'plain:'
 
 function getSecretsPath(): string {
   return join(app.getPath('userData'), 'secrets.enc')
@@ -44,14 +50,26 @@ export function isEncryptionAvailable(): boolean {
   return safeStorage.isEncryptionAvailable()
 }
 
+/**
+ * 是否处于明文降级模式（safeStorage 不可用）。
+ * UI 层应据此向用户显示安全警告。
+ */
+export function isPlaintextFallback(): boolean {
+  return !safeStorage.isEncryptionAvailable()
+}
+
 /** 加密存储某 provider 的 apiKey */
 export function setApiKey(provider: string, apiKey: string): void {
   const data = readSecretsFile()
   if (!apiKey) {
     delete data[provider]
-  } else {
+  } else if (safeStorage.isEncryptionAvailable()) {
     const encrypted = safeStorage.encryptString(apiKey)
     data[provider] = encrypted.toString('base64')
+  } else {
+    // 降级：明文 base64 存储，用前缀标记，UI 层会警告用户
+    logger.warn('safeStorage unavailable, storing API key in plaintext fallback', { provider })
+    data[provider] = PLAIN_PREFIX + Buffer.from(apiKey, 'utf-8').toString('base64')
   }
   writeSecretsFile(data)
 }
@@ -62,6 +80,10 @@ export function getApiKey(provider: string): string | null {
   const encoded = data[provider]
   if (!encoded) return null
   try {
+    if (encoded.startsWith(PLAIN_PREFIX)) {
+      // 明文降级值
+      return Buffer.from(encoded.slice(PLAIN_PREFIX.length), 'base64').toString('utf-8')
+    }
     const buf = Buffer.from(encoded, 'base64')
     return safeStorage.decryptString(buf)
   } catch {

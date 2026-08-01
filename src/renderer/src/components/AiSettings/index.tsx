@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   useAiConfigStore,
   isAiConfigured
@@ -39,6 +39,12 @@ export function AiSettings({ onClose }: AiSettingsProps) {
   const [renameValue, setRenameValue] = useState('')
   const [newProviderLabel, setNewProviderLabel] = useState('')
   const [newProviderStyle, setNewProviderStyle] = useState<AiApiStyle>('openai')
+  // safeStorage 不可用时（无 libsecret 的 Linux）API Key 会明文降级存储
+  const [encryptionAvailable, setEncryptionAvailable] = useState(true)
+
+  useEffect(() => {
+    window.Memora.secret.isEncryptionAvailable().then(setEncryptionAvailable).catch(() => {})
+  }, [])
 
   async function handleTest() {
     setTestStatus('testing')
@@ -122,6 +128,16 @@ export function AiSettings({ onClose }: AiSettingsProps) {
             ✕
           </button>
         </div>
+
+        {/* 明文降级警告：safeStorage 不可用时 API Key 将明文存储 */}
+        {!encryptionAvailable && (
+          <div className="px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
+            <span className="mt-0.5">⚠️</span>
+            <span>
+              当前系统不支持加密存储（safeStorage 不可用），API Key 将以<b>明文</b>保存在本地 <code>secrets.enc</code> 文件中。建议安装 libsecret / gnome-keyring 以启用加密存储。
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-1 overflow-hidden">
           {/* 左侧：供应商列表 */}

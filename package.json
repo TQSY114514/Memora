@@ -6,7 +6,7 @@
   "main": "out/main/index.js",
   "license": "MIT",
   "bin": {
-    "Memora-mcp": "out/main/index.js"
+    "memora-mcp": "out/main/index.js"
   },
   "scripts": {
     "dev": "electron-vite dev",
