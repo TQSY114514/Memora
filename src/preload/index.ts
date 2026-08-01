@@ -30,7 +30,10 @@ import type {
   PreferenceStatus,
   PreferenceSource,
   UserProfile,
-  ConflictReport
+  ConflictReport,
+  TieredMemory,
+  MemoryHealth,
+  ProfileSummary
 } from '../shared/types'
 
 /**
@@ -461,6 +464,22 @@ const api = {
     /** 冲突检测（v1.6） */
     conflicts: (workspaceId?: string): Promise<ConflictReport[]> =>
       ipcRenderer.invoke(IPC.PREF_CONFLICTS, workspaceId)
+  },
+
+  // ===== 记忆生命周期（v1.7.0） =====
+  memoryLifecycle: {
+    /** 获取分层记忆列表 */
+    tiered: (workspaceId?: string): Promise<TieredMemory[]> =>
+      ipcRenderer.invoke(IPC.MEMORY_TIERED, workspaceId),
+    /** 获取记忆健康报告 */
+    health: (workspaceId?: string): Promise<MemoryHealth> =>
+      ipcRenderer.invoke(IPC.MEMORY_HEALTH, workspaceId),
+    /** 生成深度用户画像摘要 */
+    profileSummary: (workspaceId: string): Promise<ProfileSummary> =>
+      ipcRenderer.invoke(IPC.MEMORY_PROFILE_SUMMARY, workspaceId),
+    /** 执行一次记忆生命周期维护 */
+    run: (workspaceId?: string): Promise<{ maintained: number; archived: number; promoted: number; demoted: number }> =>
+      ipcRenderer.invoke(IPC.MEMORY_LIFECYCLE_RUN, workspaceId)
   }
 }
 

@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.6.1'
+export const APP_VERSION = '1.7.0'
 
 /**
  * AI API 协议风格元信息（v1.2）
@@ -199,7 +199,13 @@ export const IPC = {
 
   // 日志系统（v1.6.1）
   LOG_LIST_FILES: 'log:list-files',
-  LOG_GET_DIR: 'log:get-dir'
+  LOG_GET_DIR: 'log:get-dir',
+
+  // 记忆生命周期（v1.7.0）
+  MEMORY_TIERED: 'memory:tiered',
+  MEMORY_HEALTH: 'memory:health',
+  MEMORY_PROFILE_SUMMARY: 'memory:profile-summary',
+  MEMORY_LIFECYCLE_RUN: 'memory:lifecycle-run'
 } as const
 
 /** Provider 显示元信息 */
