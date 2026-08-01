@@ -23,5 +23,8 @@ aether.db-shm
 # 打包输出
 dist/
 
+# 测试覆盖率报告
+coverage/
+
 # IDE / AI agent 临时文件
 .omo/
