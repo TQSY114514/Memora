@@ -78,6 +78,9 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
           <StatCard icon="📋" label="对话数" value={stats.sessionCount} color="text-green-500" />
           <StatCard icon="🔌" label="AI 平台" value={stats.providerCount} color="text-purple-500" />
           <StatCard icon="🧠" label="已索引" value={stats.indexedCount} color="text-orange-500" />
+          <StatCard icon="🧠" label="偏好记忆" value={stats.preferenceCount} color="text-pink-500" />
+          <StatCard icon="📌" label="决策" value={stats.decisionCount} color="text-indigo-500" />
+          <StatCard icon="✅" label="任务" value={stats.taskCount} color="text-teal-500" />
         </div>
 
         {/* 平台分布 */}

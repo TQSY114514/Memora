@@ -167,6 +167,9 @@ export interface DashboardStats {
   providerCount: number
   indexedCount: number
   favoriteCount: number
+  preferenceCount: number   // 偏好数（全局）
+  decisionCount: number     // 决策数（全局）
+  taskCount: number          // 任务数（全局）
   providerBreakdown: Array<{ provider: string; count: number }>
   recentSessions: ChatSession[]
 }

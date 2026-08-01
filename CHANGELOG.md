@@ -2,6 +2,31 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.1] - 2026-07-31
+
+### Added
+
+#### Memory Explain 溯源抽屉
+- PreferenceExplorer 偏好卡片新增 🔍 溯源按钮，点击展示完整记忆溯源信息
+- 显示基本信息（subject / value / confidence / status / source）、时间线（提取/更新/最后访问时间）、访问统计
+- 若偏好来源于对话，显示来源对话标题、provider、创建时间，支持回溯到具体对话
+- 状态变迁说明（生效中 / 已被取代 / 已归档）
+
+#### Dashboard Memory 统计卡片
+- 首页 Dashboard 新增 3 张统计卡片：偏好记忆数、决策数、任务数
+- 后端 `stats:get` IPC 新增 3 个全局计数查询（偏好仅统计 active 状态）
+
+### Changed
+
+#### README 强化叙事
+- 新增「杀手级场景：换 AI，不换记忆」章节，突出 MCP 价值与 Agent Memory OS 定位
+- AI 项目声明从首屏大段文字精简为一行警示 + 链接到 `docs/AI_DEVELOPMENT.md`
+- 删除首屏视频引用链接
+
+#### AI 开发声明独立文档
+- 新增 `docs/AI_DEVELOPMENT.md`，详细说明 AI 生成代码的风险、已实施的安全加固措施、依赖漏洞情况
+- README 首屏保留简短警示，详细披露移至独立文档，降低首屏可信度减分
+
 ## [1.4.0] - 2026-07-31
 
 ### 定位升级

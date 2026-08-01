@@ -10,7 +10,7 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.4.0-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.4.1-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -32,19 +32,9 @@
 
 ---
 
-## AI 项目声明
+## ⚠️ AI 项目声明
 
-> **本项目 90%+ 代码由 AI（Claude、DeepSeek、Gemini 等）生成，未经人工安全审计。**
-
-Memora 是一个实验性项目，初衷是验证「AI 能否从零构建一个完整的桌面应用」。事实证明可以——但也带来了代价：
-
-- **安全漏洞**：AI 生成的代码存在已知和未知的安全问题（XSS、注入、权限绕过等），本项目未经过专业安全审计
-- **代码质量**：存在冗余逻辑、不一致的命名风格、不够优雅的架构设计
-- **潜在 Bug**：边界条件、错误处理、内存管理等方面可能存在未覆盖的场景
-
-**如果你打算使用 Memora 管理敏感对话，请自行评估风险。** 欢迎安全研究者提交漏洞报告或 PR。
-
-相关讨论：[为什么 AI 越聪明，写的代码反而越不安全？](https://www.bilibili.com/video/BV1T1GA6pEvp/) — VibeCoding 安全分析
+> **本项目 90%+ 代码由 AI 生成，未经人工安全审计。** 用于管理敏感对话前请自行评估风险。详见 [AI 开发声明](docs/AI_DEVELOPMENT.md)。
 
 ---
 
@@ -111,6 +101,46 @@ Memora 是一个 **Agent Memory OS**——给 AI Agent 提供类人长期记忆�
     <td width="33%"><img src="assets/demo-search.gif" alt="Search"/></td>
   </tr>
 </table>
+
+## 杀手级场景：换 AI，不换记忆
+
+这是 Memora 与「聊天记录管理器」的根本区别——**让任何 AI 拥有长期记忆**。
+
+```
+用户从 ChatGPT 换到 Claude Code
+
+普通情况：                         接入 Memora MCP 后：
+──────────────────────────────────────────────────────────────
+Claude: "你是谁？不知道你的项目"     Claude: "你好，我知道你在做 Memora，
+Claude: "不知道你的技术栈"                   技术栈是 Electron + React + SQLite，
+Claude: "不知道你的偏好"                      你偏好深色主题、喜欢简洁风格，
+Claude: "从零开始吧"                          上次决定用 SQLite 而非 MongoDB
+                                              是因为本地优先。继续上次的工作？"
+```
+
+**工作流**：
+
+```
+ChatGPT / Claude / Gemini / DeepSeek / Cursor / 任何 AI
+                          ↓
+                    Memora MCP Server
+                          ↓
+        ┌─────────────────┼─────────────────┐
+        ↓                 ↓                 ↓
+   memory_recall      memory_profile   memory_write
+   (语义召回历史)     (用户偏好画像)    (沉淀新知识)
+        ↓                 ↓                 ↓
+                   Project Memory
+                (架构决策 + 待办 + 知识)
+```
+
+接入任意 MCP 客户端（Claude Code / Cursor / OpenCode / AstrBot / OpenClaw …），AI 即可：
+- 🔍 **召回**：「我以前有没有讨论过 X？」→ `memory_recall`
+- 👤 **了解你**：「用户喜欢什么？用什么编辑器？」→ `memory_profile`
+- 💾 **沉淀**：自动保存重要决定/经验 → `memory_write`
+- 🧠 **偏好读写**：保存/遗忘用户偏好 → `memory_save_preference` / `memory_forget`
+
+详见下文 [MCP Server](#mcp-server) 章节。
 
 ## 核心功能
 

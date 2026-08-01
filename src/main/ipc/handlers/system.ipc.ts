@@ -92,6 +92,9 @@ export function registerSystemHandlers(): void {
     const providerRows = db.prepare('SELECT provider, COUNT(*) as n FROM chat_sessions GROUP BY provider ORDER BY n DESC').all() as Array<{ provider: string; n: number }>
     const recentRows = db.prepare('SELECT id FROM chat_sessions ORDER BY updated_at DESC LIMIT 5').all() as Array<{ id: string }>
     const recentSessions = recentRows.map(r => getSession(r.id, false)).filter(Boolean) as ChatSession[]
+    const preferenceCount = (db.prepare("SELECT COUNT(*) as n FROM preferences WHERE status = 'active'").get() as { n: number }).n
+    const decisionCount = (db.prepare("SELECT COUNT(*) as n FROM knowledge_entries WHERE type = 'decision'").get() as { n: number }).n
+    const taskCount = (db.prepare("SELECT COUNT(*) as n FROM knowledge_entries WHERE type = 'task'").get() as { n: number }).n
 
     return {
       sessionCount,
@@ -99,6 +102,9 @@ export function registerSystemHandlers(): void {
       providerCount: providerRows.length,
       indexedCount,
       favoriteCount,
+      preferenceCount,
+      decisionCount,
+      taskCount,
       providerBreakdown: providerRows.map(r => ({ provider: r.provider, count: r.n })),
       recentSessions
     }

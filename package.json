@@ -1,6 +1,6 @@
 {
   "name": "Memora",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Memora - Local-First AI Chat Workspace (AI 对话时代的知识管理工具)",
   "author": "Memora",
   "main": "out/main/index.js",

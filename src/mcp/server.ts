@@ -711,7 +711,7 @@ export async function startMcpServer(): Promise<void> {
               capabilities: { tools: {} },
               serverInfo: {
                 name: 'Memora',
-                version: '1.4.0'
+                version: '1.4.1'
               }
             }
           })
