@@ -2,6 +2,66 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+
+#### 本地 ONNX 嵌入模型（#15）
+- 新增 `src/ai/localEmbedder.ts`：集成 `@huggingface/transformers`，支持在本地运行 ONNX 格式 embedding 模型，无需外部 API
+- 三种预设模型：`all-MiniLM-L6-v2`（23MB/384维）、`multilingual-e5-small`（120MB/384维）、`bge-small-zh-v1.5`（50MB/512维）
+- `AiConfig` 新增 `embeddingMode` 字段（`api` | `local`），`embedBatch` 路由 local 分支
+- AI 配置 UI 新增嵌入模式切换器 + 本地模型选择器 + 模型状态/预加载
+- 模型缓存到 `userData/models/`，首次使用时自动从 HuggingFace CDN 下载
+
+#### 工程化三件套
+- **commitlint + husky**：`commit-msg` 钩子校验 Conventional Commits，`pre-commit` 运行 typecheck
+- **vitest coverage 门禁**：v8 provider，起步门槛 stmt/branch/line 15% + func 10%，CI 上传 coverage 报告
+- **ESLint 9 flat config 迁移**：新增 `eslint.config.mjs`，删除 `.eslintrc.cjs`，统一 `typescript-eslint` 包，升级 `eslint-plugin-react-hooks` v5
+
+### Changed
+- `package.json`：`overrides` 强制升级 sharp 修复 audit 漏洞，`asarUnpack` 包含 onnxruntime/sharp 原生模块
+- 退出时 best-effort 释放本地嵌入模型资源
+
+## [1.7.1] - 2026-08-01
+
+### Added
+- 索引优化 + LRU 缓存（`safeHandle` 共享 + SQL 白名单 + `execFileSync`）
+
+### Fixed
+- CI lint/typecheck 修复
+
+## [1.7.0] - 2026-08-01
+
+### Added
+
+#### 仿生学遗忘机制
+- 基于艾宾浩斯遗忘曲线 `R = e^(-t/S)` 的置信度衰减，S 随访问次数（1/6/30/90/180）动态增长
+- 综合记忆强度 = confidence×0.5 + retention×0.3 + accessBonus×0.2
+
+#### 分层记忆模型
+- 三轨分类：working（strength<0.3）/ short_term（0.3-0.6）/ long_term（>0.6）
+- `classifyMemoryTier` + `getTieredMemories` API
+
+#### 深度用户画像
+- subject 聚合 + 趋势检测 + 自然语言摘要生成
+
+### Fixed
+- 备份 Bug 修复 + 加密版本标记 + 记忆加固 + 记忆健康 UI
+
+## [1.6.1] - 2026-08-01
+
+### Added
+- 全局结构化日志（`logger.ts`）
+- 备份文件 AES-256-GCM 加密
+
+## [1.6.0] - 2026-08-01
+
+### Added
+- 自动热备份（定时 + 手动）
+- MCP 只读模式
+- 偏好冲突检测（同 subject 不同 value → 旧记忆标记 superseded）
+- 搜索增强
+
 ## [1.5.0] - 2026-07-31
 
 ### Added

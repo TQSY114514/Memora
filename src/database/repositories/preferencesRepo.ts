@@ -18,6 +18,7 @@ interface PreferenceRow {
   session_id: string | null
   subject: string
   value: string
+  context: string | null
   confidence: number
   source: string
   status: string
@@ -35,6 +36,7 @@ function rowToPref(row: PreferenceRow): Preference {
     sessionId: row.session_id ?? undefined,
     subject: row.subject,
     value: row.value,
+    context: row.context ?? undefined,
     confidence: row.confidence,
     source: row.source as PreferenceSource,
     status: row.status as PreferenceStatus,
@@ -60,17 +62,20 @@ function unindexPref(prefId: string): void {
 }
 
 /**
- * 创建偏好——核心：自动冲突检测
+ * 创建偏好——核心：自动冲突检测（v1.8 #9 细化）
  *
- * 如果同 workspace + 同 subject 已有 active 偏好但 value 不同，
- * 则将旧偏好标记为 superseded，并记录 superseded_by 关系。
- * 如果 value 相同，则增加已有偏好的 confidence（复现增强）。
+ * 冲突判定：同 workspace + 同 subject + 同 context 才判冲突。
+ * - 不同 context 可并存（"写脚本用 Python" 和 "系统编程用 Rust" 不冲突）
+ * - 同 value → 增加置信度（复现增强）
+ * - 不同 value → 旧记忆标记 superseded
  */
 export function createPreference(input: {
   workspaceId: string
   sessionId?: string
   subject: string
   value: string
+  /** 偏好上下文（v1.8 #9）：同 subject 不同 context 可并存，不判冲突 */
+  context?: string
   confidence?: number
   source?: PreferenceSource
 }): Preference {
@@ -79,15 +84,18 @@ export function createPreference(input: {
   const now = new Date().toISOString()
   const confidence = input.confidence ?? 0.5
   const source = input.source ?? 'manual'
+  const ctx = input.context ?? null
 
   const tx = db.transaction(() => {
-    // 冲突检测：查找同 workspace + 同 subject 的 active 偏好
+    // 冲突检测：查找同 workspace + 同 subject + 同 context 的 active 偏好
+    // context 为 NULL 时用 IS NULL 匹配（SQLite 中 = NULL 不成立）
     const existing = db
       .prepare(
         `SELECT * FROM preferences
-         WHERE workspace_id = ? AND subject = ? AND status = 'active'`
+         WHERE workspace_id = ? AND subject = ? AND status = 'active'
+           AND (context IS ? OR (context IS NOT NULL AND context = ?))`
       )
-      .all(input.workspaceId, input.subject) as PreferenceRow[]
+      .all(input.workspaceId, input.subject, ctx, ctx) as PreferenceRow[]
 
     for (const old of existing) {
       if (old.value.toLowerCase() === input.value.toLowerCase()) {
@@ -115,12 +123,12 @@ export function createPreference(input: {
     // 创建新偏好
     db.prepare(
       `INSERT INTO preferences
-       (id, workspace_id, session_id, subject, value, confidence, source, status, superseded_by,
+       (id, workspace_id, session_id, subject, value, context, confidence, source, status, superseded_by,
         created_at, updated_at, last_accessed_at, access_count)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0)`
     ).run(
       id, input.workspaceId, input.sessionId ?? null,
-      input.subject, input.value, confidence, source,
+      input.subject, input.value, ctx, confidence, source,
       now, now, now
     )
   })
@@ -184,12 +192,13 @@ export function listPreferences(options?: {
 /** 更新偏好 */
 export function updatePreference(
   id: string,
-  patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject'>>
+  patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject' | 'context'>>
 ): Preference | null {
   const db = getDatabase()
   const { sets, params } = buildUpdateSets(patch, {
     subject: 'subject',
     value: 'value',
+    context: 'context',
     confidence: 'confidence',
     status: 'status'
   })

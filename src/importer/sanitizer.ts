@@ -25,6 +25,22 @@ const PATTERNS: SanitizePattern[] = [
   { re: /sk-ant-[A-Za-z0-9_-]{20,}/g, label: 'Anthropic-Key', strategy: 'whole' },
   // OpenAI API Key（sk-...，但不包括 sk-ant-）
   { re: /sk-(?!ant-)[A-Za-z0-9]{20,}/g, label: 'OpenAI-Key', strategy: 'whole' },
+  // AWS Access Key ID（AKIA/ASIA/ASCA + 16 字符）
+  { re: /(?:AKIA|ASIA|ASCA)[A-Z0-9]{16}/g, label: 'AWS-AccessKey', strategy: 'whole' },
+  // AWS Secret Access Key（40 字符 Base64，前缀aws_secret= 提升置信度避免误伤）
+  {
+    re: /((?:aws[_-]?secret[_-]?access[_-]?key|aws[_-]?secret)["']?\s*[:=]\s*["']?)[A-Za-z0-9/+=]{40}(["']?)/gi,
+    label: 'AWS-SecretKey',
+    strategy: 'value'
+  },
+  // 阿里云 AccessKey ID（LTAI + 12-18 字符）
+  { re: /LTAI[A-Za-z0-9]{12,18}/g, label: 'Aliyun-AccessKey', strategy: 'whole' },
+  // 阿里云 AccessKey Secret（30 字符 Base64，前缀提升置信度）
+  {
+    re: /((?:aliyun[_-]?access[_-]?key[_-]?secret|aliyun[_-]?secret)["']?\s*[:=]\s*["']?)[A-Za-z0-9/+=]{30}(["']?)/gi,
+    label: 'Aliyun-SecretKey',
+    strategy: 'value'
+  },
   // Google API Key（AIza...，固定 35 字符后缀）
   { re: /AIza[A-Za-z0-9_-]{35}/g, label: 'Google-Key', strategy: 'whole' },
   // GitHub Token（ghp_/gho_/ghu_/ghs_/ghr_ + 36+ 字符）

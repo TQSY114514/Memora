@@ -65,6 +65,19 @@ const migrations: Migration[] = [
       // preferences: 按 workspace_id + status 过滤（偏好列表查询）
       db.exec('CREATE INDEX IF NOT EXISTS idx_pref_workspace_status ON preferences(workspace_id, status)')
     }
+  },
+  {
+    version: 9,
+    description: 'preferences 加 context 列（偏好冲突检测细化：同 subject 不同 context 可并存）',
+    up: (db) => {
+      // ALTER TABLE ADD COLUMN IF NOT EXISTS 在 SQLite 中不支持，需先检查
+      const cols = db.prepare('PRAGMA table_info(preferences)').all() as Array<{ name: string }>
+      if (!cols.some((c) => c.name === 'context')) {
+        db.exec('ALTER TABLE preferences ADD COLUMN context TEXT')
+      }
+      // 复合索引：按 workspace + subject + context 过滤（冲突检测查询）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_pref_workspace_subject_context ON preferences(workspace_id, subject, context)')
+    }
   }
 ]
 

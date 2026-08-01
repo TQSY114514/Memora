@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS preferences (
   session_id      TEXT REFERENCES chat_sessions(id) ON DELETE SET NULL,
   subject         TEXT NOT NULL,           -- 偏好类别：music / phone / language / editor...
   value           TEXT NOT NULL,           -- 偏好值：初音未来 / android / Python...
+  context         TEXT,                    -- 偏好上下文（v1.8 #9）：区分"写脚本用 Python"和"系统编程用 Rust"，同 subject 不同 context 可并存
   confidence      REAL DEFAULT 0.5,        -- 置信度 0.0-1.0
   source          TEXT DEFAULT 'manual',   -- conversation / manual / mcp / inferred
   status          TEXT DEFAULT 'active',   -- active / superseded / archived
@@ -189,6 +190,7 @@ CREATE INDEX IF NOT EXISTS idx_pref_workspace ON preferences(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_pref_subject ON preferences(subject);
 CREATE INDEX IF NOT EXISTS idx_pref_status ON preferences(status);
 CREATE INDEX IF NOT EXISTS idx_pref_session ON preferences(session_id);
+CREATE INDEX IF NOT EXISTS idx_pref_workspace_subject_context ON preferences(workspace_id, subject, context);
 
 -- 偏好全文索引（subject + value，中文分词）
 CREATE VIRTUAL TABLE IF NOT EXISTS preferences_fts USING fts5(

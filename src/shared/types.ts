@@ -411,6 +411,8 @@ export interface Preference {
   subject: string
   /** 偏好值：如 '初音未来' / 'android' / 'Python' */
   value: string
+  /** 偏好上下文（v1.8 #9）：如 '写脚本时' / '系统编程时'，同 subject 不同 context 可并存，不判冲突 */
+  context?: string
   /** 置信度 0.0-1.0，初始 0.5，每次复现增加，长期未访问衰减 */
   confidence: number
   /** 来源 */
