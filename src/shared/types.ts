@@ -501,3 +501,61 @@ export interface BackgroundImportStatus {
   nextRunAt: string | null
   currentProgress: BackgroundImportProgress | null
 }
+
+// ===== v1.7.0 记忆生命周期 =====
+
+/** 记忆层级 */
+export type MemoryTier = 'working' | 'short_term' | 'long_term'
+
+/** 分层记忆条目 */
+export interface TieredMemory {
+  preference: Preference
+  tier: MemoryTier
+  /** 记忆强度 0-1，综合 confidence + 访问频率 + 时间衰减 */
+  strength: number
+  /** 预计遗忘天数（艾宾浩斯估算） */
+  estimatedRetentionDays: number
+}
+
+/** 记忆健康报告 */
+export interface MemoryHealth {
+  workspaceId: string
+  total: number
+  working: number
+  shortTerm: number
+  longTerm: number
+  /** 即将遗忘的记忆（strength < 0.2） */
+  atRisk: TieredMemory[]
+  /** 最稳定的长期记忆 */
+  strongest: TieredMemory[]
+}
+
+/** 深度用户画像摘要 */
+export interface ProfileSummary {
+  workspaceId: string
+  /** 自然语言摘要 */
+  summary: string
+  /** 按类别分组的高置信度偏好 */
+  highlights: Array<{
+    subject: string
+    value: string
+    confidence: number
+    tier: MemoryTier
+    description: string
+  }>
+  /** 趋势变化 */
+  trends: Array<{
+    subject: string
+    from: string
+    to: string
+    description: string
+  }>
+  /** 记忆统计 */
+  stats: {
+    totalMemories: number
+    longTermCount: number
+    shortTermCount: number
+    workingCount: number
+    atRiskCount: number
+  }
+}
