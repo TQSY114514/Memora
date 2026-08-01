@@ -30,7 +30,7 @@
 import { createInterface } from 'readline'
 import { app } from 'electron'
 import { initDatabase } from '../database/connection'
-import { listSessions, getSession, createSession } from '../database/repositories/sessionRepo'
+import { listSessions, getSession, createSession, updateSession, deleteSession } from '../database/repositories/sessionRepo'
 import { indexSessionForSearch } from '../search/indexer'
 import { listWorkspaces } from '../database/repositories/workspaceRepo'
 import { listTags } from '../database/repositories/tagRepo'
@@ -48,6 +48,9 @@ import {
   searchPreferences,
   decayConfidence
 } from '../database/repositories/preferencesRepo'
+import { listFolders, createFolder } from '../database/repositories/folderRepo'
+import { updateEntry, deleteEntry } from '../database/repositories/knowledgeRepo'
+import { generateSummary } from '../ai/summarizer'
 import { search } from '../search/query'
 import { semanticSearch } from '../search/semantic'
 import { loadAiConfigFile } from '../main/aiConfigFile'
@@ -304,6 +307,104 @@ const TOOLS: McpTool[] = [
         limit: { type: 'number', description: '返回数量上限，默认 10' }
       },
       required: ['query']
+    }
+  },
+  {
+    name: 'update_session',
+    description: '更新对话的元数据（标题、描述、文件夹、收藏状态）。对话内容不变。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: '目标对话 ID' },
+        title: { type: 'string', description: '新标题（可选）' },
+        description: { type: 'string', description: '新描述（可选）' },
+        folderId: { type: 'string', description: '移动到指定文件夹（可选，传空字符串移出文件夹）' },
+        isFavorite: { type: 'boolean', description: '是否收藏（可选）' }
+      },
+      required: ['sessionId']
+    }
+  },
+  {
+    name: 'delete_session',
+    description: '删除指定对话（级联删除所有消息和标签关联）。不可恢复。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: '要删除的对话 ID' }
+      },
+      required: ['sessionId']
+    }
+  },
+  {
+    name: 'create_folder',
+    description: '在工作区中创建新文件夹。可指定父文件夹创建子文件夹。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID' },
+        name: { type: 'string', description: '文件夹名称' },
+        parentId: { type: 'string', description: '父文件夹 ID（可选，不传则创建根文件夹）' }
+      },
+      required: ['workspaceId', 'name']
+    }
+  },
+  {
+    name: 'list_folders',
+    description: '列出工作区中的所有文件夹。支持按工作区筛选。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID（可选，不传则列出所有）' }
+      }
+    }
+  },
+  {
+    name: 'export_session',
+    description: '将指定对话导出为 Markdown 格式文本。适合保存到文件或作为上下文粘贴。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: '要导出的对话 ID' },
+        format: { type: 'string', description: '导出格式：markdown（默认）/ html', enum: ['markdown', 'html'] }
+      },
+      required: ['sessionId']
+    }
+  },
+  {
+    name: 'summarize_session',
+    description: '为指定对话生成 AI 总结（摘要 + 关键要点 + 待办事项 + 知识提取 + 偏好提取）。需要先配置 AI 供应商。返回生成的总结对象。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: '要总结的对话 ID' }
+      },
+      required: ['sessionId']
+    }
+  },
+  {
+    name: 'knowledge_entry_update',
+    description: '更新知识库中的条目（知识/决策/任务）。可修改标题、内容、类型、状态。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entryId: { type: 'string', description: '知识条目 ID' },
+        title: { type: 'string', description: '新标题（可选）' },
+        content: { type: 'string', description: '新内容（可选）' },
+        type: { type: 'string', description: '新类型（可选）：knowledge / decision / task', enum: ['knowledge', 'decision', 'task'] },
+        status: { type: 'string', description: '新状态（可选）：active / archived / open / done' }
+      },
+      required: ['entryId']
+    }
+  },
+  {
+    name: 'knowledge_entry_delete',
+    description: '删除知识库中的条目。不可恢复。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entryId: { type: 'string', description: '要删除的知识条目 ID' }
+      },
+      required: ['entryId']
     }
   }]
 
@@ -671,6 +772,125 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
       }))
     }
 
+    case 'update_session': {
+      const sessionId = String(args.sessionId ?? '')
+      if (!sessionId) throw new Error('sessionId 不能为空')
+      const patch: Record<string, unknown> = {}
+      if (args.title !== undefined) patch.title = String(args.title)
+      if (args.description !== undefined) patch.description = String(args.description)
+      if (args.folderId !== undefined) patch.folderId = args.folderId === '' ? null : String(args.folderId)
+      if (args.isFavorite !== undefined) patch.isFavorite = Boolean(args.isFavorite)
+      updateSession(sessionId, patch as any)
+      const updated = getSession(sessionId, false)
+      return { sessionId, updated: !!updated }
+    }
+
+    case 'delete_session': {
+      const sessionId = String(args.sessionId ?? '')
+      if (!sessionId) throw new Error('sessionId 不能为空')
+      const session = getSession(sessionId, false)
+      if (!session) throw new Error('对话不存在')
+      deleteSession(sessionId)
+      return { sessionId, deleted: true }
+    }
+
+    case 'create_folder': {
+      const workspaceId = String(args.workspaceId ?? '')
+      const name = String(args.name ?? '')
+      if (!workspaceId) throw new Error('workspaceId 不能为空')
+      if (!name) throw new Error('name 不能为空')
+      const parentId = args.parentId ? String(args.parentId) : undefined
+      const folder = createFolder({ workspaceId, name, parentId })
+      return { folderId: folder.id, name: folder.name, workspaceId }
+    }
+
+    case 'list_folders': {
+      const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
+      const folders = listFolders(workspaceId)
+      return folders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        workspaceId: f.workspaceId,
+        parentId: f.parentId,
+        sortOrder: f.sortOrder,
+        isSmart: !!f.rule
+      }))
+    }
+
+    case 'export_session': {
+      const sessionId = String(args.sessionId ?? '')
+      if (!sessionId) throw new Error('sessionId 不能为空')
+      const format = String(args.format ?? 'markdown')
+      const session = getSession(sessionId, true)
+      if (!session) throw new Error('对话不存在')
+      const messages = session.messages || []
+      // html 导出不受支持，使用 markdown 导出
+      if (format !== 'markdown') {
+        // 只支持 markdown 格式
+      }
+      let md = `# ${session.title}\n\n`
+      md += `> 来源: ${session.provider} | ${new Date(session.createdAt).toLocaleString('zh-CN')}\n\n`
+      md += `---\n\n`
+      for (const m of messages) {
+        const role = m.role === 'user' ? '**👤 用户**' : m.role === 'assistant' ? '**🤖 AI**' : `**${m.role}**`
+        md += `${role}:\n\n${m.content}\n\n---\n\n`
+      }
+      md += `*导出时间: ${new Date().toLocaleString('zh-CN')}*\n`
+      return { format: 'markdown', content: md, sessionId, title: session.title }
+    }
+
+    case 'summarize_session': {
+      const sessionId = String(args.sessionId ?? '')
+      if (!sessionId) throw new Error('sessionId 不能为空')
+      const configFile = loadAiConfigFile()
+      const activeProvider = configFile.activeProvider ?? 'openai'
+      const stored = configFile.configs[activeProvider]
+      if (!stored || !stored.hasApiKey) {
+        throw new Error('未配置 AI 供应商。请在 Memora UI 的「设置 → AI 配置」中配置供应商后再使用 summarize_session。')
+      }
+      const apiKeys = getAllApiKeys()
+      const apiKey = apiKeys[activeProvider]
+      if (!apiKey) throw new Error('API Key 未在加密存储中找到')
+      const config: AiConfig = {
+        provider: activeProvider as AiConfig['provider'],
+        baseUrl: stored.baseUrl,
+        apiKey,
+        chatModel: stored.chatModel,
+        embeddingModel: stored.embeddingModel,
+        embeddingDim: stored.embeddingDim
+      }
+      const summary = await generateSummary(sessionId, config)
+      return {
+        sessionId,
+        summary: summary.summary,
+        keyPoints: summary.keyPoints,
+        todos: summary.todos,
+        knowledge: summary.knowledge,
+        suggestedTags: summary.suggestedTags,
+        model: summary.model
+      }
+    }
+
+    case 'knowledge_entry_update': {
+      const entryId = String(args.entryId ?? '')
+      if (!entryId) throw new Error('entryId 不能为空')
+      const patch: Record<string, unknown> = {}
+      if (args.title !== undefined) patch.title = String(args.title)
+      if (args.content !== undefined) patch.content = String(args.content)
+      if (args.type !== undefined) patch.type = String(args.type)
+      if (args.status !== undefined) patch.status = String(args.status)
+      const updated = updateEntry(entryId, patch as any)
+      if (!updated) throw new Error('知识条目不存在')
+      return { entryId, updated: true }
+    }
+
+    case 'knowledge_entry_delete': {
+      const entryId = String(args.entryId ?? '')
+      if (!entryId) throw new Error('entryId 不能为空')
+      deleteEntry(entryId)
+      return { entryId, deleted: true }
+    }
+
     default:
       throw new Error(`未知工具: ${name}`)
   }
@@ -711,7 +931,7 @@ export async function startMcpServer(): Promise<void> {
               capabilities: { tools: {} },
               serverInfo: {
                 name: 'Memora',
-                version: '1.4.1'
+                version: '1.5.0'
               }
             }
           })

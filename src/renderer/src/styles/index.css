@@ -4,33 +4,43 @@
 
 /* CSS 变量驱动的主题（暗色/亮色） */
 :root {
-  --bg-primary: #fafafa;
-  --bg-secondary: #f4f4f5;
+  --bg-primary: #f8f7f4;
+  --bg-secondary: #efede8;
   --bg-tertiary: #ffffff;
-  --bg-hover: #f0f0f0;
-  --fg-primary: #18181b;
-  --fg-secondary: #52525b;
-  --fg-muted: #a1a1aa;
-  --border-default: #e4e4e7;
-  --border-strong: #d4d4d8;
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-muted: rgba(99, 102, 241, 0.1);
+  --bg-hover: #e8e5de;
+  --fg-primary: #1a1a2e;
+  --fg-secondary: #5a5a6e;
+  --fg-muted: #9a9aae;
+  --border-default: #e2dfd8;
+  --border-strong: #cdcac0;
+  --accent: #7c5cbf;
+  --accent-hover: #6a4eaa;
+  --accent-muted: rgba(124, 92, 191, 0.12);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
 }
 
 .dark {
-  --bg-primary: #0a0a0b;
-  --bg-secondary: #111113;
-  --bg-tertiary: #18181b;
-  --bg-hover: #1f1f23;
-  --fg-primary: #fafafa;
-  --fg-secondary: #a1a1aa;
-  --fg-muted: #71717a;
-  --border-default: #27272a;
-  --border-strong: #3f3f46;
-  --accent: #818cf8;
-  --accent-hover: #a5b4fc;
-  --accent-muted: rgba(129, 140, 248, 0.15);
+  --bg-primary: #0f0e12;
+  --bg-secondary: #16151c;
+  --bg-tertiary: #1e1d26;
+  --bg-hover: #25242e;
+  --fg-primary: #e8e6f0;
+  --fg-secondary: #a09cb8;
+  --fg-muted: #6e6a82;
+  --border-default: #2a2836;
+  --border-strong: #3a3848;
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
+  --accent-muted: rgba(167, 139, 250, 0.15);
+  --glass-bg: rgba(30, 29, 38, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -72,9 +82,34 @@ body {
   background: var(--fg-muted);
 }
 
+/* 玻璃面板 */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.glass-panel:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-strong);
+}
+
+/* 内容卡片 */
+.content-card {
+  @apply rounded-lg border border-border bg-bg-tertiary;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.content-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
 /* 通用工具类 */
 .Memora-btn {
-  @apply px-3 py-1.5 rounded-md text-sm font-medium transition-colors;
+  @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150;
 }
 .Memora-btn-primary {
   @apply bg-accent text-white hover:bg-accent-hover;
@@ -83,7 +118,7 @@ body {
   @apply text-fg-secondary hover:bg-bg-hover hover:text-fg-primary;
 }
 .Memora-input {
-  @apply bg-bg-tertiary border border-border rounded-md px-3 py-1.5 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent transition-colors;
+  @apply bg-bg-tertiary border border-border rounded-lg px-3 py-1.5 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted transition-all duration-150;
 }
 
 /* 浮动指示器进出场动画 */

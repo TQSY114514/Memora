@@ -24,11 +24,24 @@ export default {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
           muted: 'var(--accent-muted)'
+        },
+        glass: {
+          bg: 'var(--glass-bg)',
+          border: 'var(--glass-border)'
         }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'SF Mono', 'Menlo', 'monospace']
+      },
+      borderRadius: {
+        xl: '12px',
+        '2xl': '16px'
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)'
       }
     }
   },

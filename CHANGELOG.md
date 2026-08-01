@@ -2,6 +2,38 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-07-31
+
+### Added
+
+#### MCP 工具大扩展（+8 个，共 25 个）
+- `update_session` — 更新对话元数据（标题/描述/文件夹/收藏状态）
+- `delete_session` — 删除对话（级联删除，不可恢复）
+- `create_folder` — 在工作区创建文件夹（支持子文件夹）
+- `list_folders` — 列出工作区文件夹结构
+- `export_session` — 导出对话为 Markdown 格式
+- `summarize_session` — 通过 MCP 触发 AI 总结生成
+- `knowledge_entry_update` — 更新知识条目（标题/内容/类型/状态）
+- `knowledge_entry_delete` — 删除知识条目
+
+#### Import 系统增强
+- 新增通用 HTML 导入器，支持解析 AI 对话导出 HTML 页面
+- 导入扫描器扩展支持 `.html` / `.htm` 文件
+- 平台分布统计：导入完成后显示各平台导入数量明细
+
+#### UI 风格重构
+- 全新色调系统：暖灰底 + 紫色强调色（亮色）/ 深紫灰底 + 淡紫强调色（暗色）
+- 新增玻璃拟态面板（`glass-panel` 类）：backdrop-filter blur + 半透明背景
+- 新增内容卡片（`content-card` 类）：柔和阴影 + 悬停抬升效果
+- 输入框新增 focus 环形高亮（`focus:ring`）
+- 统一圆角从 `rounded-md` 升级为 `rounded-lg`
+- 阴影系统 CSS 变量化（`--shadow-sm/md/lg`）
+
+### Changed
+
+- 版本号 1.4.1 → 1.5.0
+- MCP Server 版本更新至 1.5.0
+
 ## [1.4.1] - 2026-07-31
 
 ### Added

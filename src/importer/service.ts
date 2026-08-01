@@ -21,7 +21,7 @@ function collectFiles(dirPath: string): string[] {
       files.push(...collectFiles(full))
     } else {
       const ext = extname(entry).toLowerCase()
-      if (['.json', '.md', '.markdown', '.txt'].includes(ext)) {
+      if (['.json', '.md', '.markdown', '.txt', '.html', '.htm'].includes(ext)) {
         files.push(full)
       }
     }
@@ -304,6 +304,9 @@ export function persistSessions(
     sessionIds: []
   }
 
+  // 平台统计
+  const platformStats = new Map<string, number>()
+
   for (const parsed of sessions) {
     try {
       // 幂等检查：相同 sourceId + provider 已存在则跳过
@@ -346,11 +349,19 @@ export function persistSessions(
 
       const created = createSession(sessionInput as never, messages)
       result.imported++
+      platformStats.set(parsed.provider, (platformStats.get(parsed.provider) || 0) + 1)
       result.sessionIds.push(created.id)
     } catch (e) {
       result.failed++
       result.errors.push(`「${parsed.title}」: ${(e as Error).message}`)
     }
+  }
+
+  if (platformStats.size > 0) {
+    const breakdown = Array.from(platformStats.entries())
+      .map(([p, c]) => `${p}: ${c} 条`)
+      .join(' | ')
+    result.errors.push(`📊 导入统计: ${breakdown}`)
   }
 
   return result

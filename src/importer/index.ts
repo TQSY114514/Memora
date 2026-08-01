@@ -9,6 +9,7 @@ import { grokImporter } from './grok'
 import { cursorImporter } from './cursor'
 import { markdownImporter } from './markdown'
 import { jsonImporter } from './json'
+import { htmlImporter } from './html'
 import { registerImporter, listImporters, detectImporter, getImporter } from './registry'
 
 let initialized = false
@@ -27,6 +28,7 @@ export function registerBuiltins(): void {
   registerImporter(cursorImporter)
   registerImporter(markdownImporter)
   registerImporter(jsonImporter)
+  registerImporter(htmlImporter)
   initialized = true
 }
 

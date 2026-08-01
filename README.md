@@ -10,7 +10,7 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.4.1-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.5.0-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -78,7 +78,7 @@ Memora 是一个 **Agent Memory OS**——给 AI Agent 提供类人长期记忆�
 - ✅ 跨平台聚合：ChatGPT / Claude / Gemini / DeepSeek / Kimi / 通义 / Cursor / Grok ……
 - ✅ **记忆类型系统**：知识 / 决策 / 任务 / **偏好**（Preference）四类一等公民实体
 - ✅ **记忆生命周期**：创建 → 巩固 → 冲突检测 → 遗忘（置信度衰减）
-- ✅ **MCP 记忆层**：17 个 MCP 工具，让 Claude Code / Cursor / 任何 MCP 客户端读写记忆
+- ✅ **MCP 记忆层**：25 个 MCP 工具，让 Claude Code / Cursor / 任何 MCP 客户端读写记忆
 - ✅ 本地优先：数据存储在本地 SQLite，离线可用，隐私可控
 - ✅ 全文 + 语义搜索：FTS5 关键词搜索 + 向量语义检索
 - ✅ 记忆蒸馏：AI 自动总结对话、提取偏好、生成知识文档
@@ -296,7 +296,7 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 }
 ```
 
-暴露 17 个工具：
+暴露 25 个工具：
 
 | 工具 | 用途 |
 |------|------|
@@ -317,6 +317,14 @@ Memora 可作为 MCP Server 运行，把对话数据暴露给 Claude Desktop 等
 | `memory_save_preference` | **保存偏好**：写入用户偏好，自动检测冲突（旧记忆标记 superseded） |
 | `memory_forget` | **遗忘**：将偏好标记为 archived（软删除） |
 | `preference_search` | **偏好搜索**：FTS 搜索用户偏好记忆 |
+| `update_session` | **更新对话**：修改标题/描述/文件夹/收藏状态 |
+| `delete_session` | **删除对话**：级联删除，不可恢复 |
+| `create_folder` | **创建文件夹**：在工作区创建文件夹/子文件夹 |
+| `list_folders` | **列出文件夹**：查看工作区文件夹结构 |
+| `export_session` | **导出对话**：导出为 Markdown 格式文本 |
+| `summarize_session` | **AI 总结**：通过 MCP 触发对话总结生成 |
+| `knowledge_entry_update` | **更新知识**：修改知识条目标题/内容/类型/状态 |
+| `knowledge_entry_delete` | **删除知识**：删除知识库条目 |
 
 `memory_recall` / `memory_write` / `memory_profile` / `memory_save_preference` / `memory_forget` 让 Memora 从「对话管理器」升级为真正的 **Agent Memory OS**——AI Agent 可主动召回历史知识、了解用户偏好、沉淀新知识、遗忘过时信息。
 
