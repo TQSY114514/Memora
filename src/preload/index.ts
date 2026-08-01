@@ -57,6 +57,21 @@ const api = {
     content: string
   }): Promise<string | null> => ipcRenderer.invoke(IPC.DIALOG_SAVE_FILE, options),
 
+  // ===== 全量数据迁移（v1.7.1）=====
+  system: {
+    /** 导出整个工作区（数据库 + AI 配置）为 .zip 归档 */
+    exportData: (): Promise<{ success: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC.SYSTEM_EXPORT_DATA),
+    /** 从 .zip 归档恢复整个工作区（会替换当前数据） */
+    importData: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.SYSTEM_IMPORT_DATA)
+  },
+
+  // ===== Workspace =====/** 监听自动更新下载进度（main -> renderer 事件） */
+  onUpdateProgress: (callback: (progress: { percent: number }) => void): void => {
+    ipcRenderer.on('update-progress', (_event, progress) => callback(progress))
+  },
+
   // ===== Workspace =====
   workspace: {
     list: (): Promise<Workspace[]> => ipcRenderer.invoke(IPC.WORKSPACE_LIST),

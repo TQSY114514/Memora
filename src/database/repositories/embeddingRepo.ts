@@ -1,6 +1,20 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
+import { logger } from '../../main/logger'
 import type { Message } from '@shared/types'
+
+/** 允许的向量维度范围（1-8192），超出则拒绝写入 */
+const MIN_DIM = 1
+const MAX_DIM = 8192
+
+/** 校验向量维度合法性 */
+function validateDim(embedding: number[]): number {
+  const dim = embedding.length
+  if (dim < MIN_DIM || dim > MAX_DIM) {
+    throw new Error(`Invalid embedding dimension: ${dim} (must be ${MIN_DIM}-${MAX_DIM})`)
+  }
+  return dim
+}
 
 interface EmbeddingRow {
   id: string
@@ -31,7 +45,7 @@ export function upsertEmbedding(
 ): void {
   const db = getDatabase()
   const now = new Date().toISOString()
-  const dim = embedding.length
+  const dim = validateDim(embedding)
   // 存为 BLOB：Float32Array 的二进制 buffer，读取零解析
   const buf = Buffer.from(new Float32Array(embedding).buffer)
 

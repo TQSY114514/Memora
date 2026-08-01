@@ -45,6 +45,8 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
   const [backupMsg, setBackupMsg] = useState<string | null>(null)
   const [maintMsg, setMaintMsg] = useState<string | null>(null)
   const [maintLoading, setMaintLoading] = useState(false)
+  const [migrateLoading, setMigrateLoading] = useState(false)
+  const [migrateMsg, setMigrateMsg] = useState<string | null>(null)
 
   async function handleExportBackup() {
     setBackupLoading(true)
@@ -112,6 +114,43 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
       setMaintMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setMaintLoading(false)
+    }
+  }
+
+  async function handleExportData() {
+    setMigrateLoading(true)
+    setMigrateMsg(null)
+    try {
+      const result = await window.Memora.system.exportData()
+      if (result.success) {
+        setMigrateMsg(`✓ 已导出到：${result.path}`)
+      } else if (result.error) {
+        setMigrateMsg('✗ ' + result.error)
+      }
+    } catch (e) {
+      setMigrateMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setMigrateLoading(false)
+    }
+  }
+
+  async function handleImportData() {
+    if (!confirm('导入将用迁移包中的数据完全替换当前的数据库和 AI 配置，且不可撤销。确定继续？')) {
+      return
+    }
+    setMigrateLoading(true)
+    setMigrateMsg(null)
+    try {
+      const result = await window.Memora.system.importData()
+      if (result.success) {
+        setMigrateMsg('✓ 导入成功，请重启应用以使全部数据生效')
+      } else if (result.error) {
+        setMigrateMsg('✗ ' + result.error)
+      }
+    } catch (e) {
+      setMigrateMsg('✗ ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setMigrateLoading(false)
     }
   }
 
@@ -276,6 +315,41 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             {backupMsg && (
               <p className={`text-xs mt-2 ${backupMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
                 {backupMsg}
+              </p>
+            )}
+          </div>
+
+          {/* 数据迁移 */}
+          <div>
+            <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+              数据迁移
+            </label>
+            <p className="text-[11px] text-fg-muted mb-2.5">
+              将整个工作区（数据库 + AI 配置）导出为单个归档文件，可在另一台机器上导入恢复。导入会完全替换当前数据。
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportData}
+                disabled={migrateLoading}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                {migrateLoading ? '⏳ 处理中…' : '⬇ 导出数据'}
+              </button>
+              <button
+                onClick={handleImportData}
+                disabled={migrateLoading}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                ⬆ 导入数据
+              </button>
+            </div>
+            {migrateMsg && (
+              <p
+                className={`text-xs mt-2 break-all ${
+                  migrateMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'
+                }`}
+              >
+                {migrateMsg}
               </p>
             )}
           </div>

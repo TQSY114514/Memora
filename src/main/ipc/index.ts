@@ -9,6 +9,7 @@ import { registerBgImportHandlers } from './handlers/bgImport.ipc'
 import { registerKnowledgeHandlers } from './handlers/knowledge.ipc'
 import { registerPreferenceHandlers } from './handlers/preferences.ipc'
 import { registerMemoryLifecycleHandlers } from './handlers/memoryLifecycle.ipc'
+import { registerDataMigrationHandlers } from './handlers/dataMigration.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -22,4 +23,5 @@ export function registerIpcHandlers(): void {
   registerKnowledgeHandlers()
   registerPreferenceHandlers()
   registerMemoryLifecycleHandlers()
+  registerDataMigrationHandlers()
 }

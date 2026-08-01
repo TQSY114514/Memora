@@ -1,13 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
-import { AiSettings } from './components/AiSettings'
-import { ImportCenter } from './components/ImportCenter'
-import { Settings } from './components/Settings'
-import { ProjectMemoryPanel } from './components/ProjectMemory'
-import { KnowledgePanel } from './components/Knowledge'
-import { PreferenceExplorer } from './components/PreferenceExplorer'
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
@@ -15,6 +9,14 @@ import { useBgImportStore } from './stores/backgroundImportStore'
 import { useAiConfigStore } from './stores/aiConfigStore'
 import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
 import { StartupImportHint } from './components/StartupImportHint'
+
+// 懒加载重型面板组件，减少首屏 bundle 体积
+const AiSettings = lazy(() => import('./components/AiSettings').then(m => ({ default: m.AiSettings })))
+const ImportCenter = lazy(() => import('./components/ImportCenter').then(m => ({ default: m.ImportCenter })))
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })))
+const ProjectMemoryPanel = lazy(() => import('./components/ProjectMemory').then(m => ({ default: m.ProjectMemoryPanel })))
+const KnowledgePanel = lazy(() => import('./components/Knowledge').then(m => ({ default: m.KnowledgePanel })))
+const PreferenceExplorer = lazy(() => import('./components/PreferenceExplorer').then(m => ({ default: m.PreferenceExplorer })))
 
 export default function App() {
   const { error } = useStore()
@@ -126,11 +128,11 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
       />
       {showMemoryPanel ? (
-        <ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} />
+        <Suspense fallback={<LoadingFallback />}><ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} /></Suspense>
       ) : showKnowledgePanel ? (
-        <KnowledgePanel onClose={() => setShowKnowledgePanel(false)} />
+        <Suspense fallback={<LoadingFallback />}><KnowledgePanel onClose={() => setShowKnowledgePanel(false)} /></Suspense>
       ) : showPreferencePanel ? (
-        <PreferenceExplorer onClose={() => setShowPreferencePanel(false)} />
+        <Suspense fallback={<LoadingFallback />}><PreferenceExplorer onClose={() => setShowPreferencePanel(false)} /></Suspense>
       ) : (
         <>
           <ChatList />
@@ -154,20 +156,34 @@ export default function App() {
 
       <StartupImportHint onOpenImportCenter={() => setShowImportCenter(true)} />
 
-      {showImportCenter && <ImportCenter onClose={() => setShowImportCenter(false)} />}
+      <Suspense fallback={<LoadingFallback />}>
+        {showImportCenter && <ImportCenter onClose={() => setShowImportCenter(false)} />}
+      </Suspense>
 
-      {showAiSettings && <AiSettings onClose={() => setShowAiSettings(false)} />}
+      <Suspense fallback={<LoadingFallback />}>
+        {showAiSettings && <AiSettings onClose={() => setShowAiSettings(false)} />}
+      </Suspense>
 
-      {showSettings && (
-        <Settings
-          onClose={() => setShowSettings(false)}
-          onOpenAiSettings={() => {
-            setShowSettings(false)
-            setShowAiSettings(true)
-          }}
-        />
-      )}
+      <Suspense fallback={<LoadingFallback />}>
+        {showSettings && (
+          <Settings
+            onClose={() => setShowSettings(false)}
+            onOpenAiSettings={() => {
+              setShowSettings(false)
+              setShowAiSettings(true)
+            }}
+          />
+        )}
+      </Suspense>
       </div>
+    </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
   )
 }

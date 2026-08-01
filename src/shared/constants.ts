@@ -205,7 +205,11 @@ export const IPC = {
   MEMORY_TIERED: 'memory:tiered',
   MEMORY_HEALTH: 'memory:health',
   MEMORY_PROFILE_SUMMARY: 'memory:profile-summary',
-  MEMORY_LIFECYCLE_RUN: 'memory:lifecycle-run'
+  MEMORY_LIFECYCLE_RUN: 'memory:lifecycle-run',
+
+  // 全量数据迁移（v1.7.1）—— 导出/导入整个工作区为归档文件
+  SYSTEM_EXPORT_DATA: 'system:export-data',
+  SYSTEM_IMPORT_DATA: 'system:import-data'
 } as const
 
 /** Provider 显示元信息 */

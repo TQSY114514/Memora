@@ -7,8 +7,10 @@ import { listWorkspaces, deleteWorkspace } from '../database/repositories/worksp
 import { backgroundImporter } from '../importer/backgroundImporter'
 import { shutdownSemanticWorker } from '../search/semantic'
 import { decayConfidence } from '../database/repositories/preferencesRepo'
+import { runMemoryLifecycle } from './memoryLifecycle'
 import { backupService } from './backup'
 import { logger } from './logger'
+import { initAutoUpdater } from './updater'
 
 // ===== 全局异常处理器 =====
 // 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
@@ -219,6 +221,11 @@ function startGui(): void {
     createTray()
     createWindow()
 
+    // 自动更新检查（仅打包模式）：启动后检查 GitHub Releases 新版本
+    if (app.isPackaged && mainWindow) {
+      initAutoUpdater(mainWindow)
+    }
+
     // 后台静默导入：加载配置，绑定窗口，若启用则启动
     backgroundImporter.loadConfig()
     backgroundImporter.setWindow(mainWindow)
@@ -228,6 +235,27 @@ function startGui(): void {
 
     // 自动热备份：启动定时备份（v1.6）
     backupService.start()
+
+    // 记忆生命周期自动调度：启动时执行一次 + 每 6 小时定期执行
+    // 归档过弱记忆、更新访问时间、统计层级变化
+    try {
+      const result = runMemoryLifecycle()
+      if (result.archived > 0 || result.promoted > 0) {
+        logger.info('Memory lifecycle on startup', result)
+      }
+    } catch (e) {
+      logger.warn('Memory lifecycle failed (non-blocking)', { error: String(e) })
+    }
+    const lifecycleTimer = setInterval(() => {
+      try {
+        const result = runMemoryLifecycle()
+        if (result.archived > 0 || result.promoted > 0) {
+          logger.info('Memory lifecycle scheduled', result)
+        }
+      } catch (e) {
+        logger.warn('Memory lifecycle scheduled failed', { error: String(e) })
+      }
+    }, 6 * 60 * 60 * 1000)  // 6 小时
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -246,6 +274,8 @@ function startGui(): void {
     backgroundImporter.stop()
     // 停止自动热备份定时器（v1.6）
     backupService.stop()
+    // 停止记忆生命周期定时器
+    clearInterval(lifecycleTimer)
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
     // 退出前将 WAL 写回主库 + 优化查询计划，避免 WAL 膨胀导致下次启动变慢
