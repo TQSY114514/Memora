@@ -25,37 +25,31 @@ export function indexSessionForSearch(
   provider?: string
 ): void {
   const db = getDatabase()
-  // 先删除旧索引（支持重新导入）
-  unindexSession(sessionId)
-
   // 中文分词预处理：让 FTS5 能正确命中中文词组
   const segmentedTitle = segment(title)
 
-  if (messages.length === 0) {
-    // 无消息时仍索引 title
-    db.prepare(
-      'INSERT INTO chat_fts (session_id, title, content, provider) VALUES (?, ?, ?, ?)'
-    ).run(sessionId, segmentedTitle, '', provider ?? '')
-    return
-  }
-
-  const stmt = db.prepare(
+  // DELETE + INSERT 并入同一事务，消除崩溃导致的索引丢失窗口
+  const delStmt = db.prepare('DELETE FROM chat_fts WHERE session_id = ?')
+  const insStmt = db.prepare(
     'INSERT INTO chat_fts (session_id, title, content, provider) VALUES (?, ?, ?, ?)'
   )
-  const tx = db.transaction((rows: FtsRow[]) => {
+
+  const rows: FtsRow[] = messages.length === 0
+    ? [{ session_id: sessionId, title: segmentedTitle, content: '', provider: provider ?? '' }]
+    : messages.map((m) => ({
+        session_id: sessionId,
+        title: segmentedTitle,
+        content: segment(m.content),
+        provider: provider ?? ''
+      }))
+
+  const tx = db.transaction(() => {
+    delStmt.run(sessionId)
     for (const row of rows) {
-      stmt.run(row.session_id, row.title, row.content, row.provider)
+      insStmt.run(row.session_id, row.title, row.content, row.provider)
     }
   })
-
-  const rows: FtsRow[] = messages.map((m) => ({
-    session_id: sessionId,
-    title: segmentedTitle,
-    content: segment(m.content),
-    provider: provider ?? ''
-  }))
-
-  tx(rows)
+  tx()
 }
 
 /** 删除会话的 FTS 索引 */

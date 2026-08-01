@@ -15,7 +15,8 @@ interface ChatViewerProps {
 }
 
 export function ChatViewer({ onOpenAiSettings, onOpenImportCenter }: ChatViewerProps) {
-  const { activeSession, setActiveSessionData } = useStore()
+  // selector 订阅：仅 activeSession 变化才重渲染，避免搜索击键等无关 state 触发 ReactMarkdown 重解析
+  const activeSession = useStore((s) => s.activeSession)
 
   if (!activeSession) {
     return <Dashboard onOpenImportCenter={onOpenImportCenter} onOpenAiSettings={onOpenAiSettings} />
@@ -25,7 +26,10 @@ export function ChatViewer({ onOpenAiSettings, onOpenImportCenter }: ChatViewerP
 }
 
 function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void }) {
-  const { activeSession, setActiveSession, setActiveSessionData } = useStore()
+  // selector 订阅：仅 activeSession 变化才重渲染，搜索击键不再触发 ReactMarkdown 重解析
+  const activeSession = useStore((s) => s.activeSession)
+  const setActiveSession = useStore((s) => s.setActiveSession)
+  const setActiveSessionData = useStore((s) => s.setActiveSessionData)
   const { config } = useAiConfigStore()
 
   const session = activeSession!

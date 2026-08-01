@@ -18,12 +18,12 @@ export default defineConfig({
       ],
       reporter: ['text', 'text-summary', 'lcov'],
       thresholds: {
-        // 起步门槛：防止覆盖率回退。随测试补充逐步提高。
-        // functions 偏低因 renderer 组件函数多但难单测，暂设 10%
-        statements: 15,
-        branches: 15,
-        functions: 10,
-        lines: 15
+        // v1.9：覆盖率门禁提升（新增 safePath/vectorMath/searchQuery 测试后上调）
+        // renderer 组件不计入覆盖范围（已 exclude），故此处为主进程+工具层覆盖率
+        statements: 20,
+        branches: 20,
+        functions: 15,
+        lines: 20
       }
     }
   },

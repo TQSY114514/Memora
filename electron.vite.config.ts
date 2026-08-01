@@ -61,7 +61,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/main/index.ts'),
-          'semantic.worker': resolve('src/search/semantic.worker.ts')
+          'semantic.worker': resolve('src/search/semantic.worker.ts'),
+          'localEmbedder.worker': resolve('src/ai/localEmbedder.worker.ts')
         }
       }
     }

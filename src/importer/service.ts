@@ -1,8 +1,10 @@
-import { readFileSync, readdirSync, statSync } from 'fs'
+import { readFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'fs'
+import { StringDecoder } from 'string_decoder'
 import { basename, extname, join } from 'path'
 import { registerBuiltins, detectImporter, getImporter } from '../importer'
 import { createSession, findBySourceId } from '../database/repositories/sessionRepo'
-import { StreamParseError, LARGE_FILE_THRESHOLD } from './streamJsonArray'
+import { getDatabase } from '../database/connection'
+import { StreamParseError, LARGE_FILE_THRESHOLD, StreamingArrayExtractor } from './streamJsonArray'
 import { sanitizeMessages } from './sanitizer'
 import type { ImportResult, ChatSession } from '@shared/types'
 import type { ParsedSession, ParsedMessage } from '../importer/types'
@@ -89,8 +91,12 @@ function importLargeJsonFile(
 ): ImportResult {
   registerBuiltins()
 
-  // 先读一小段探测 importer（用前 4KB 内容检测格式）
-  const probe = readFileSync(filePath, { encoding: 'utf-8', flag: 'r' }).slice(0, 4096)
+  // 只读前 4KB 探测格式，避免大文件全量读入内存
+  const probeFd = openSync(filePath, 'r')
+  const probeBuf = Buffer.alloc(4096)
+  const probeBytes = readSync(probeFd, probeBuf, 0, 4096, 0)
+  closeSync(probeFd)
+  const probe = probeBuf.toString('utf-8', 0, probeBytes)
   const importer = detectImporter(filename, probe)
   if (!importer) {
     return {
@@ -110,20 +116,21 @@ function importLargeJsonFile(
     sessionIds: []
   }
 
-  const stat = statSync(filePath)
+  const total = statSync(filePath).size
+  const extractor = new StreamingArrayExtractor()
+  const decoder = new StringDecoder('utf-8')
+
+  const fd = openSync(filePath, 'r')
+  const chunkSize = 64 * 1024
+  const chunkBuf = Buffer.alloc(chunkSize)
   let loadedBytes = 0
   let lastProgressByte = 0
+  let itemIdx = 0
 
-  // 同步读取后用状态机提取顶层数组元素，避免 JSON.parse 构建完整语法树
-  const raw = readFileSync(filePath, 'utf-8')
-  const items = extractTopLevelArrayItems(raw)
-  const totalItems = items.length
-
-  for (let idx = 0; idx < totalItems; idx++) {
-    const itemJson = items[idx]
-
-    // 用 importer.parse 解析单个会话（构造单元素数组 JSON 传入）
+  /** 处理一个完整 item JSON 字符串 */
+  const handleItem = (itemJson: string): void => {
     try {
+      // 构造单元素数组 JSON 交给 importer 解析
       const parsedSessions = importer.parse(`[${itemJson}]`)
       const r = persistSessions(parsedSessions, options?.folderId)
       result.imported += r.imported
@@ -133,17 +140,40 @@ function importLargeJsonFile(
       if (r.errors.length) result.errors.push(...r.errors)
     } catch (e) {
       result.failed++
-      result.errors.push(`第 ${idx + 1} 条: ${(e as Error).message}`)
+      result.errors.push(`第 ${itemIdx + 1} 条: ${(e as Error).message}`)
     }
+    itemIdx++
+  }
 
-    // 进度（每 1MB 或最后一条上报）
-    if (options?.onProgress) {
-      loadedBytes += Buffer.byteLength(itemJson, 'utf-8')
-      if (loadedBytes - lastProgressByte >= 1024 * 1024 || idx === totalItems - 1) {
-        options.onProgress(loadedBytes, stat.size)
+  try {
+    // 真流式：分块读取 + 状态机跨块提取，峰值内存 = 单块 64KB + 当前 item
+    while (true) {
+      const bytesRead = readSync(fd, chunkBuf, 0, chunkSize, loadedBytes)
+      if (bytesRead === 0) break
+      loadedBytes += bytesRead
+      // StringDecoder 处理跨块的 UTF-8 多字节字符（中文），避免截断乱码
+      const chunk = decoder.write(chunkBuf.subarray(0, bytesRead))
+      const items = extractor.push(chunk)
+      for (const itemJson of items) handleItem(itemJson)
+
+      // 进度（每 1MB 上报，事件循环能让出 → 进度真实可见）
+      if (options?.onProgress && loadedBytes - lastProgressByte >= 1024 * 1024) {
+        options.onProgress(loadedBytes, total)
         lastProgressByte = loadedBytes
       }
     }
+    // flush decoder 剩余字节（不完整的多字节尾）+ extractor 剩余 item
+    const tail = decoder.end()
+    if (tail.length > 0) {
+      const items = extractor.push(tail)
+      for (const itemJson of items) handleItem(itemJson)
+    }
+    const finalItems = extractor.flush()
+    for (const itemJson of finalItems) handleItem(itemJson)
+
+    if (options?.onProgress) options.onProgress(total, total)
+  } finally {
+    closeSync(fd)
   }
 
   return result

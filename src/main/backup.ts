@@ -17,7 +17,7 @@
  */
 import { app } from 'electron'
 import { join } from 'path'
-import { mkdirSync, readdirSync, statSync, unlinkSync, copyFileSync, existsSync, openSync, writeSync, closeSync, fstatSync, readSync, readFileSync, writeFileSync } from 'fs'
+import { mkdirSync, readdirSync, statSync, unlinkSync, renameSync, existsSync, openSync, writeSync, closeSync, fstatSync, readSync, readFileSync, writeFileSync } from 'fs'
 import { createGzip, createGunzip } from 'zlib'
 import { pipeline } from 'stream/promises'
 import { createReadStream, createWriteStream } from 'fs'
@@ -203,40 +203,53 @@ class BackupService {
     const suffix = encrypted ? '.db.zip.enc' : '.db.zip'
     const filename = `Memora_backup_${timestamp}${suffix}`
     const zipPath = join(this.backupDir, filename)
+    // 原子创建（v1.9）：先写 .tmp，全部完成后 rename 到最终路径
+    // 避免写入中途崩溃留下损坏的备份文件（虽有 SHA-256 兜底，但原子替换更彻底）
+    const tmpPath = zipPath + '.tmp'
 
-    // 压缩数据库文件
-    if (encrypted) {
-      // 加密流程：写入版本头 → 压缩 → 加密
-      const salt = randomBytes(SALT_LENGTH)
-      const key = deriveKey(this.config.encryptionKey!, salt)
-      const iv = randomBytes(IV_LENGTH)
-      const cipher = createCipheriv(AES_ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
+    try {
+      if (encrypted) {
+        // 加密流程：写入版本头 → 压缩 → 加密
+        const salt = randomBytes(SALT_LENGTH)
+        const key = deriveKey(this.config.encryptionKey!, salt)
+        const iv = randomBytes(IV_LENGTH)
+        const cipher = createCipheriv(AES_ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
 
-      const writeStream = createWriteStream(zipPath)
-      // 写入版本标记 + salt + iv 作为文件头
-      writeStream.write(ENC_MAGIC)
-      writeStream.write(salt)
-      writeStream.write(iv)
+        const writeStream = createWriteStream(tmpPath)
+        // 写入版本标记 + salt + iv 作为文件头
+        writeStream.write(ENC_MAGIC)
+        writeStream.write(salt)
+        writeStream.write(iv)
 
-      await pipeline(
-        createReadStream(dbPath),
-        createGzip(),
-        cipher,
-        writeStream
-      )
+        await pipeline(
+          createReadStream(dbPath),
+          createGzip(),
+          cipher,
+          writeStream
+        )
 
-      // 获取 auth tag 并追加到文件末尾
-      const tag = cipher.getAuthTag()
-      const fd = openSync(zipPath, 'a')
-      writeSync(fd, tag)
-      closeSync(fd)
-    } else {
-      // 普通压缩
-      await pipeline(
-        createReadStream(dbPath),
-        createGzip(),
-        createWriteStream(zipPath)
-      )
+        // 获取 auth tag 并追加到文件末尾
+        const tag = cipher.getAuthTag()
+        const fd = openSync(tmpPath, 'a')
+        writeSync(fd, tag)
+        closeSync(fd)
+      } else {
+        // 普通压缩
+        await pipeline(
+          createReadStream(dbPath),
+          createGzip(),
+          createWriteStream(tmpPath)
+        )
+      }
+
+      // 原子替换到最终路径
+      renameSync(tmpPath, zipPath)
+    } catch (err) {
+      // 清理未完成的 tmp 文件，避免残留
+      if (existsSync(tmpPath)) {
+        try { unlinkSync(tmpPath) } catch { /* 忽略 */ }
+      }
+      throw err
     }
 
     const stat = statSync(zipPath)
@@ -391,17 +404,23 @@ class BackupService {
     // 关闭当前数据库连接
     closeDatabase()
 
-    // 替换当前数据库文件
-    if (existsSync(dbPath)) {
-      unlinkSync(dbPath)
-    }
+    // 原子替换：先删 WAL/SHM（旧 WAL 不能与新库配对），再用 rename 原子覆盖主库
+    // 关键改进（v1.9）：renameSync 在 POSIX 上原子，Windows 上用 MoveFileExW(MOVEFILE_REPLACE_EXISTING)
+    // 失败时原 dbPath 未被破坏，可恢复连接继续使用，不再有 unlink+copy 之间的数据丢失窗口
     for (const suffix of ['-wal', '-shm']) {
       const walPath = dbPath + suffix
       if (existsSync(walPath)) unlinkSync(walPath)
     }
 
-    copyFileSync(tmpPath, dbPath)
-    unlinkSync(tmpPath)
+    try {
+      renameSync(tmpPath, dbPath)
+    } catch (renameErr) {
+      // rename 失败（如 Windows 上文件被占用）：tmpPath 仍在，原库未破坏
+      // 尝试清理 tmp，恢复旧连接，抛出错误让上层处理
+      if (existsSync(tmpPath)) unlinkSync(tmpPath)
+      initDatabase()
+      throw new Error(`恢复失败：无法替换数据库文件（${(renameErr as Error).message}），原数据库未受影响`)
+    }
 
     // 重新初始化数据库连接
     initDatabase()

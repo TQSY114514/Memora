@@ -1,25 +1,20 @@
 /**
- * 本地嵌入模块（v1.8 #15）
+ * 本地嵌入模块（v1.9 #3：ONNX 推理迁 worker_threads）
  *
- * 使用 @huggingface/transformers 在本地运行 ONNX 格式的 embedding 模型，
- * 无需外部 API，隐私优先。
+ * 本文件为 worker 代理：保持原有导出 API 不变（embedBatchLocal / loadModel /
+ * getLocalEmbedderStatus / disposeLocalEmbedder 等），实际推理在
+ * localEmbedder.worker.ts 内的独立线程完成，主进程 UI/IPC 不再被阻塞。
  *
  * 设计：
- * - 单例 pipeline，懒加载（首次调用时加载模型）
- * - 模型缓存到 userData/models/，首次使用时从 HuggingFace CDN 下载
- * - mean pooling 将 token 级输出聚合为句子向量
- * - 动态 import() 加载 ESM 包（主进程为 CommonJS）
- *
- * 默认模型：Xenova/all-MiniLM-L6-v2（384 维，~23MB，多语言）
+ * - worker 单例懒加载，首次 loadModel/embed 时启动
+ * - 主进程同步维护 status，供 getLocalEmbedderStatus() 立即返回
+ * - 请求按 reqId 匹配响应，支持并发 embed 调用
+ * - worker 不可用时（创建失败）回退到主进程同步推理，保证可用性
  */
 
 import { app } from 'electron'
+import { Worker } from 'worker_threads'
 import { join } from 'path'
-
-// 懒加载的 pipeline 与模型元信息
-let pipelineFn: any = null
-let extractor: any = null
-let loadingPromise: Promise<void> | null = null
 
 /** 本地嵌入模型预设 */
 export interface LocalEmbeddingModel {
@@ -58,14 +53,11 @@ export const LOCAL_EMBEDDING_MODELS: LocalEmbeddingModel[] = [
 /** 默认模型 */
 export const DEFAULT_LOCAL_MODEL = LOCAL_EMBEDDING_MODELS[0]
 
-/** 获取模型维度 */
+/** 获取模型维度（预设表查询，用于 embeddingDim 校验） */
 export function getLocalModelDim(modelId: string): number {
   const m = LOCAL_EMBEDDING_MODELS.find((m) => m.id === modelId)
   return m?.dim ?? DEFAULT_LOCAL_MODEL.dim
 }
-
-/** 当前加载的模型 ID */
-let currentModelId: string | null = null
 
 /** 当前状态 */
 export type LocalEmbedderStatus =
@@ -80,96 +72,198 @@ export function getLocalEmbedderStatus(): LocalEmbedderStatus {
   return status
 }
 
+// ===== Worker 管理 =====
+
+interface LoadResult { ok: boolean; dim?: number; error?: string }
+interface EmbedResult { ok: boolean; vectors?: number[][]; error?: string }
+
+let worker: Worker | null = null
+let workerReady = false
+/** worker 创建失败时回退到主进程同步推理 */
+let useFallback = false
+
+/** 待处理请求的 resolver，按 reqId 索引 */
+const pending = new Map<number, { resolve: (v: any) => void; reject: (e: any) => void }>()
+let nextReqId = 1
+
+/** 启动 worker */
+function initWorker(): void {
+  if (worker || useFallback) return
+  try {
+    worker = new Worker(join(__dirname, 'localEmbedder.worker.js'))
+    worker.on('message', (msg: { type: string; reqId?: number; ok?: boolean; dim?: number; error?: string; vectors?: number[][] }) => {
+      if (msg.type === 'ready') {
+        workerReady = true
+      } else if (msg.type === 'load-result' || msg.type === 'embed-result') {
+        const id = msg.reqId!
+        const p = pending.get(id)
+        if (p) {
+          pending.delete(id)
+          const ok = msg.ok === true
+          if (msg.type === 'load-result') {
+            p.resolve({ ok, dim: msg.dim, error: msg.error } as LoadResult)
+          } else {
+            p.resolve({ ok, vectors: msg.vectors, error: msg.error } as EmbedResult)
+          }
+        }
+      } else if (msg.type === 'error') {
+        // worker 级别错误，reject 所有 pending
+        const err = new Error(msg.error ?? 'worker error')
+        for (const [, p] of pending) p.reject(err)
+        pending.clear()
+      }
+    })
+    worker.on('error', (err) => {
+      console.warn('[localEmbedder] worker error, fallback to sync:', err.message)
+      useFallback = true
+      const e = new Error(err.message)
+      for (const [, p] of pending) p.reject(e)
+      pending.clear()
+    })
+    worker.postMessage({ type: 'init', cacheDir: join(app.getPath('userData'), 'models') })
+  } catch (err) {
+    console.warn('[localEmbedder] worker creation failed, fallback to sync:', err)
+    useFallback = true
+  }
+}
+
+/** 发送请求并等待响应 */
+function requestWorker<T>(type: 'load' | 'embed', payload: { modelId?: string; inputs?: string[] }): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (!worker) {
+      reject(new Error('worker not initialized'))
+      return
+    }
+    const reqId = nextReqId++
+    pending.set(reqId, { resolve: resolve as (v: any) => void, reject })
+    worker.postMessage({ type, reqId, ...payload })
+  })
+}
+
+// ===== Fallback：主进程同步推理（worker 不可用时用） =====
+
+let fbPipeline: any = null
+let fbExtractor: any = null
+
+async function fbLoad(modelId: string): Promise<LoadResult> {
+  try {
+    if (!fbPipeline) {
+      const transformers = await import('@huggingface/transformers')
+      fbPipeline = transformers.pipeline
+    }
+    const { env } = await import('@huggingface/transformers')
+    env.cacheDir = join(app.getPath('userData'), 'models')
+    try {
+      fbExtractor = await fbPipeline('feature-extraction', modelId, { dtype: 'q8' })
+    } catch {
+      fbExtractor = await fbPipeline('feature-extraction', modelId, { dtype: 'fp32' })
+    }
+    const probe = await fbExtractor(['dim-probe'], { pooling: 'mean', normalize: true })
+    const d = probe.dims as number[]
+    const dim = d.length === 2 ? d[1] : (d[2] ?? 0)
+    return { ok: true, dim }
+  } catch (e) {
+    fbExtractor = null
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+async function fbEmbed(inputs: string[]): Promise<EmbedResult> {
+  if (!fbExtractor) return { ok: false, error: '模型未加载' }
+  try {
+    const truncated = inputs.map((t) => (t.length > 2000 ? t.slice(0, 2000) + '…' : t))
+    const output = await fbExtractor(truncated, { pooling: 'mean', normalize: true })
+    const data = output.data as Float32Array | number[]
+    const dims = output.dims as number[]
+    if (dims.length === 2) {
+      const [batch, dim] = dims
+      const vectors: number[][] = []
+      for (let b = 0; b < batch; b++) {
+        const offset = b * dim
+        vectors.push(Array.from(data.slice(offset, offset + dim)))
+      }
+      return { ok: true, vectors }
+    }
+    // fallback：手动 pooling
+    const [batch, seqLen, dim] = dims
+    const vectors: number[][] = []
+    for (let b = 0; b < batch; b++) {
+      const vec = new Array(dim).fill(0)
+      for (let s = 0; s < seqLen; s++) {
+        const offset = (b * seqLen + s) * dim
+        for (let d = 0; d < dim; d++) vec[d] += data[offset + d] as number
+      }
+      for (let d = 0; d < dim; d++) vec[d] /= seqLen
+      let norm = 0
+      for (let d = 0; d < dim; d++) norm += vec[d] * vec[d]
+      norm = Math.sqrt(norm) || 1
+      for (let d = 0; d < dim; d++) vec[d] /= norm
+      vectors.push(vec)
+    }
+    return { ok: true, vectors }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+// ===== 对外 API（签名不变） =====
+
 /**
  * 加载模型（懒加载，重复调用会复用）
  * @param modelId HuggingFace 模型 ID
  */
 export async function loadModel(modelId: string): Promise<void> {
-  if (extractor && currentModelId === modelId) return
+  // 已加载相同模型直接返回
+  if (status.state === 'ready' && status.model === modelId) return
 
-  // 如果正在加载其他模型，等待完成
-  if (loadingPromise) await loadingPromise
-
-  // 加载完成后如果已匹配则直接返回
-  if (extractor && currentModelId === modelId) return
-
-  loadingPromise = doLoadModel(modelId)
-  await loadingPromise
-  loadingPromise = null
-}
-
-async function doLoadModel(modelId: string): Promise<void> {
   status = { state: 'loading', model: modelId }
   try {
-    // 动态 import ESM 模块（主进程为 CommonJS）
-    if (!pipelineFn) {
-      const transformers = await import('@huggingface/transformers')
-      pipelineFn = transformers.pipeline
+    if (!useFallback) {
+      if (!worker) initWorker()
+      // worker 初始化失败时 initWorker 会置 useFallback=true
+      if (!useFallback && worker) {
+        // 等待 worker ready（init 消息回执）
+        await waitForWorkerReady()
+        const r = await requestWorker<LoadResult>('load', { modelId })
+        if (!r.ok || !r.dim) throw new Error(r.error ?? '模型加载失败')
+        status = { state: 'ready', model: modelId, dim: r.dim }
+        return
+      }
     }
-
-    // 设置模型缓存目录到用户数据目录
-    const { env } = await import('@huggingface/transformers')
-    env.cacheDir = join(app.getPath('userData'), 'models')
-
-    // 创建 feature-extraction pipeline
-    extractor = await pipelineFn('feature-extraction', modelId, {
-      dtype: 'fp32'
-    })
-    currentModelId = modelId
-
-    const dim = getLocalModelDim(modelId)
-    status = { state: 'ready', model: modelId, dim }
+    // fallback 同步路径
+    const r = await fbLoad(modelId)
+    if (!r.ok || !r.dim) throw new Error(r.error ?? '模型加载失败')
+    status = { state: 'ready', model: modelId, dim: r.dim }
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e)
     status = { state: 'error', model: modelId, error: err }
-    // 重置以便重试
-    extractor = null
-    currentModelId = null
     throw e
   }
 }
 
-/**
- * 对文本进行 mean pooling（将 token 级输出聚合为句子向量）
- * @param output pipeline 输出（Tensor）
- * @returns 归一化后的向量
- */
-function meanPoolAndNormalize(output: any): number[][] {
-  // output 可能是 { data: Float32Array, dims: [batch, seq, dim] } 或类似结构
-  const data = output.data as Float32Array | number[]
-  const dims = output.dims as number[]
-
-  if (dims.length !== 3) {
-    throw new Error(`预期 3D 张量 [batch, seq, dim]，实际 ${dims.length}D`)
-  }
-
-  const [batch, seqLen, dim] = dims
-  const results: number[][] = []
-
-  for (let b = 0; b < batch; b++) {
-    const vec = new Array(dim).fill(0)
-
-    // Mean pooling：对每个维度取所有 token 的平均值
-    for (let s = 0; s < seqLen; s++) {
-      const offset = (b * seqLen + s) * dim
-      for (let d = 0; d < dim; d++) {
-        vec[d] += data[offset + d] as number
+/** 等待 worker ready（带超时） */
+function waitForWorkerReady(timeoutMs = 5000): Promise<void> {
+  if (workerReady) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
+    const timer = setInterval(() => {
+      if (workerReady) {
+        clearInterval(timer)
+        resolve()
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(timer)
+        reject(new Error('worker init timeout'))
       }
+    }, 50)
+    // worker 错误时也会触发 reject（worker.on('error') 已处理 pending，
+    // 但这里没注册 pending，需监听一次 error）
+    if (worker) {
+      worker.once('error', () => {
+        clearInterval(timer)
+        reject(new Error('worker init failed'))
+      })
     }
-    for (let d = 0; d < dim; d++) {
-      vec[d] /= seqLen
-    }
-
-    // L2 归一化（便于余弦相似度计算）
-    let norm = 0
-    for (let d = 0; d < dim; d++) norm += vec[d] * vec[d]
-    norm = Math.sqrt(norm) || 1
-    for (let d = 0; d < dim; d++) vec[d] /= norm
-
-    results.push(vec)
-  }
-
-  return results
+  })
 }
 
 /**
@@ -185,39 +279,18 @@ export async function embedBatchLocal(
   if (inputs.length === 0) return []
 
   // 确保模型已加载
-  if (!extractor || currentModelId !== modelId) {
+  if (status.state !== 'ready' || status.model !== modelId) {
     await loadModel(modelId)
   }
 
-  // 截断超长文本（all-MiniLM-L6-v2 限制 256 tokens，保守按字符截断）
-  const truncated = inputs.map((t) => {
-    if (t.length > 2000) return t.slice(0, 2000) + '…'
-    return t
-  })
-
-  // 执行推理
-  const output = await extractor(truncated, {
-    pooling: 'mean',
-    normalize: true
-  })
-
-  // pipeline 已配置 pooling + normalize，直接提取向量
-  // output.dims = [batch, dim]
-  const data = output.data as Float32Array | number[]
-  const dims = output.dims as number[]
-
-  if (dims.length === 2) {
-    const [batch, dim] = dims
-    const results: number[][] = []
-    for (let b = 0; b < batch; b++) {
-      const offset = b * dim
-      results.push(Array.from(data.slice(offset, offset + dim)))
-    }
-    return results
+  if (!useFallback && worker) {
+    const r = await requestWorker<EmbedResult>('embed', { inputs })
+    if (!r.ok || !r.vectors) throw new Error(r.error ?? '嵌入推理失败')
+    return r.vectors
   }
-
-  // fallback：手动 pooling（如果 pipeline 未配置 pooling）
-  return meanPoolAndNormalize(output)
+  const r = await fbEmbed(inputs)
+  if (!r.ok || !r.vectors) throw new Error(r.error ?? '嵌入推理失败')
+  return r.vectors
 }
 
 /**
@@ -233,14 +306,20 @@ export async function embedQueryLocal(
 
 /** 释放模型资源（切换模型或退出时调用） */
 export async function disposeLocalEmbedder(): Promise<void> {
-  if (extractor && typeof extractor.dispose === 'function') {
+  if (worker) {
     try {
-      await extractor.dispose()
+      worker.postMessage({ type: 'dispose' })
+      worker.terminate()
     } catch {
-      // 忽略释放错误
+      // 忽略终止错误
     }
+    worker = null
+    workerReady = false
   }
-  extractor = null
-  currentModelId = null
+  // fallback 资源
+  if (fbExtractor && typeof fbExtractor.dispose === 'function') {
+    try { await fbExtractor.dispose() } catch { /* 忽略 */ }
+  }
+  fbExtractor = null
   status = { state: 'idle' }
 }

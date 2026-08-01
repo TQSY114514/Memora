@@ -1,5 +1,5 @@
 import { getDatabase } from '../database/connection'
-import { getSession } from '../database/repositories/sessionRepo'
+import { getSessionsByIds } from '../database/repositories/sessionRepo'
 import { segmentQuery } from './segmenter'
 import type { SearchResult, SearchSnippet } from '@shared/types'
 
@@ -32,8 +32,10 @@ export interface SearchOptions {
  * - 用 Intl.Segmenter 做中文分词（解决 unicode61 逐字切分问题）
  * - 每个词加前缀通配（*）匹配前缀
  * - operator: 'AND'（精确，所有词必须命中）或 'OR'（宽松，任一词命中）
+ *
+ * 导出以供单测覆盖（v1.9）
  */
-function buildFtsQuery(raw: string, operator: 'AND' | 'OR' = 'AND'): string {
+export function buildFtsQuery(raw: string, operator: 'AND' | 'OR' = 'AND'): string {
   const terms = segmentQuery(raw)
   if (terms.length === 0) return ''
 
@@ -90,9 +92,13 @@ export function search(
   }
 
   // 3. 聚合：同一会话的多条命中合并为一个 SearchResult
+  // 批量查询所有命中会话（消除 N+1：100 命中 → 1 次查询而非 100 次）
+  const uniqueSessionIds = [...new Set(rows.map((r) => r.session_id))]
+  const sessionMap = getSessionsByIds(uniqueSessionIds)
+
   const map = new Map<string, SearchResult>()
   for (const row of rows) {
-    const session = getSession(row.session_id, false)
+    const session = sessionMap.get(row.session_id)
     if (!session) continue
 
     // 时间范围过滤
@@ -183,8 +189,9 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
-/** 生成高亮片段（截取匹配关键词前后文，关键词用 <mark> 包裹） */
-function buildSnippet(content: string, query: string, radius = 60): string {
+/** 生成高亮片段（截取匹配关键词前后文，关键词用 <mark> 包裹）
+ * 导出以供单测覆盖（v1.9） */
+export function buildSnippet(content: string, query: string, radius = 60): string {
   if (!content) return ''
   const lowerContent = content.toLowerCase()
   // 用与搜索一致的中文分词，避免中文查询因无空格导致高亮失效

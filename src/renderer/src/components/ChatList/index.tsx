@@ -7,19 +7,19 @@ import { SnippetRenderer } from '../SnippetRenderer'
 import type { Provider, ChatSession, SearchResult } from '@shared/types'
 
 export function ChatList() {
-  const {
-    sessions,
-    activeSessionId,
-    setActiveSession,
-    setActiveSessionData,
-    isSearchMode,
-    searchQuery,
-    searchResults,
-    activeFolderId,
-    setSessions,
-    pinnedIds,
-    togglePin
-  } = useStore()
+  // selector 订阅：每个字段独立订阅，搜索击键改 searchQuery 只触发需重渲染的订阅，
+  // 不再因无关 state（loading/error/workspaces）变化导致整个列表重渲染
+  const sessions = useStore((s) => s.sessions)
+  const activeSessionId = useStore((s) => s.activeSessionId)
+  const setActiveSession = useStore((s) => s.setActiveSession)
+  const setActiveSessionData = useStore((s) => s.setActiveSessionData)
+  const isSearchMode = useStore((s) => s.isSearchMode)
+  const searchQuery = useStore((s) => s.searchQuery)
+  const searchResults = useStore((s) => s.searchResults)
+  const activeFolderId = useStore((s) => s.activeFolderId)
+  const setSessions = useStore((s) => s.setSessions)
+  const pinnedIds = useStore((s) => s.pinnedIds)
+  const togglePin = useStore((s) => s.togglePin)
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBatchBar, setShowBatchBar] = useState(false)

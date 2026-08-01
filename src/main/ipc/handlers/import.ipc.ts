@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafePath, assertSafePaths } from '../safeHandle'
 import { existsSync } from 'fs'
 import { IPC } from '@shared/constants'
 import { importFile, importDirectory, importExtractedSessions } from '@importer/service'
@@ -18,22 +18,27 @@ function safeGetPath(name: 'downloads' | 'documents' | 'desktop'): string | null
 
 export function registerImportHandlers(): void {
   // ===== Importer（大文件流式 + 进度推送） =====
+  // 安全：所有接受路径的 IPC 通道均经 assertSafePath 白名单校验，
+  // 防止被攻破的渲染进程通过任意路径读取/写入主进程可达文件。
   safeHandle(
     IPC.IMPORT_FILE,
-    (e, filePath: string, options?: { folderId?: string }) =>
-      importFile(filePath, {
+    (e, filePath: string, options?: { folderId?: string }) => {
+      const safePath = assertSafePath(filePath, 'filePath')
+      return importFile(safePath, {
         folderId: options?.folderId,
         onProgress: (loaded, total) => {
           // 推送进度到渲染进程（非阻塞）
-          e.sender.send(IPC.IMPORT_PROGRESS, { filePath, loaded, total })
+          e.sender.send(IPC.IMPORT_PROGRESS, { filePath: safePath, loaded, total })
         }
       })
+    }
   )
   safeHandle(
     IPC.IMPORT_FILES,
     (e, filePaths: string[], options?: { folderId?: string }) => {
+      const safePaths = assertSafePaths(filePaths, 'filePaths')
       const aggregated = { imported: 0, skipped: 0, failed: 0, errors: [] as string[], sessionIds: [] as string[] }
-      for (const p of filePaths) {
+      for (const p of safePaths) {
         const r = importFile(p, {
           folderId: options?.folderId,
           onProgress: (loaded, total) => {
@@ -51,7 +56,10 @@ export function registerImportHandlers(): void {
   )
   safeHandle(
     IPC.IMPORT_DIRECTORY,
-    (_e, dirPath: string, options?: { folderId?: string }) => importDirectory(dirPath, options)
+    (_e, dirPath: string, options?: { folderId?: string }) => {
+      const safeDir = assertSafePath(dirPath, 'dirPath')
+      return importDirectory(safeDir, options)
+    }
   )
 
   // ===== 扫描器（智能导入中心） =====
@@ -75,17 +83,26 @@ export function registerImportHandlers(): void {
   safeHandle(
     IPC.SCANNER_SCAN,
     (_e, dirs: string[], options?: { maxDepth?: number; maxFiles?: number }) => {
-      return scanDirectories(dirs, options)
+      const safeDirs = assertSafePaths(dirs, 'dirs')
+      return scanDirectories(safeDirs, options)
     }
   )
 
   // ===== AI 应用检测 + 本地扒取 =====
   safeHandle(IPC.DETECT_APPS, () => detectInstalledApps())
 
+  // 安全：EXTRACT_APP 不信任渲染端传入的 dataPath（可能来自被攻破的渲染进程），
+  // 改为主进程重新调用 detectInstalledApps()，按 provider 匹配已检测到的固定数据路径。
+  // 这样即使渲染端传入任意路径，主进程也只会读取自己检测到的 AI 应用数据目录。
   safeHandle(
     IPC.EXTRACT_APP,
-    (_e, provider: string, dataPath: string, options?: { maxSessions?: number }) => {
-      return extractLocal(provider as any, dataPath, options)
+    (_e, provider: string, _dataPath: string, options?: { maxSessions?: number }) => {
+      const detected = detectInstalledApps()
+      const match = detected.find((a) => a.provider === provider && a.dataPath)
+      if (!match || !match.dataPath) {
+        throw new Error(`[IPC] 未检测到 ${provider} 的可扒取数据路径`)
+      }
+      return extractLocal(provider as any, match.dataPath, options)
     }
   )
 

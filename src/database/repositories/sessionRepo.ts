@@ -90,6 +90,45 @@ function getSessionTags(sessionId: string): Tag[] {
   return rows.map(rowToTag)
 }
 
+/** 批量查询多个会话的标签（消除 N+1：listSessions 1000 行 → 1 次查询） */
+export function getSessionTagsBatch(sessionIds: string[]): Map<string, Tag[]> {
+  if (sessionIds.length === 0) return new Map()
+  const db = getDatabase()
+  const placeholders = sessionIds.map(() => '?').join(',')
+  const rows = db
+    .prepare(
+      `SELECT st.session_id, t.id, t.name, t.color, t.created_at
+       FROM tags t
+       JOIN session_tags st ON st.tag_id = t.id
+       WHERE st.session_id IN (${placeholders})
+       ORDER BY t.name`
+    )
+    .all(...sessionIds) as Array<{ session_id: string; id: string; name: string; color: string | null; created_at: string }>
+  const map = new Map<string, Tag[]>()
+  for (const r of rows) {
+    const arr = map.get(r.session_id) ?? []
+    arr.push({ id: r.id, name: r.name, color: r.color ?? undefined, createdAt: r.created_at })
+    map.set(r.session_id, arr)
+  }
+  return map
+}
+
+/** 批量获取多个会话（不含消息，含标签），消除搜索聚合时的 N+1 查询 */
+export function getSessionsByIds(ids: string[]): Map<string, ChatSession> {
+  if (ids.length === 0) return new Map()
+  const db = getDatabase()
+  const placeholders = ids.map(() => '?').join(',')
+  const rows = db
+    .prepare(`SELECT * FROM chat_sessions WHERE id IN (${placeholders})`)
+    .all(...ids) as SessionRow[]
+  const tagsMap = getSessionTagsBatch(ids)
+  const map = new Map<string, ChatSession>()
+  for (const row of rows) {
+    map.set(row.id, rowToSession(row, tagsMap.get(row.id) ?? []))
+  }
+  return map
+}
+
 /** 创建会话（含消息）+ 建立 FTS 索引。事务保证一致性 */
 export function createSession(
   session: Omit<ChatSession, 'id' | 'importedAt'> & { id?: string },
@@ -222,7 +261,9 @@ export function listSessions(options?: {
     .prepare(`SELECT * FROM chat_sessions ${where} ORDER BY updated_at DESC LIMIT @limit OFFSET @offset`)
     .all({ ...params, limit, offset }) as SessionRow[]
 
-  return rows.map((row) => rowToSession(row, getSessionTags(row.id)))
+  // 批量查询标签，消除 N+1（1000 会话 → 1 次查询而非 1000 次）
+  const tagsMap = getSessionTagsBatch(rows.map((r) => r.id))
+  return rows.map((row) => rowToSession(row, tagsMap.get(row.id) ?? []))
 }
 
 /** 检查会话是否匹配智能文件夹规则 */
@@ -254,7 +295,8 @@ export function listSessionsByWorkspace(workspaceId: string): ChatSession[] {
      WHERE f.workspace_id = ?
      ORDER BY cs.updated_at DESC`
   ).all(workspaceId) as SessionRow[]
-  return rows.map((row) => rowToSession(row, getSessionTags(row.id)))
+  const tagsMap = getSessionTagsBatch(rows.map((r) => r.id))
+  return rows.map((row) => rowToSession(row, tagsMap.get(row.id) ?? []))
 }
 
 /** 列出匹配智能文件夹规则的会话 */
