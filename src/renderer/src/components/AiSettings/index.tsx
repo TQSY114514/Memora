@@ -4,7 +4,7 @@ import {
   isAiConfigured
 } from '../../stores/aiConfigStore'
 import { API_STYLE_META } from '@shared/constants'
-import type { AiApiStyle } from '@shared/types'
+import type { AiApiStyle, EmbeddingMode } from '@shared/types'
 
 interface AiSettingsProps {
   onClose: () => void
@@ -41,10 +41,35 @@ export function AiSettings({ onClose }: AiSettingsProps) {
   const [newProviderStyle, setNewProviderStyle] = useState<AiApiStyle>('openai')
   // safeStorage 不可用时（无 libsecret 的 Linux）API Key 会明文降级存储
   const [encryptionAvailable, setEncryptionAvailable] = useState(true)
+  // v1.8 #15：本地嵌入模型状态
+  const [localEmbedderStatus, setLocalEmbedderStatus] = useState<{
+    state: 'idle' | 'loading' | 'ready' | 'error'
+    model?: string
+    dim?: number
+    error?: string
+  }>({ state: 'idle' })
 
   useEffect(() => {
     window.Memora.secret.isEncryptionAvailable().then(setEncryptionAvailable).catch(() => {})
   }, [])
+
+  // 轮询本地嵌入模型状态
+  useEffect(() => {
+    if (config.embeddingMode !== 'local') return
+    let cancelled = false
+    const fetchStatus = () => {
+      window.Memora.ai.getLocalEmbedderStatus().then((s) => {
+        if (!cancelled) {
+          setLocalEmbedderStatus(s)
+          if (s.state === 'loading') {
+            setTimeout(fetchStatus, 1000)
+          }
+        }
+      }).catch(() => {})
+    }
+    fetchStatus()
+    return () => { cancelled = true }
+  }, [config.embeddingMode])
 
   async function handleTest() {
     setTestStatus('testing')
@@ -55,7 +80,8 @@ export function AiSettings({ onClose }: AiSettingsProps) {
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         chatModel: config.chatModel,
-        embeddingModel: config.embeddingModel
+        embeddingModel: config.embeddingModel,
+        embeddingMode: config.embeddingMode
       })
       if (!result.ok) {
         throw new Error(result.error)
@@ -145,8 +171,11 @@ export function AiSettings({ onClose }: AiSettingsProps) {
             <div className="p-2 space-y-0.5">
               {providerKeys.map((p) => {
                 const cfg = configs[p]
-                const isConfigured = !!(cfg.baseUrl && cfg.chatModel && cfg.embeddingModel &&
-                  (!API_STYLE_META[cfg.apiStyle].needsApiKey || cfg.hasApiKey || cfg.apiKey))
+                // v1.8 #15：local 模式下 embeddingModel 为本地模型 ID（非空即算配置）
+                const needsKey = API_STYLE_META[cfg.apiStyle].needsApiKey
+                const isConfigured = cfg.embeddingMode === 'local'
+                  ? !!(cfg.baseUrl && cfg.chatModel && (!needsKey || cfg.hasApiKey || cfg.apiKey))
+                  : !!(cfg.baseUrl && cfg.chatModel && cfg.embeddingModel && (!needsKey || cfg.hasApiKey || cfg.apiKey))
                 return (
                   <button
                     key={p}
@@ -297,41 +326,137 @@ export function AiSettings({ onClose }: AiSettingsProps) {
               />
             </div>
 
-            {/* 嵌入模型 + 维度 */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-fg-secondary mb-1.5">
-                  嵌入模型（用于语义搜索）
-                </label>
-                <input
-                  type="text"
-                  value={config.embeddingModel}
-                  onChange={(e) => setConfig({ embeddingModel: e.target.value })}
-                  placeholder={config.apiStyle === 'gemini' ? 'text-embedding-004' : config.apiStyle === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small'}
-                  className="Memora-input w-full"
-                />
+            {/* 嵌入模式选择（v1.8 #15） */}
+            <div>
+              <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+                嵌入模式（用于语义搜索）
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfig({ embeddingMode: 'api' as EmbeddingMode })}
+                  className={`flex-1 px-3 py-2 rounded text-xs transition-colors border ${
+                    config.embeddingMode === 'api'
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-bg-secondary text-fg-secondary border-border hover:bg-bg-hover'
+                  }`}
+                >
+                  API 远程嵌入
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfig({ embeddingMode: 'local' as EmbeddingMode })}
+                  className={`flex-1 px-3 py-2 rounded text-xs transition-colors border ${
+                    config.embeddingMode === 'local'
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-bg-secondary text-fg-secondary border-border hover:bg-bg-hover'
+                  }`}
+                >
+                  本地 ONNX 嵌入（隐私优先）
+                </button>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-fg-secondary mb-1.5">
-                  向量维度
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={8192}
-                  value={config.embeddingDim}
-                  onChange={(e) => {
-                    const n = parseInt(e.target.value, 10)
-                    // 仅在合法范围（1-8192）内更新，避免清空输入框时维度变为 0 导致向量操作失败
-                    if (!Number.isNaN(n) && n >= 1 && n <= 8192) {
-                      setConfig({ embeddingDim: n })
-                    }
-                  }}
-                  placeholder="1536"
-                  className="Memora-input w-full"
-                />
-              </div>
+              <p className="text-[10px] text-fg-muted mt-1 leading-relaxed">
+                {config.embeddingMode === 'local'
+                  ? '嵌入向量在本地计算，无需 API 密钥，首次使用时自动下载模型（~23MB）。对话总结仍走 API。'
+                  : '嵌入向量通过 API 远程计算，需要供应商支持 embeddings 接口。'}
+              </p>
             </div>
+
+            {/* 嵌入模型配置：API 模式 或 本地模式 */}
+            {config.embeddingMode === 'local' ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+                    本地嵌入模型
+                  </label>
+                  <select
+                    value={config.embeddingModel}
+                    onChange={(e) => {
+                      const modelId = e.target.value
+                      const dims: Record<string, number> = {
+                        'Xenova/all-MiniLM-L6-v2': 384,
+                        'Xenova/multilingual-e5-small': 384,
+                        'Xenova/bge-small-zh-v1.5': 512
+                      }
+                      setConfig({
+                        embeddingModel: modelId,
+                        embeddingDim: dims[modelId] ?? 384
+                      })
+                    }}
+                    className="Memora-input w-full"
+                  >
+                    <option value="Xenova/all-MiniLM-L6-v2">all-MiniLM-L6-v2（~23MB · 轻量多语言）</option>
+                    <option value="Xenova/multilingual-e5-small">multilingual-e5-small（~120MB · 多语言含中文）</option>
+                    <option value="Xenova/bge-small-zh-v1.5">bge-small-zh-v1.5（~50MB · 中文专用）</option>
+                  </select>
+                  <p className="text-[10px] text-fg-muted mt-1">
+                    向量维度：{config.embeddingDim}（自动匹配模型）
+                  </p>
+                </div>
+                {/* 模型状态与预加载 */}
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  {localEmbedderStatus.state === 'idle' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.Memora.ai.loadLocalModel(config.embeddingModel).catch(() => {})
+                      }}
+                      className="Memora-btn Memora-btn-ghost text-xs"
+                    >
+                      预加载模型
+                    </button>
+                  )}
+                  {localEmbedderStatus.state === 'loading' && (
+                    <span className="text-fg-muted">模型加载中…（首次需下载）</span>
+                  )}
+                  {localEmbedderStatus.state === 'ready' && (
+                    <span className="text-green-600">
+                      ✓ 模型就绪（{localEmbedderStatus.model}，{localEmbedderStatus.dim}维）
+                    </span>
+                  )}
+                  {localEmbedderStatus.state === 'error' && (
+                    <span className="text-red-500 break-all">
+                      ✗ 加载失败：{localEmbedderStatus.error}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+                    嵌入模型（用于语义搜索）
+                  </label>
+                  <input
+                    type="text"
+                    value={config.embeddingModel}
+                    onChange={(e) => setConfig({ embeddingModel: e.target.value })}
+                    placeholder={config.apiStyle === 'gemini' ? 'text-embedding-004' : config.apiStyle === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small'}
+                    className="Memora-input w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+                    向量维度
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={8192}
+                    value={config.embeddingDim}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10)
+                      // 仅在合法范围（1-8192）内更新，避免清空输入框时维度变为 0 导致向量操作失败
+                      if (!Number.isNaN(n) && n >= 1 && n <= 8192) {
+                        setConfig({ embeddingDim: n })
+                      }
+                    }}
+                    placeholder="1536"
+                    className="Memora-input w-full"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* 测试连接 */}
             <div className="pt-2 flex items-center gap-2 flex-wrap">

@@ -288,7 +288,8 @@ export async function embedQuery(config: AiConfig, text: string): Promise<number
 }
 
 /**
- * 调用 embedding 接口（批量，OpenAI 兼容 + Ollama 支持）
+ * 调用 embedding 接口（批量，OpenAI 兼容 + Ollama + 本地 ONNX 支持）
+ * - 本地 ONNX（v1.8 #15）：config.embeddingMode === 'local' 时走 localEmbedder
  * - OpenAI / Anthropic 第三方 / Gemini：批量请求
  * - Ollama：逐条请求（Ollama 的 /api/embeddings 只支持单条 prompt）
  */
@@ -297,6 +298,13 @@ export async function embedBatch(
   inputs: string[]
 ): Promise<number[][]> {
   if (inputs.length === 0) return []
+
+  // v1.8 #15：本地嵌入模式
+  if (config.embeddingMode === 'local') {
+    const { embedBatchLocal } = await import('./localEmbedder')
+    return embedBatchLocal(inputs, config.embeddingModel || undefined)
+  }
+
   const style = config.apiStyle ?? 'openai'
 
   if (style === 'ollama') {

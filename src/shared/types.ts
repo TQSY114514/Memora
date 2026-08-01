@@ -341,6 +341,9 @@ export interface KnowledgeGraphData {
  */
 export type AiApiStyle = 'openai' | 'anthropic' | 'ollama' | 'gemini'
 
+/** 嵌入模式：API 远程 或 本地 ONNX（v1.8 #15） */
+export type EmbeddingMode = 'api' | 'local'
+
 /** AI 配置（Phase 2，v1.2 扩展为无限供应商 + 多协议） */
 export interface AiConfig {
   provider: string          // 供应商唯一标识（v1.2 起为 string，可任意命名）
@@ -349,8 +352,9 @@ export interface AiConfig {
   baseUrl: string           // API 基地址
   apiKey: string            // 密钥（ollama 可空）
   chatModel: string         // 对话模型（用于总结）
-  embeddingModel: string    // 嵌入模型（用于语义搜索）
+  embeddingModel: string    // 嵌入模型（用于语义搜索；local 模式下为本地模型 ID）
   embeddingDim: number      // 嵌入维度
+  embeddingMode?: EmbeddingMode  // v1.8 #15：嵌入模式，默认 'api'
 }
 
 /** 语义搜索结果（Phase 2） */

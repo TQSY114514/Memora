@@ -11,6 +11,7 @@ import {
   deleteProviderConfig
 } from '@main/aiConfigFile'
 import { callChat, embedQuery } from '@ai/apiClient'
+import { getLocalEmbedderStatus, loadModel } from '@ai/localEmbedder'
 import type { AiConfig, AiApiStyle } from '@shared/types'
 
 export function registerAiHandlers(): void {
@@ -53,6 +54,15 @@ export function registerAiHandlers(): void {
     return getEmbedStatus(sessionId)
   })
 
+  // ===== 本地嵌入模型（v1.8 #15） =====
+  safeHandle(IPC.AI_EMBED_LOCAL_STATUS, () => {
+    return getLocalEmbedderStatus()
+  })
+
+  safeHandle(IPC.AI_EMBED_LOCAL_LOAD, async (_e, modelId: string) => {
+    await loadModel(modelId)
+  })
+
   // ===== Project Memory 智能问答（Phase 3） =====
   safeHandle(
     IPC.AI_MEMORY_ASK,
@@ -77,12 +87,13 @@ export function registerAiHandlers(): void {
   // v1.2：用 apiClient 统一路由，支持 openai/anthropic/ollama/gemini 四种协议
   // 同时测 chat 和 embeddings，只要一个成功就算可用
   safeHandle(IPC.TEST_AI_CONNECTION, async (_e, config) => {
-    const { baseUrl, apiKey, chatModel, embeddingModel, apiStyle } = config as {
+    const { baseUrl, apiKey, chatModel, embeddingModel, apiStyle, embeddingMode } = config as {
       baseUrl: string
       apiKey: string
       chatModel: string
       embeddingModel: string
       apiStyle?: AiApiStyle
+      embeddingMode?: 'api' | 'local'
     }
 
     const aiConfig: AiConfig = {
@@ -92,7 +103,8 @@ export function registerAiHandlers(): void {
       apiKey,
       chatModel,
       embeddingModel,
-      embeddingDim: 0 // 测试时未知，不校验
+      embeddingDim: 0, // 测试时未知，不校验
+      embeddingMode
     }
 
     // 1. 测 chat 接口（必测）
@@ -103,6 +115,24 @@ export function registerAiHandlers(): void {
       chatOk = true
     } catch (e) {
       chatError = e instanceof Error ? e.message : String(e)
+    }
+
+    // v1.8 #15：本地嵌入模式跳过 embedding API 测试，chat 成功即算可用
+    if (embeddingMode === 'local') {
+      if (chatOk) {
+        return {
+          ok: true,
+          dim: 0,
+          error: undefined,
+          message: '对话连接成功 ✓（嵌入模型将使用本地 ONNX，首次使用时自动下载模型）'
+        }
+      }
+      return {
+        ok: false,
+        error: `对话接口失败：${chatError}`,
+        dim: 0,
+        message: undefined
+      }
     }
 
     // 2. 测 embeddings 接口（可选，不支持也不算失败）
@@ -137,7 +167,7 @@ export function registerAiHandlers(): void {
   // ===== AI 配置文件持久化（供 MCP 进程读取） =====
   safeHandle(
     IPC.AI_CONFIG_FILE_SAVE,
-    (_e, provider: string, config: { baseUrl: string; chatModel: string; embeddingModel: string; embeddingDim: number; hasApiKey: boolean }) => {
+    (_e, provider: string, config: { baseUrl: string; chatModel: string; embeddingModel: string; embeddingDim: number; hasApiKey: boolean; apiStyle?: AiApiStyle; label?: string; embeddingMode?: 'api' | 'local' }) => {
       saveProviderConfig(provider, config)
     }
   )

@@ -24,6 +24,8 @@ export interface StoredAiConfig {
   apiStyle?: 'openai' | 'anthropic' | 'ollama' | 'gemini'
   /** v1.2 新增：显示名 */
   label?: string
+  /** v1.8 #15 新增：嵌入模式（默认 api） */
+  embeddingMode?: 'api' | 'local'
 }
 
 export interface AiConfigFile {

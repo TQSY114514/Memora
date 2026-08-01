@@ -271,6 +271,7 @@ const api = {
       apiKey: string
       chatModel: string
       embeddingModel: string
+      embeddingMode?: import('@shared/types').EmbeddingMode
     }): Promise<{ ok: boolean; dim: number; error: string | undefined; message?: string }> =>
       ipcRenderer.invoke(IPC.TEST_AI_CONNECTION, config),
     /** 同步 AI 配置到主进程文件（供 MCP 进程读取，只存非敏感字段） */
@@ -284,6 +285,7 @@ const api = {
         hasApiKey: boolean
         apiStyle?: import('@shared/types').AiApiStyle
         label?: string
+        embeddingMode?: import('@shared/types').EmbeddingMode
       }
     ): Promise<void> => ipcRenderer.invoke(IPC.AI_CONFIG_FILE_SAVE, provider, config),
     /** 设置激活的 provider（同步到主进程文件） */
@@ -291,7 +293,17 @@ const api = {
       ipcRenderer.invoke(IPC.AI_CONFIG_FILE_SET_ACTIVE, provider),
     /** 删除某 provider 的配置文件记录 */
     deleteConfigFile: (provider: string): Promise<void> =>
-      ipcRenderer.invoke(IPC.AI_CONFIG_FILE_DELETE, provider)
+      ipcRenderer.invoke(IPC.AI_CONFIG_FILE_DELETE, provider),
+    /** 查询本地嵌入模型状态（v1.8 #15） */
+    getLocalEmbedderStatus: (): Promise<{
+      state: 'idle' | 'loading' | 'ready' | 'error'
+      model?: string
+      dim?: number
+      error?: string
+    }> => ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_STATUS),
+    /** 预加载本地嵌入模型（v1.8 #15） */
+    loadLocalModel: (modelId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_LOAD, modelId)
   },
 
   // ===== API Key 安全存储（safeStorage 加密） =====

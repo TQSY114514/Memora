@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AiConfig, AiApiStyle } from '@shared/types'
+import type { AiConfig, AiApiStyle, EmbeddingMode } from '@shared/types'
 import { API_STYLE_META } from '@shared/constants'
 
 /**
@@ -74,6 +74,8 @@ export type ProviderConfig = {
   chatModel: string
   embeddingModel: string
   embeddingDim: number
+  /** v1.8 #15：嵌入模式（默认 api） */
+  embeddingMode: EmbeddingMode
 }
 
 /** 所有供应商的配置映射（key 是 provider 唯一标识） */
@@ -142,7 +144,8 @@ function makeDefaultConfigs(): ProviderConfigs {
       hasApiKey: false,
       chatModel: preset.chatModel,
       embeddingModel: preset.embeddingModel,
-      embeddingDim: preset.embeddingDim
+      embeddingDim: preset.embeddingDim,
+      embeddingMode: 'api'
     }
   }
   return configs as ProviderConfigs
@@ -184,6 +187,7 @@ function loadConfigs(): ProviderConfigs {
         chatModel: stored?.chatModel ?? preset?.chatModel ?? '',
         embeddingModel: stored?.embeddingModel ?? preset?.embeddingModel ?? '',
         embeddingDim: stored?.embeddingDim ?? preset?.embeddingDim ?? 1536,
+        embeddingMode: (stored as Record<string, unknown>)?.embeddingMode === 'local' ? 'local' : 'api',
         apiKey: '', // 不从 localStorage 加载明文
         hasApiKey
       }
@@ -224,7 +228,8 @@ function saveConfigs(configs: ProviderConfigs): void {
         hasApiKey: c.hasApiKey,
         chatModel: c.chatModel,
         embeddingModel: c.embeddingModel,
-        embeddingDim: c.embeddingDim
+        embeddingDim: c.embeddingDim,
+        embeddingMode: c.embeddingMode
         // 不存 apiKey 明文
       }
     }
@@ -305,7 +310,8 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
         chatModel: nextConfig.chatModel,
         embeddingModel: nextConfig.embeddingModel,
         embeddingDim: nextConfig.embeddingDim,
-        hasApiKey: nextConfig.hasApiKey
+        hasApiKey: nextConfig.hasApiKey,
+        embeddingMode: nextConfig.embeddingMode
       }).catch(() => {})
       set({ configs: nextConfigs, config: nextConfig })
     },
@@ -329,7 +335,8 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
         hasApiKey: false,
         chatModel: preset.chatModel,
         embeddingModel: preset.embeddingModel,
-        embeddingDim: preset.embeddingDim
+        embeddingDim: preset.embeddingDim,
+        embeddingMode: 'api'
       }
       const state = get()
       const nextConfigs = { ...state.configs, [provider]: resetConfig }
@@ -353,7 +360,8 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
         hasApiKey: false,
         chatModel: '',
         embeddingModel: '',
-        embeddingDim: 1536
+        embeddingDim: 1536,
+        embeddingMode: 'api'
       }
       const state = get()
       const nextConfigs = { ...state.configs, [key]: newConfig }
@@ -436,7 +444,8 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
         chatModel: nextConfig.chatModel,
         embeddingModel: nextConfig.embeddingModel,
         embeddingDim: nextConfig.embeddingDim,
-        hasApiKey: nextConfig.hasApiKey
+        hasApiKey: nextConfig.hasApiKey,
+        embeddingMode: nextConfig.embeddingMode
       }).catch(() => {})
 
       if (provider === state.activeProvider) {
@@ -475,7 +484,8 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
         chatModel: nextConfig.chatModel,
         embeddingModel: nextConfig.embeddingModel,
         embeddingDim: nextConfig.embeddingDim,
-        hasApiKey: nextConfig.hasApiKey
+        hasApiKey: nextConfig.hasApiKey,
+        embeddingMode: nextConfig.embeddingMode
       }).catch(() => {})
 
       if (provider === state.activeProvider) {
@@ -520,6 +530,10 @@ export const useAiConfigStore = create<AiConfigState>((set, get) => {
 /** 判断某个供应商配置是否完整可用（基于 hasApiKey，不依赖明文是否已加载） */
 export function isProviderConfigured(cfg: ProviderConfig): boolean {
   const needsKey = API_STYLE_META[cfg.apiStyle].needsApiKey
+  // v1.8 #15：local 模式下 embeddingModel 为本地模型 ID，不需要 API embedding 配置
+  if (cfg.embeddingMode === 'local') {
+    return !!(cfg.baseUrl && cfg.chatModel && (!needsKey || cfg.hasApiKey || cfg.apiKey))
+  }
   return !!(cfg.baseUrl && cfg.chatModel && cfg.embeddingModel && (!needsKey || cfg.hasApiKey || cfg.apiKey))
 }
 
@@ -543,6 +557,7 @@ export function getActiveAiConfig(): AiConfig {
     apiKey: cfg.apiKey,
     chatModel: cfg.chatModel,
     embeddingModel: cfg.embeddingModel,
-    embeddingDim: cfg.embeddingDim
+    embeddingDim: cfg.embeddingDim,
+    embeddingMode: cfg.embeddingMode
   }
 }

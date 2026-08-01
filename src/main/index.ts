@@ -323,6 +323,10 @@ function startGui(): void {
     if (lifecycleTimer) clearInterval(lifecycleTimer)
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
+    // 释放本地嵌入模型资源（v1.8 #15，best-effort）
+    import('@ai/localEmbedder')
+      .then(({ disposeLocalEmbedder }) => disposeLocalEmbedder())
+      .catch(() => {})
     // 退出前将 WAL 写回主库 + 优化查询计划，避免 WAL 膨胀导致下次启动变慢
     checkpointDatabase()
     closeDatabase()

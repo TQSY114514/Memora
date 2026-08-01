@@ -125,6 +125,8 @@ export const IPC = {
   AI_KNOWLEDGE_GENERATE: 'ai:knowledge:generate',
   AI_EMBED_SESSION: 'ai:embed:session',
   AI_EMBED_STATUS: 'ai:embed:status',
+  AI_EMBED_LOCAL_STATUS: 'ai:embed:local:status',
+  AI_EMBED_LOCAL_LOAD: 'ai:embed:local:load',
 
   // 语义搜索（Phase 2）
   SEARCH_SEMANTIC: 'search:semantic',
