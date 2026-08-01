@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.6.0'
+export const APP_VERSION = '1.6.1'
 
 /**
  * AI API 协议风格元信息（v1.2）
@@ -195,7 +195,11 @@ export const IPC = {
   PREF_CONFLICTS: 'pref:conflicts',
 
   // 搜索增强（v1.6）
-  SEARCH_ADVANCED: 'search:advanced'
+  SEARCH_ADVANCED: 'search:advanced',
+
+  // 日志系统（v1.6.1）
+  LOG_LIST_FILES: 'log:list-files',
+  LOG_GET_DIR: 'log:get-dir'
 } as const
 
 /** Provider 显示元信息 */

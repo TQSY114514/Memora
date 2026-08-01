@@ -317,9 +317,9 @@ const api = {
     /** 手动创建一次热备份（v1.6） */
     create: (): Promise<{ filename: string; size: number; createdAt: string }> =>
       ipcRenderer.invoke(IPC.BACKUP_CREATE),
-    /** 从热备份恢复（v1.6） */
-    restore: (filename: string): Promise<{ restored: boolean }> =>
-      ipcRenderer.invoke(IPC.BACKUP_RESTORE, filename),
+    /** 从热备份恢复（v1.6，password 用于加密备份 v1.6.1） */
+    restore: (filename: string, password?: string): Promise<{ restored: boolean }> =>
+      ipcRenderer.invoke(IPC.BACKUP_RESTORE, filename, password),
     /** 删除指定热备份（v1.6） */
     delete: (filename: string): Promise<{ deleted: boolean }> =>
       ipcRenderer.invoke(IPC.BACKUP_DELETE, filename),
@@ -334,6 +334,14 @@ const api = {
   db: {
     vacuum: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.DB_VACUUM),
     cleanOrphans: (): Promise<{ cleaned: number }> => ipcRenderer.invoke(IPC.DB_CLEAN_ORPHANS)
+  },
+
+  // ===== 日志系统（v1.6.1） =====
+  log: {
+    /** 列出日志文件路径 */
+    listFiles: (): Promise<string[]> => ipcRenderer.invoke(IPC.LOG_LIST_FILES),
+    /** 获取日志目录 */
+    getDir: (): Promise<string> => ipcRenderer.invoke(IPC.LOG_GET_DIR)
   },
 
   // ===== 后台静默导入（P3） =====

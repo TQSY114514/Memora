@@ -447,6 +447,8 @@ export interface BackupConfig {
   intervalMinutes: number
   maxBackups: number
   enabled: boolean
+  /** 加密密码（可选，v1.6.1） */
+  encryptionKey?: string
 }
 
 /** 备份条目（v1.6） */
@@ -454,6 +456,8 @@ export interface BackupEntry {
   filename: string
   size: number
   createdAt: string
+  /** 是否加密（v1.6.1） */
+  encrypted: boolean
 }
 
 /** 后台静默导入配置 */

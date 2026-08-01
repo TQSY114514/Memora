@@ -4,6 +4,7 @@ import { IPC } from '@shared/constants'
 import { getDatabase } from '@db/connection'
 import { getSession } from '@db/repositories'
 import { backupService } from '../../backup'
+import { logger } from '../../logger'
 import type { ChatSession, BackupConfig } from '@shared/types'
 
 function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
@@ -217,11 +218,16 @@ export function registerSystemHandlers(): void {
 
   safeHandle(IPC.BACKUP_CREATE, async () => backupService.backupNow())
 
-  safeHandle(IPC.BACKUP_RESTORE, async (_e, filename: string) => backupService.restoreBackup(filename))
+  safeHandle(IPC.BACKUP_RESTORE, async (_e, filename: string, password?: string) => backupService.restoreBackup(filename, password))
 
   safeHandle(IPC.BACKUP_DELETE, (_e, filename: string) => backupService.deleteBackup(filename))
 
   safeHandle(IPC.BACKUP_CONFIG_GET, () => backupService.getConfig())
 
   safeHandle(IPC.BACKUP_CONFIG_SET, (_e, config: Partial<BackupConfig>) => backupService.setConfig(config))
+
+  // ===== 日志系统（v1.6.1） =====
+  safeHandle(IPC.LOG_LIST_FILES, () => logger.listLogFiles())
+
+  safeHandle(IPC.LOG_GET_DIR, () => logger.getLogDir())
 }

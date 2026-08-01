@@ -8,14 +8,17 @@ import { backgroundImporter } from '../importer/backgroundImporter'
 import { shutdownSemanticWorker } from '../search/semantic'
 import { decayConfidence } from '../database/repositories/preferencesRepo'
 import { backupService } from './backup'
+import { logger } from './logger'
 
 // ===== 全局异常处理器 =====
 // 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
 process.on('unhandledRejection', (reason) => {
-  console.error('[FATAL] Unhandled Rejection:', reason instanceof Error ? reason.stack : reason)
+  logger.error('Unhandled Rejection', {
+    error: reason instanceof Error ? reason.stack : String(reason)
+  })
 })
 process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught Exception:', err.stack)
+  logger.error('Uncaught Exception', { error: err.stack })
 })
 
 // ===== MCP Server 模式 =====
@@ -120,7 +123,7 @@ function startGui(): void {
 
     // 页面加载失败时给出可见提示，避免静默黑屏
     mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-      console.error(`[renderer] 加载失败 (${errorCode}): ${errorDescription} — ${validatedURL}`)
+      logger.error('Renderer load failed', { errorCode, errorDescription, validatedURL })
       mainWindow?.webContents.loadURL(`data:text/html;charset=utf-8,
         <html>
         <body style="background:#0f0e12;color:#e8e6f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
@@ -203,10 +206,10 @@ function startGui(): void {
     try {
       const decayed = decayConfidence()
       if (decayed > 0) {
-        console.log(`[memory] 启动时衰减 ${decayed} 条偏好（30 天未访问）`)
+        logger.info('Memory decay on startup', { decayed, daysThreshold: 30 })
       }
     } catch (e) {
-      console.warn('[memory] 衰减失败（不影响启动）:', e)
+      logger.warn('Memory decay failed (non-blocking)', { error: String(e) })
     }
 
     // 注册 IPC 处理器
