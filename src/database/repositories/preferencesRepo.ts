@@ -9,7 +9,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
 import { segment } from '@search/segmenter'
-import type { Preference, PreferenceStatus, PreferenceSource, UserProfile } from '@shared/types'
+import type { Preference, PreferenceStatus, PreferenceSource, UserProfile, ConflictReport } from '@shared/types'
 
 interface PreferenceRow {
   id: string
@@ -365,4 +365,78 @@ export function countPreferences(workspaceId: string): {
   const superseded = (db.prepare("SELECT COUNT(*) as n FROM preferences WHERE workspace_id = ? AND status = 'superseded'").get(workspaceId) as { n: number }).n
   const archived = (db.prepare("SELECT COUNT(*) as n FROM preferences WHERE workspace_id = ? AND status = 'archived'").get(workspaceId) as { n: number }).n
   return { total, active, superseded, archived }
+}
+
+/**
+ * 冲突检测（v1.6）
+ * 扫描同 subject 下有多个不同 value 的 active 偏好，报告冲突。
+ * 用于在 UI 中提示用户解决矛盾偏好。
+ */
+export function detectConflicts(workspaceId?: string): ConflictReport[] {
+  const db = getDatabase()
+  const wsFilter = workspaceId ? 'WHERE workspace_id = ?' : ''
+  const params = workspaceId ? [workspaceId] : []
+
+  // 查找同 subject 下有多个不同 value 的 active 偏好
+  const rows = db
+    .prepare(
+      `SELECT subject, COUNT(DISTINCT value) as value_count
+       FROM preferences
+       WHERE status = 'active' ${wsFilter ? 'AND workspace_id = ?' : ''}
+       GROUP BY subject
+       HAVING value_count > 1`
+    )
+    .all(...params) as Array<{ subject: string; value_count: number }>
+
+  if (rows.length === 0) return []
+
+  const reports: ConflictReport[] = []
+
+  for (const row of rows) {
+    const prefs = db
+      .prepare(
+        `SELECT * FROM preferences
+         WHERE subject = ? AND status = 'active'
+         ${wsFilter ? 'AND workspace_id = ?' : ''}
+         ORDER BY created_at DESC`
+      )
+      .all(workspaceId ? [row.subject, workspaceId] : [row.subject]) as PreferenceRow[]
+
+    if (prefs.length < 2) continue
+
+    const conflicts: ConflictReport['conflicts'] = []
+    const uniqueValues = new Map<string, PreferenceRow[]>()
+
+    for (const p of prefs) {
+      const key = p.value.toLowerCase()
+      const group = uniqueValues.get(key) || []
+      group.push(p)
+      uniqueValues.set(key, group)
+    }
+
+    const groups = Array.from(uniqueValues.values())
+    if (groups.length < 2) continue
+
+    // 取每组中置信度最高的作为代表
+    const representatives = groups
+      .map((group) => group.sort((a, b) => b.confidence - a.confidence)[0])
+      .sort((a, b) => b.confidence - a.confidence)
+
+    // 生成冲突对：最高置信度 vs 其他
+    const primary = rowToPref(representatives[0])
+    for (let i = 1; i < representatives.length; i++) {
+      conflicts.push({
+        preferenceA: primary,
+        preferenceB: rowToPref(representatives[i]),
+        reason: `同 subject '${row.subject}' 不同 value: '${primary.value}' vs '${representatives[i].value}'`
+      })
+    }
+
+    reports.push({
+      subject: row.subject,
+      conflicts
+    })
+  }
+
+  return reports
 }

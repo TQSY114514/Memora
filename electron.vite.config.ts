@@ -1,6 +1,22 @@
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+import type { Plugin } from 'vite'
+
+/**
+ * 移除生产构建中 <script> 和 <link> 标签上的 crossorigin 属性。
+ * Electron 使用 file:// 协议加载页面，crossorigin 会导致 CORS 校验失败，
+ * 脚本无法加载，页面显示黑屏。
+ */
+function removeCrossoriginPlugin(): Plugin {
+  return {
+    name: 'remove-crossorigin',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      return html.replace(/\s+crossorigin\b/g, '')
+    }
+  }
+}
 
 export default defineConfig({
   main: {
@@ -41,7 +57,7 @@ export default defineConfig({
         '@shared': resolve('src/shared')
       }
     },
-    plugins: [react()],
+    plugins: [react(), removeCrossoriginPlugin()],
     build: {
       rollupOptions: {
         input: { index: resolve('src/renderer/index.html') }

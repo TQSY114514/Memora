@@ -7,6 +7,7 @@ import { listWorkspaces, deleteWorkspace } from '../database/repositories/worksp
 import { backgroundImporter } from '../importer/backgroundImporter'
 import { shutdownSemanticWorker } from '../search/semantic'
 import { decayConfidence } from '../database/repositories/preferencesRepo'
+import { backupService } from './backup'
 
 // ===== 全局异常处理器 =====
 // 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
@@ -101,7 +102,7 @@ function startGui(): void {
       show: false,
       autoHideMenuBar: true,
       title: 'Memora',
-      backgroundColor: '#0f0f0f',
+      backgroundColor: '#0f0e12',
       icon: join(process.cwd(), 'build', 'icon.ico'),
       // 隐藏系统标题栏的关闭按钮行为由 tray 接管
       webPreferences: {
@@ -115,6 +116,23 @@ function startGui(): void {
 
     mainWindow.on('ready-to-show', () => {
       mainWindow?.show()
+    })
+
+    // 页面加载失败时给出可见提示，避免静默黑屏
+    mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+      console.error(`[renderer] 加载失败 (${errorCode}): ${errorDescription} — ${validatedURL}`)
+      mainWindow?.webContents.loadURL(`data:text/html;charset=utf-8,
+        <html>
+        <body style="background:#0f0e12;color:#e8e6f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+          <div style="text-align:center;max-width:400px">
+            <h2>页面加载失败</h2>
+            <p style="color:#a09cb8">错误代码: ${errorCode}</p>
+            <p style="color:#6e6a82;font-size:13px">${errorDescription}</p>
+            <p style="color:#6e6a82;font-size:11px;word-break:break-all">${validatedURL}</p>
+          </div>
+        </body>
+        </html>
+      `)
     })
 
     // 关闭窗口时最小化到托盘（而非退出）
@@ -205,6 +223,9 @@ function startGui(): void {
       backgroundImporter.start()
     }
 
+    // 自动热备份：启动定时备份（v1.6）
+    backupService.start()
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow()
@@ -220,6 +241,8 @@ function startGui(): void {
     isQuiting = true
     // 停止后台导入定时器，避免退出后定时器访问已关闭的数据库
     backgroundImporter.stop()
+    // 停止自动热备份定时器（v1.6）
+    backupService.stop()
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
     // 退出前将 WAL 写回主库 + 优化查询计划，避免 WAL 膨胀导致下次启动变慢

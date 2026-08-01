@@ -2,7 +2,7 @@ import type { Provider } from './types'
 
 /** 应用元信息 */
 export const APP_NAME = 'Memora'
-export const APP_VERSION = '1.5.0'
+export const APP_VERSION = '1.6.0'
 
 /**
  * AI API 协议风格元信息（v1.2）
@@ -181,7 +181,21 @@ export const IPC = {
   STATS_GET: 'stats:get',
   BACKUP_EXPORT: 'backup:export',
   BACKUP_IMPORT: 'backup:import',
-  APP_GET_DATA_DIR: 'app:get-data-dir'
+  APP_GET_DATA_DIR: 'app:get-data-dir',
+
+  // 自动热备份（v1.6）
+  BACKUP_LIST: 'backup:list',
+  BACKUP_CREATE: 'backup:create',
+  BACKUP_RESTORE: 'backup:restore',
+  BACKUP_DELETE: 'backup:delete',
+  BACKUP_CONFIG_GET: 'backup:config-get',
+  BACKUP_CONFIG_SET: 'backup:config-set',
+
+  // 冲突检测（v1.6）
+  PREF_CONFLICTS: 'pref:conflicts',
+
+  // 搜索增强（v1.6）
+  SEARCH_ADVANCED: 'search:advanced'
 } as const
 
 /** Provider 显示元信息 */

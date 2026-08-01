@@ -29,7 +29,8 @@ import type {
   Preference,
   PreferenceStatus,
   PreferenceSource,
-  UserProfile
+  UserProfile,
+  ConflictReport
 } from '../shared/types'
 
 /**
@@ -163,7 +164,18 @@ const api = {
   // ===== Search =====
   search: (
     query: string,
-    options?: { provider?: string; limit?: number }
+    options?: {
+      provider?: string
+      limit?: number
+      /** 时间范围过滤（v1.6） */
+      timeRange?: { start: string; end: string }
+      /** 按文件夹过滤（v1.6） */
+      folderId?: string
+      /** 仅收藏（v1.6） */
+      isFavorite?: boolean
+      /** 排序方式（v1.6） */
+      sortBy?: 'relevance' | 'date' | 'title'
+    }
   ): Promise<SearchResult[]> => ipcRenderer.invoke(IPC.SEARCH_QUERY, query, options),
 
   /** 语义搜索（Phase 2，需要先建立向量索引） */
@@ -298,7 +310,25 @@ const api = {
   // ===== 数据备份与恢复 =====
   backup: {
     export: (): Promise<BackupData> => ipcRenderer.invoke(IPC.BACKUP_EXPORT),
-    import: (data: BackupData): Promise<{ restored: number }> => ipcRenderer.invoke(IPC.BACKUP_IMPORT, data)
+    import: (data: BackupData): Promise<{ restored: number }> => ipcRenderer.invoke(IPC.BACKUP_IMPORT, data),
+    /** 列出所有热备份（v1.6） */
+    list: (): Promise<Array<{ filename: string; size: number; createdAt: string }>> =>
+      ipcRenderer.invoke(IPC.BACKUP_LIST),
+    /** 手动创建一次热备份（v1.6） */
+    create: (): Promise<{ filename: string; size: number; createdAt: string }> =>
+      ipcRenderer.invoke(IPC.BACKUP_CREATE),
+    /** 从热备份恢复（v1.6） */
+    restore: (filename: string): Promise<{ restored: boolean }> =>
+      ipcRenderer.invoke(IPC.BACKUP_RESTORE, filename),
+    /** 删除指定热备份（v1.6） */
+    delete: (filename: string): Promise<{ deleted: boolean }> =>
+      ipcRenderer.invoke(IPC.BACKUP_DELETE, filename),
+    /** 获取热备份配置（v1.6） */
+    getConfig: (): Promise<{ intervalMinutes: number; maxBackups: number; enabled: boolean }> =>
+      ipcRenderer.invoke(IPC.BACKUP_CONFIG_GET),
+    /** 设置热备份配置（v1.6） */
+    setConfig: (config: { intervalMinutes?: number; maxBackups?: number; enabled?: boolean }): Promise<{ intervalMinutes: number; maxBackups: number; enabled: boolean }> =>
+      ipcRenderer.invoke(IPC.BACKUP_CONFIG_SET, config)
   },
   // ===== 数据库维护 =====
   db: {
@@ -419,7 +449,10 @@ const api = {
     profile: (workspaceId: string): Promise<UserProfile> =>
       ipcRenderer.invoke(IPC.PREF_PROFILE, workspaceId),
     decay: (workspaceId?: string, daysThreshold?: number, decayRate?: number): Promise<number> =>
-      ipcRenderer.invoke(IPC.PREF_DECAY, workspaceId, daysThreshold, decayRate)
+      ipcRenderer.invoke(IPC.PREF_DECAY, workspaceId, daysThreshold, decayRate),
+    /** 冲突检测（v1.6） */
+    conflicts: (workspaceId?: string): Promise<ConflictReport[]> =>
+      ipcRenderer.invoke(IPC.PREF_CONFLICTS, workspaceId)
   }
 }
 

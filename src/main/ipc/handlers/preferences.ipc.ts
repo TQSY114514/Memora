@@ -10,7 +10,8 @@ import {
   searchPreferences,
   countPreferences,
   getUserProfile,
-  decayConfidence
+  decayConfidence,
+  detectConflicts
 } from '@db/repositories'
 import type { PreferenceStatus, PreferenceSource } from '@shared/types'
 
@@ -64,5 +65,10 @@ export function registerPreferenceHandlers(): void {
 
   safeHandle(IPC.PREF_DECAY, (_e, workspaceId?: string, daysThreshold?: number, decayRate?: number) => {
     return decayConfidence(workspaceId, daysThreshold, decayRate)
+  })
+
+  // 冲突检测（v1.6）
+  safeHandle(IPC.PREF_CONFLICTS, (_e, workspaceId?: string) => {
+    return detectConflicts(workspaceId)
   })
 }

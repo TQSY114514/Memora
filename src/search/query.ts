@@ -11,6 +11,22 @@ interface FtsHitRow {
   rank: number
 }
 
+/** 搜索选项（v1.6 增强） */
+export interface SearchOptions {
+  limit?: number
+  provider?: string
+  /** 时间范围过滤 */
+  timeRange?: { start: string; end: string }
+  /** 按文件夹过滤 */
+  folderId?: string
+  /** 仅收藏 */
+  isFavorite?: boolean
+  /** 排序方式 */
+  sortBy?: 'relevance' | 'date' | 'title'
+  /** 搜索类型：all / session / knowledge / preference / decision */
+  type?: 'session' | 'knowledge' | 'preference' | 'decision' | 'all'
+}
+
 /**
  * 构造 FTS5 查询字符串
  * - 用 Intl.Segmenter 做中文分词（解决 unicode61 逐字切分问题）
@@ -53,31 +69,50 @@ function runFts(
   return db.prepare(sql).all(...params) as FtsHitRow[]
 }
 
-/** 全文搜索（中文分词 + AND→OR 降级） */
+/** 全文搜索（中文分词 + AND→OR 降级 + 多维过滤 + 相关性排序） */
 export function search(
   query: string,
-  options?: { limit?: number; provider?: string }
+  options?: SearchOptions
 ): SearchResult[] {
   const limit = options?.limit ?? 50
 
   // 1. 先用 AND（精确匹配，所有词都要命中）
   let ftsQuery = buildFtsQuery(query, 'AND')
   if (!ftsQuery) return []
-  let rows = runFts(ftsQuery, limit, options?.provider)
+  let rows = runFts(ftsQuery, limit * 2, options?.provider) // 多取一些用于过滤
 
   // 2. AND 无结果时降级为 OR（宽松召回，任一词命中即可）
   if (rows.length === 0) {
     const orQuery = buildFtsQuery(query, 'OR')
     if (orQuery && orQuery !== ftsQuery) {
-      rows = runFts(orQuery, limit, options?.provider)
+      rows = runFts(orQuery, limit * 2, options?.provider)
     }
   }
 
-  // 聚合：同一会话的多条命中合并为一个 SearchResult
+  // 3. 聚合：同一会话的多条命中合并为一个 SearchResult
   const map = new Map<string, SearchResult>()
   for (const row of rows) {
     const session = getSession(row.session_id, false)
     if (!session) continue
+
+    // 时间范围过滤
+    if (options?.timeRange) {
+      const createdAt = new Date(session.createdAt)
+      if (createdAt < new Date(options.timeRange.start) ||
+          createdAt > new Date(options.timeRange.end)) {
+        continue
+      }
+    }
+
+    // 文件夹过滤
+    if (options?.folderId && session.folderId !== options.folderId) {
+      continue
+    }
+
+    // 收藏过滤
+    if (options?.isFavorite && !session.isFavorite) {
+      continue
+    }
 
     const snippet = buildSnippet(row.content, query)
     const existing = map.get(row.session_id)
@@ -100,7 +135,42 @@ export function search(
     }
   }
 
-  return Array.from(map.values()).sort((a, b) => a.rank - b.rank)
+  let results = Array.from(map.values())
+
+  // 4. 相关性加权排序
+  const now = new Date()
+  const sortBy = options?.sortBy ?? 'relevance'
+
+  if (sortBy === 'relevance') {
+    results = results.map((r) => {
+      const daysSinceUpdate =
+        (now.getTime() - new Date(r.session.updatedAt).getTime()) / (24 * 60 * 60 * 1000)
+      const timeDecay = Math.exp(-daysSinceUpdate / 30) // 30 天半衰期
+      const favoriteBonus = r.session.isFavorite ? 1.5 : 1.0
+      const matchCount = r.snippets.length
+
+      const compositeScore =
+        (1 / (1 + r.rank)) * 0.5 +     // FTS rank 归一化
+        timeDecay * 0.3 +
+        (favoriteBonus - 1) * 0.1 +
+        Math.min(matchCount / 10, 1) * 0.1
+
+      return { ...r, rank: 1 - compositeScore } // 越小越好（保持与 FTS rank 一致）
+    })
+  } else if (sortBy === 'date') {
+    results = results.sort(
+      (a, b) => new Date(b.session.updatedAt).getTime() - new Date(a.session.updatedAt).getTime()
+    )
+  } else if (sortBy === 'title') {
+    results = results.sort((a, b) => a.session.title.localeCompare(b.session.title))
+  }
+
+  // 如果排序方式不是 relevance，也需要按 rank 排序
+  if (sortBy === 'relevance') {
+    results = results.sort((a, b) => a.rank - b.rank)
+  }
+
+  return results.slice(0, limit)
 }
 
 /** HTML 转义，防止 AI 生成内容中的 HTML 注入 */

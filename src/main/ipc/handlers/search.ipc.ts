@@ -1,6 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron'
 import { IPC } from '@shared/constants'
-import { search } from '@search/query'
+import { search, SearchOptions } from '@search/query'
 import { semanticSearch } from '@search/semantic'
 import type { AiConfig } from '@shared/types'
 
@@ -21,8 +21,8 @@ export function registerSearchHandlers(): void {
   const SEARCH_CACHE_TTL = 30_000
   const SEARCH_CACHE_MAX = 20
 
-  safeHandle(IPC.SEARCH_QUERY, (_e, query: string, options?: { provider?: string; limit?: number }) => {
-    const cacheKey = JSON.stringify({ q: query, p: options?.provider, l: options?.limit })
+  safeHandle(IPC.SEARCH_QUERY, (_e, query: string, options?: SearchOptions) => {
+    const cacheKey = JSON.stringify({ q: query, ...options })
     // 命中缓存
     const cached = searchCache.get(cacheKey)
     if (cached && cached.expiresAt > Date.now()) {
@@ -39,6 +39,11 @@ export function registerSearchHandlers(): void {
       if (oldestKey) searchCache.delete(oldestKey)
     }
     return result
+  })
+
+  // 高级搜索（v1.6，支持多维过滤）
+  safeHandle(IPC.SEARCH_ADVANCED, (_e, query: string, options?: SearchOptions) => {
+    return search(query, options)
   })
 
   // ===== 语义搜索（Phase 2） =====

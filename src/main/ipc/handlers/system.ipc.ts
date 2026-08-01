@@ -3,7 +3,8 @@ import { writeFileSync } from 'fs'
 import { IPC } from '@shared/constants'
 import { getDatabase } from '@db/connection'
 import { getSession } from '@db/repositories'
-import type { ChatSession } from '@shared/types'
+import { backupService } from '../../backup'
+import type { ChatSession, BackupConfig } from '@shared/types'
 
 function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
   ipcMain.handle(channel, async (event, ...args) => {
@@ -210,4 +211,17 @@ export function registerSystemHandlers(): void {
     tx()
     return { restored: data.sessions.length }
   })
+
+  // ===== 自动热备份（v1.6） =====
+  safeHandle(IPC.BACKUP_LIST, () => backupService.listBackups())
+
+  safeHandle(IPC.BACKUP_CREATE, async () => backupService.backupNow())
+
+  safeHandle(IPC.BACKUP_RESTORE, async (_e, filename: string) => backupService.restoreBackup(filename))
+
+  safeHandle(IPC.BACKUP_DELETE, (_e, filename: string) => backupService.deleteBackup(filename))
+
+  safeHandle(IPC.BACKUP_CONFIG_GET, () => backupService.getConfig())
+
+  safeHandle(IPC.BACKUP_CONFIG_SET, (_e, config: Partial<BackupConfig>) => backupService.setConfig(config))
 }

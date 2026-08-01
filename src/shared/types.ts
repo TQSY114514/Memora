@@ -432,6 +432,30 @@ export interface UserProfile {
   bySubject: Array<{ subject: string; preferences: Preference[] }>
 }
 
+/** 冲突报告（v1.6） */
+export interface ConflictReport {
+  subject: string
+  conflicts: Array<{
+    preferenceA: Preference
+    preferenceB: Preference
+    reason: string
+  }>
+}
+
+/** 热备份配置（v1.6） */
+export interface BackupConfig {
+  intervalMinutes: number
+  maxBackups: number
+  enabled: boolean
+}
+
+/** 备份条目（v1.6） */
+export interface BackupEntry {
+  filename: string
+  size: number
+  createdAt: string
+}
+
 /** 后台静默导入配置 */
 export interface BackgroundImportConfig {
   enabled: boolean

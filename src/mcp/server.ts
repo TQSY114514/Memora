@@ -59,6 +59,26 @@ import { getDatabase } from '../database/connection'
 import { v4 as uuidv4 } from 'uuid'
 import type { AiConfig } from '@shared/types'
 
+// ===== MCP 只读模式（v1.6） =====
+// 通过环境变量或启动参数启用，限制写入操作
+const isReadOnly =
+  process.env['MEMORA_READONLY'] === 'true' ||
+  process.argv.includes('--readonly')
+
+/** 写入工具列表（只读模式下禁止调用） */
+const WRITE_TOOLS = new Set([
+  'add_session',
+  'add_message',
+  'memory_write',
+  'memory_save_preference',
+  'update_session',
+  'delete_session',
+  'create_folder',
+  'knowledge_entry_update',
+  'knowledge_entry_delete',
+  'memory_forget'
+])
+
 interface JsonRpcRequest {
   jsonrpc: '2.0'
   id?: string | number
@@ -410,6 +430,14 @@ const TOOLS: McpTool[] = [
 
 /** 调用工具 */
 async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  // 只读模式检查（v1.6）
+  if (isReadOnly && WRITE_TOOLS.has(name)) {
+    throw new Error(
+      '[READONLY] 只读模式下不允许执行写入操作。' +
+      '如需写入，请移除 --readonly 参数或取消 MEMORA_READONLY 环境变量。'
+    )
+  }
+
   switch (name) {
     case 'search_sessions': {
       const query = String(args.query ?? '')
@@ -931,7 +959,7 @@ export async function startMcpServer(): Promise<void> {
               capabilities: { tools: {} },
               serverInfo: {
                 name: 'Memora',
-                version: '1.5.0'
+                version: '1.6.0'
               }
             }
           })
@@ -945,7 +973,12 @@ export async function startMcpServer(): Promise<void> {
           send({
             jsonrpc: '2.0',
             id,
-            result: { tools: TOOLS }
+            result: {
+              tools: TOOLS,
+              _note: isReadOnly
+                ? '当前为只读模式，写入类工具（add_session, add_message, memory_write 等）不可用。'
+                : undefined
+            }
           })
           break
 
