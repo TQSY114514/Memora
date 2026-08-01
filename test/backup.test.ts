@@ -80,7 +80,7 @@ const dbPath = join(tmpDir, 'memora.db')
 const backupDir = join(tmpDir, 'backups')
 
 const ORIGINAL_CONTENT = Buffer.from(
-  'Memora backup round-trip payload\n' + 'X'.repeat(1024) + '\0\1\2\3'
+  'Memora backup round-trip payload\n' + 'X'.repeat(1024) + '\x00\x01\x02\x03'
 )
 
 /** Build a V0 (pre-magic-header) encrypted backup buffer for given content. */
