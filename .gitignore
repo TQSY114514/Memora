@@ -22,3 +22,6 @@ aether.db-shm
 
 # 打包输出
 dist/
+
+# IDE / AI agent 临时文件
+.omo/
