@@ -19,9 +19,6 @@ jobs:
   release:
     name: Build & Publish (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
-    # Linux 因 icon 转换问题（.ico → PNG 需 512x512）暂允许失败，
-    # Windows/macOS 产物正常发布即可
-    continue-on-error: ${{ matrix.platform == 'linux' }}
     strategy:
       fail-fast: false  # 单平台失败不影响其它平台产物
       matrix:
@@ -47,6 +44,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Linux: electron-builder 的 icon-tool 不支持 .ico，只支持 .png/.svg/.icns
+      # 用 ImageMagick（ubuntu-latest 预装）从 icon.ico 生成 512x512 PNG
+      - name: Generate Linux PNG icon (512x512)
+        if: matrix.platform == 'linux'
+        run: convert build/icon.ico -resize 512x512 build/icon.png
 
       - name: Build (electron-vite)
         run: npm run build
