@@ -193,7 +193,7 @@ CREATE INDEX IF NOT EXISTS idx_pref_workspace ON preferences(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_pref_subject ON preferences(subject);
 CREATE INDEX IF NOT EXISTS idx_pref_status ON preferences(status);
 CREATE INDEX IF NOT EXISTS idx_pref_session ON preferences(session_id);
-CREATE INDEX IF NOT EXISTS idx_pref_workspace_subject_context ON preferences(workspace_id, subject, context);
+-- idx_pref_workspace_subject_context 索引在 migration v9 中创建（需 context 列存在后）
 
 -- 偏好全文索引（subject + value，中文分词）
 CREATE VIRTUAL TABLE IF NOT EXISTS preferences_fts USING fts5(

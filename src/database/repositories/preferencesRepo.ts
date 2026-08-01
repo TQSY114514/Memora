@@ -86,6 +86,9 @@ export function createPreference(input: {
   const source = input.source ?? 'manual'
   const ctx = input.context ?? null
 
+  // 跟踪重复值匹配的已有 ID（事务内 return 提前退出时，外层需返回已有记录）
+  let existingId: string | null = null
+
   const tx = db.transaction(() => {
     // 冲突检测：查找同 workspace + 同 subject + 同 context 的 active 偏好
     // context 为 NULL 时用 IS NULL 匹配（SQLite 中 = NULL 不成立）
@@ -107,8 +110,7 @@ export function createPreference(input: {
                last_accessed_at = ?, updated_at = ?
            WHERE id = ?`
         ).run(newConfidence, now, now, old.id)
-        // 更新 FTS
-        try { indexPrefForSearch(old.id, old.subject, old.value) } catch { /* ignore */ }
+        existingId = old.id
         return
       }
 
@@ -134,7 +136,12 @@ export function createPreference(input: {
   })
   tx()
 
-  // FTS 索引
+  // 重复值匹配：返回已有记录（事务内已更新置信度，FTS 也已在事务内更新）
+  if (existingId) {
+    return getPreference(existingId)!
+  }
+
+  // FTS 索引（新记录，事务外执行避免索引失败回滚写入）
   try { indexPrefForSearch(id, input.subject, input.value) } catch (e) {
     console.error('[preferencesRepo] FTS 索引失败:', e)
   }

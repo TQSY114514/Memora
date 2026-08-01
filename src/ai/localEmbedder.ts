@@ -116,6 +116,8 @@ function initWorker(): void {
     worker.on('error', (err) => {
       console.warn('[localEmbedder] worker error, fallback to sync:', err.message)
       useFallback = true
+      worker = null
+      workerReady = false
       const e = new Error(err.message)
       for (const [, p] of pending) p.reject(e)
       pending.clear()
@@ -246,22 +248,30 @@ function waitForWorkerReady(timeoutMs = 5000): Promise<void> {
   if (workerReady) return Promise.resolve()
   return new Promise((resolve, reject) => {
     const start = Date.now()
+    let settled = false
+    const onError = () => {
+      if (settled) return
+      settled = true
+      clearInterval(timer)
+      reject(new Error('worker init failed'))
+    }
     const timer = setInterval(() => {
       if (workerReady) {
+        if (settled) return
+        settled = true
         clearInterval(timer)
+        if (worker) worker.off('error', onError)
         resolve()
       } else if (Date.now() - start > timeoutMs) {
+        if (settled) return
+        settled = true
         clearInterval(timer)
+        if (worker) worker.off('error', onError)
         reject(new Error('worker init timeout'))
       }
     }, 50)
-    // worker 错误时也会触发 reject（worker.on('error') 已处理 pending，
-    // 但这里没注册 pending，需监听一次 error）
     if (worker) {
-      worker.once('error', () => {
-        clearInterval(timer)
-        reject(new Error('worker init failed'))
-      })
+      worker.once('error', onError)
     }
   })
 }
