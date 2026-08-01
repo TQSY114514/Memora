@@ -1,11 +1,50 @@
 import { Worker } from 'worker_threads'
 import { join } from 'path'
+import { createHash } from 'crypto'
 import { getDbPath } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
 import { getDatabase } from '../database/connection'
 import { embedQuery } from '../ai/apiClient'
 import { cosineSimilarity } from '@shared/math'
 import type { AiConfig, SemanticSearchResult } from '@shared/types'
+
+// ===== 查询向量 LRU 缓存（避免重复 embedding API 调用）=====
+
+interface EmbeddingCacheEntry {
+  embedding: number[]
+  timestamp: number
+}
+
+const EMBEDDING_CACHE_MAX = 1000
+const EMBEDDING_CACHE_TTL = 30 * 60 * 1000  // 30 分钟
+const embeddingCache = new Map<string, EmbeddingCacheEntry>()
+
+/** 生成缓存 key：provider + model + text 的哈希 */
+function embeddingCacheKey(config: AiConfig, text: string): string {
+  const raw = `${config.provider}:${config.embeddingModel}:${text}`
+  return createHash('sha256').update(raw).digest('hex')
+}
+
+/** 从缓存获取 embedding，未命中返回 undefined */
+function getCachedEmbedding(key: string): number[] | undefined {
+  const entry = embeddingCache.get(key)
+  if (!entry) return undefined
+  if (Date.now() - entry.timestamp > EMBEDDING_CACHE_TTL) {
+    embeddingCache.delete(key)
+    return undefined
+  }
+  return entry.embedding
+}
+
+/** 写入缓存，LRU 淘汰 */
+function setCachedEmbedding(key: string, embedding: number[]): void {
+  if (embeddingCache.size >= EMBEDDING_CACHE_MAX) {
+    // 淘汰最旧的条目（Map 保持插入顺序）
+    const oldest = embeddingCache.keys().next().value
+    if (oldest) embeddingCache.delete(oldest)
+  }
+  embeddingCache.set(key, { embedding, timestamp: Date.now() })
+}
 
 // ===== Worker 池（常驻，缓存向量数据）=====
 
@@ -156,7 +195,13 @@ export async function semanticSearch(
     initWorker()
   }
 
-  const queryVec = await embedQuery(config, trimmed)
+  // 查询向量 LRU 缓存：避免相同查询重复调用 embedding API
+  const cacheKey = embeddingCacheKey(config, trimmed)
+  let queryVec = getCachedEmbedding(cacheKey)
+  if (!queryVec) {
+    queryVec = await embedQuery(config, trimmed)
+    setCachedEmbedding(cacheKey, queryVec)
+  }
   const limit = options?.limit ?? 20
   const threshold = options?.threshold ?? 0.25
 

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
+import { buildUpdateSets } from './sqlHelpers'
 import type { Workspace } from '@shared/types'
 
 interface WorkspaceRow {
@@ -63,33 +64,17 @@ export function updateWorkspace(
   patch: Partial<Pick<Workspace, 'name' | 'description' | 'color' | 'icon' | 'sortOrder'>>
 ): void {
   const db = getDatabase()
-  const sets: string[] = []
-  const params: Record<string, unknown> = { id }
-
-  if (patch.name !== undefined) {
-    sets.push('name = @name')
-    params.name = patch.name
-  }
-  if (patch.description !== undefined) {
-    sets.push('description = @description')
-    params.description = patch.description
-  }
-  if (patch.color !== undefined) {
-    sets.push('color = @color')
-    params.color = patch.color
-  }
-  if (patch.icon !== undefined) {
-    sets.push('icon = @icon')
-    params.icon = patch.icon
-  }
-  if (patch.sortOrder !== undefined) {
-    sets.push('sort_order = @sortOrder')
-    params.sortOrder = patch.sortOrder
-  }
+  const { sets, params } = buildUpdateSets(patch, {
+    name: 'name',
+    description: 'description',
+    color: 'color',
+    icon: 'icon',
+    sortOrder: 'sort_order'
+  })
   if (sets.length === 0) return
 
   sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE workspaces SET ${sets.join(', ')} WHERE id = @id`).run(params)
+  db.prepare(`UPDATE workspaces SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
 }
 
 export function deleteWorkspace(id: string): void {

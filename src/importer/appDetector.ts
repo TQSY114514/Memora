@@ -11,7 +11,7 @@
  */
 import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 import type { Provider, DetectedApp } from '@shared/types'
 
 /** Windows 环境变量根目录 */
@@ -38,11 +38,13 @@ function safeReaddir(p: string): string[] {
   }
 }
 
-/** 检测 PATH 中是否有某命令（Windows 用 where，Unix 用 which） */
+/** 检测 PATH 中是否有某命令（Windows 用 where，Unix 用 which）
+ *  使用 execFileSync 避免 shell 注入风险（不经过 shell 解释）
+ */
 function hasCommand(cmd: string): boolean {
   try {
-    const tool = process.platform === 'win32' ? 'where' : 'which'
-    execSync(`${tool} ${cmd}`, { stdio: 'ignore', timeout: 3000 })
+    const tool = process.platform === 'win32' ? 'where.exe' : 'which'
+    execFileSync(tool, [cmd], { stdio: 'ignore', timeout: 3000 })
     return true
   } catch {
     return false

@@ -1,19 +1,8 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { getSession } from '@db/repositories'
 import { renderSessionToHtml, renderSessionToMd, renderSessionToClaudeCode } from '@sharing'
 import type { ChatSession } from '@shared/types'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err  // Electron 会传给 renderer 的 reject
-    }
-  })
-}
 
 export function registerSharingHandlers(): void {
   // ===== Sharing =====

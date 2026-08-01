@@ -51,6 +51,20 @@ const migrations: Migration[] = [
     version: 7,
     description: '建 preferences + preferences_fts 表（Memory Lifecycle：用户偏好 + 冲突检测 + 衰减）',
     up: (db) => migrateToPreferences(db)
+  },
+  {
+    version: 8,
+    description: '复合索引优化（高频查询：消息排序、会话列表、知识过滤、偏好过滤）',
+    up: (db) => {
+      // messages: 按 session_id 过滤 + msg_order 排序（加载会话消息）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_messages_session_order ON messages(session_id, msg_order)')
+      // chat_sessions: 按 updated_at 排序（列表页 ORDER BY updated_at DESC）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_updated ON chat_sessions(updated_at)')
+      // knowledge_entries: 按 workspace_id + type 过滤（知识库列表查询）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_ke_workspace_type ON knowledge_entries(workspace_id, type)')
+      // preferences: 按 workspace_id + status 过滤（偏好列表查询）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_pref_workspace_status ON preferences(workspace_id, status)')
+    }
   }
 ]
 

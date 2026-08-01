@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
+import { buildUpdateSets } from './sqlHelpers'
 import type { Folder, FolderRule } from '@shared/types'
 
 interface FolderRow {
@@ -91,29 +92,21 @@ export function updateFolder(
   patch: Partial<Pick<Folder, 'name' | 'parentId' | 'sortOrder' | 'rule'>>
 ): void {
   const db = getDatabase()
-  const sets: string[] = []
-  const params: Record<string, unknown> = { id }
-
-  if (patch.name !== undefined) {
-    sets.push('name = @name')
-    params.name = patch.name
-  }
-  if (patch.parentId !== undefined) {
-    sets.push('parent_id = @parentId')
-    params.parentId = patch.parentId
-  }
-  if (patch.sortOrder !== undefined) {
-    sets.push('sort_order = @sortOrder')
-    params.sortOrder = patch.sortOrder
-  }
+  // rule 需要序列化为 JSON 字符串
+  const transformedPatch: Record<string, unknown> = { ...patch }
   if (patch.rule !== undefined) {
-    sets.push('rule = @rule')
-    params.rule = patch.rule ? JSON.stringify(patch.rule) : null
+    transformedPatch.rule = patch.rule ? JSON.stringify(patch.rule) : null
   }
+  const { sets, params } = buildUpdateSets(transformedPatch, {
+    name: 'name',
+    parentId: 'parent_id',
+    sortOrder: 'sort_order',
+    rule: 'rule'
+  })
   if (sets.length === 0) return
 
   sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE folders SET ${sets.join(', ')} WHERE id = @id`).run(params)
+  db.prepare(`UPDATE folders SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
 }
 
 export function deleteFolder(id: string): void {

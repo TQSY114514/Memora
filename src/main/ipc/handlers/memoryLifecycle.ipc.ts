@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import {
   getTieredMemories,
@@ -6,17 +6,6 @@ import {
   generateProfileSummary,
   runMemoryLifecycle
 } from '../../memoryLifecycle'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err
-    }
-  })
-}
 
 export function registerMemoryLifecycleHandlers(): void {
   safeHandle(IPC.MEMORY_TIERED, (_e, workspaceId?: string) => {

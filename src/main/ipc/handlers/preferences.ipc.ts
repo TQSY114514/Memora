@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import {
   createPreference,
@@ -14,17 +14,6 @@ import {
   detectConflicts
 } from '@db/repositories'
 import type { PreferenceStatus, PreferenceSource } from '@shared/types'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err
-    }
-  })
-}
 
 export function registerPreferenceHandlers(): void {
   safeHandle(IPC.PREF_LIST, (_e, options?: Parameters<typeof listPreferences>[0]) => {

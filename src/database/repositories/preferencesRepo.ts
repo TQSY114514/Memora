@@ -8,6 +8,7 @@
  */
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
+import { buildUpdateSets } from './sqlHelpers'
 import { segment } from '@search/segmenter'
 import type { Preference, PreferenceStatus, PreferenceSource, UserProfile, ConflictReport } from '@shared/types'
 
@@ -186,17 +187,16 @@ export function updatePreference(
   patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject'>>
 ): Preference | null {
   const db = getDatabase()
-  const sets: string[] = []
-  const params: Record<string, unknown> = { id }
-
-  if (patch.subject !== undefined) { sets.push('subject = @subject'); params.subject = patch.subject }
-  if (patch.value !== undefined) { sets.push('value = @value'); params.value = patch.value }
-  if (patch.confidence !== undefined) { sets.push('confidence = @confidence'); params.confidence = patch.confidence }
-  if (patch.status !== undefined) { sets.push('status = @status'); params.status = patch.status }
+  const { sets, params } = buildUpdateSets(patch, {
+    subject: 'subject',
+    value: 'value',
+    confidence: 'confidence',
+    status: 'status'
+  })
   if (sets.length === 0) return getPreference(id)
 
   sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE preferences SET ${sets.join(', ')} WHERE id = @id`).run(params)
+  db.prepare(`UPDATE preferences SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
 
   const updated = getPreference(id)
   if (updated && (patch.subject !== undefined || patch.value !== undefined)) {

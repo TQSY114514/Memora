@@ -1,18 +1,7 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { backgroundImporter } from '@importer/backgroundImporter'
 import { getAllApiKeys, setApiKey, deleteApiKey } from '../../secretStore'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err  // Electron 会传给 renderer 的 reject
-    }
-  })
-}
 
 export function registerBgImportHandlers(): void {
   // ===== API Key 安全存储（safeStorage 加密，renderer 不接触明文存储） =====

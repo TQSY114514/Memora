@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
+import { buildUpdateSets } from './sqlHelpers'
 import type { ChatSession, Message, Tag, FolderRule } from '@shared/types'
 import { indexSessionForSearch, unindexSession } from '@search/indexer'
 
@@ -262,29 +263,21 @@ export function updateSession(
   patch: Partial<Pick<ChatSession, 'title' | 'description' | 'folderId' | 'isFavorite'>>
 ): void {
   const db = getDatabase()
-  const sets: string[] = []
-  const params: Record<string, unknown> = { id }
-
-  if (patch.title !== undefined) {
-    sets.push('title = @title')
-    params.title = patch.title
-  }
-  if (patch.description !== undefined) {
-    sets.push('description = @description')
-    params.description = patch.description
-  }
-  if (patch.folderId !== undefined) {
-    sets.push('folder_id = @folderId')
-    params.folderId = patch.folderId
-  }
+  // isFavorite 需要从 boolean 转为 integer（better-sqlite3 不支持绑定 boolean）
+  const transformedPatch: Record<string, unknown> = { ...patch }
   if (patch.isFavorite !== undefined) {
-    sets.push('is_favorite = @favorite')
-    params.favorite = patch.isFavorite ? 1 : 0
+    transformedPatch.isFavorite = patch.isFavorite ? 1 : 0
   }
+  const { sets, params } = buildUpdateSets(transformedPatch, {
+    title: 'title',
+    description: 'description',
+    folderId: 'folder_id',
+    isFavorite: 'is_favorite'
+  })
   if (sets.length === 0) return
 
   sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE chat_sessions SET ${sets.join(', ')} WHERE id = @id`).run(params)
+  db.prepare(`UPDATE chat_sessions SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
 }
 
 /** 切换收藏 */

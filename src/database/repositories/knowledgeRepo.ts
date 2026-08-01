@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
+import { buildUpdateSets } from './sqlHelpers'
 import { segment } from '@search/segmenter'
 import type {
   KnowledgeEntry,
@@ -192,33 +193,17 @@ export function updateEntry(
   patch: Partial<Pick<KnowledgeEntry, 'title' | 'content' | 'type' | 'status' | 'sortOrder'>>
 ): KnowledgeEntry | null {
   const db = getDatabase()
-  const sets: string[] = []
-  const params: Record<string, unknown> = { id }
-
-  if (patch.title !== undefined) {
-    sets.push('title = @title')
-    params.title = patch.title
-  }
-  if (patch.content !== undefined) {
-    sets.push('content = @content')
-    params.content = patch.content
-  }
-  if (patch.type !== undefined) {
-    sets.push('type = @type')
-    params.type = patch.type
-  }
-  if (patch.status !== undefined) {
-    sets.push('status = @status')
-    params.status = patch.status
-  }
-  if (patch.sortOrder !== undefined) {
-    sets.push('sort_order = @sortOrder')
-    params.sortOrder = patch.sortOrder
-  }
+  const { sets, params } = buildUpdateSets(patch, {
+    title: 'title',
+    content: 'content',
+    type: 'type',
+    status: 'status',
+    sortOrder: 'sort_order'
+  })
   if (sets.length === 0) return getEntry(id)
 
   sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE knowledge_entries SET ${sets.join(', ')} WHERE id = @id`).run(params)
+  db.prepare(`UPDATE knowledge_entries SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
 
   // 更新 FTS 索引（title/content 变化时）
   const updated = getEntry(id)
@@ -352,8 +337,8 @@ export function listRelations(entryId: string): KnowledgeRelationRow[] {
 export function getGraphData(workspaceId: string): KnowledgeGraphData {
   const db = getDatabase()
 
-  // 节点：当前工作区所有 entries
-  const nodes = listEntries({ workspaceId, limit: 10000 })
+  // 节点：当前工作区所有 entries（上限 500，避免大图谱卡顿）
+  const nodes = listEntries({ workspaceId, limit: 500 })
 
   // 显式边：knowledge_relations（通过 JOIN 确保只返回当前工作区的）
   const relationRows = db

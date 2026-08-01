@@ -1,4 +1,5 @@
-import { ipcMain, IpcMainInvokeEvent, dialog, app } from 'electron'
+import { dialog, app } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { writeFileSync } from 'fs'
 import { IPC } from '@shared/constants'
 import { getDatabase } from '@db/connection'
@@ -6,17 +7,6 @@ import { getSession } from '@db/repositories'
 import { backupService } from '../../backup'
 import { logger } from '../../logger'
 import type { ChatSession, BackupConfig } from '@shared/types'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err  // Electron 会传给 renderer 的 reject
-    }
-  })
-}
 
 export function registerSystemHandlers(): void {
   // ===== 系统 =====

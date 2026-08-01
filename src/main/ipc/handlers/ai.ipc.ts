@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { deleteSummary, upsertSummary } from '@db/repositories'
 import { generateSummary, getSessionSummary, generateKnowledgeMd } from '@ai/summarizer'
@@ -12,17 +12,6 @@ import {
 } from '@main/aiConfigFile'
 import { callChat, embedQuery } from '@ai/apiClient'
 import type { AiConfig, AiApiStyle } from '@shared/types'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err  // Electron 会传给 renderer 的 reject
-    }
-  })
-}
 
 export function registerAiHandlers(): void {
   // ===== AI 总结（Phase 2） =====

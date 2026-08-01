@@ -1,21 +1,11 @@
-import { ipcMain, IpcMainInvokeEvent, app } from 'electron'
+import { app } from 'electron'
+import { safeHandle } from '../safeHandle'
 import { existsSync } from 'fs'
 import { IPC } from '@shared/constants'
 import { importFile, importDirectory, importExtractedSessions } from '@importer/service'
 import { scanDirectories } from '@importer/scanner'
 import { detectInstalledApps } from '@importer/appDetector'
 import { extractLocal } from '@importer/localExtractor'
-
-function safeHandle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: any[]) => any): void {
-  ipcMain.handle(channel, async (event, ...args) => {
-    try {
-      return await handler(event, ...args)
-    } catch (err) {
-      console.error(`[IPC] ${channel} failed:`, err)
-      throw err  // Electron 会传给 renderer 的 reject
-    }
-  })
-}
 
 /** 安全获取 Electron 系统目录（目录不存在时返回 null） */
 function safeGetPath(name: 'downloads' | 'documents' | 'desktop'): string | null {
