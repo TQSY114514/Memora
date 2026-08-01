@@ -32,7 +32,12 @@ start.bat  # Windows
 ```
 src/
 ├── main/              # Electron 主进程
-│   ├── ipc/           # IPC handler
+│   ├── ipc/           # IPC handler + safeHandle 共享模块
+│   │   ├── handlers/  # 11 个 IPC 处理器
+│   │   └── safeHandle.ts
+│   ├── backup.ts      # 自动热备份 + AES-256-GCM 加密
+│   ├── logger.ts      # 全局结构化日志
+│   ├── memoryLifecycle.ts  # 仿生学遗忘 + 分层记忆 + 用户画像
 │   └── index.ts       # 主进程入口
 ├── renderer/          # 渲染进程
 │   └── src/
@@ -40,17 +45,20 @@ src/
 │       ├── stores/      # Zustand store
 │       └── i18n/        # 多语言
 ├── preload/           # preload 脚本（contextBridge）
-├── database/          # SQLite schema + repositories
+├── database/          # SQLite schema + migrations + repositories
+│   └── repositories/  # 9 个 repo + sqlHelpers 共享 SQL 工具
 ├── importer/          # 各平台对话导入器（适配器模式）
-├── search/            # FTS5 + 语义搜索
-├── ai/                # AI 总结、嵌入
-├── mcp/               # MCP Server
+├── search/            # FTS5 + 语义搜索 + 向量 LRU 缓存
+├── ai/                # AI 总结、嵌入、RAG
+├── mcp/               # MCP Server（25 工具）
+├── sharing/           # HTML/Markdown/Claude Code 导出
 └── shared/            # 跨进程共享类型/常量
 ```
 
 ## 编码规范
 
 - TypeScript strict 模式，避免 `any`
+- ESLint + Prettier 已配置：`npm run lint` / `npm run format`
 - 提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/)
   - `feat: 新功能`
   - `fix: 修复 bug`
@@ -58,6 +66,7 @@ src/
   - `refactor: 重构`
   - `docs: 文档`
 - 提交前运行 `npm run typecheck` 确保无类型错误
+- 提交前运行 `npm run lint` 确保无 lint 错误
 - 主进程代码改动后需重启应用（`start.bat`）才生效
 
 ## 新增 AI 平台导入器
@@ -69,7 +78,7 @@ Memora 采用适配器模式，新增平台支持只需：
 3. 在 `src/importer/registry.ts` 注册
 4. 在 `src/shared/constants.ts` 的 `PROVIDER_META` 加平台元信息
 
-参考 `src/importer/claude-code/` 的实现。
+参考 `src/importer/claude/` 的实现。
 
 ## 新增 AI 供应商配置
 
@@ -87,6 +96,8 @@ Memora 采用适配器模式，新增平台支持只需：
 ### PR 检查清单
 
 - [ ] `npm run typecheck` 无错误
+- [ ] `npm run lint` 无错误
+- [ ] `npm run build` 构建通过
 - [ ] 提交信息符合 Conventional Commits
 - [ ] 新功能有对应 UI（如适用）
 - [ ] 不破坏现有功能

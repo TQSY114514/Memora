@@ -10,7 +10,7 @@
 
 <!-- 徽章 -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.5.0-F97316" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.7.1-F97316" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-33-47848F" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6" alt="TypeScript"/>
@@ -408,6 +408,48 @@ npm run mcp
 5. 点击「测试连接」验证配置（同时验证 chat + embeddings）
 
 配置仅保存在本地，apiKey 加密存储。支持 OpenAI、DeepSeek、SiliconFlow、Kimi、通义千问、Claude、Ollama、Gemini 及任何兼容接口。
+
+## 快速上手
+
+### 3 分钟体验完整流程
+
+```bash
+# 1. 启动应用
+npm run dev
+
+# 2. 配置 AI（上面 ↑ 配置 AI 章节）
+
+# 3. 导入对话
+#    点击侧边栏「📥 导入」→ 选择平台 → 拖入 JSON 文件
+
+# 4. 搜索记忆
+#    Ctrl+K → 输入关键词 → FTS + 语义搜索
+
+# 5. 查看用户画像
+#    点击侧边栏「🧠 偏好记忆」→ 📊 健康视图
+#    查看分层记忆、健康评分、用户画像摘要
+
+# 6. MCP 接入（可选）
+#    在支持 MCP 的 AI 客户端中配置 Memora MCP Server
+#    AI 即可搜索你的历史对话、读取偏好、写入知识
+```
+
+### MCP 接入示例
+
+在 Cursor / Claude Desktop / VS Code 的 MCP 配置中添加：
+
+```json
+{
+  "mcpServers": {
+    "Memora": {
+      "command": "node",
+      "args": ["/path/to/Memora/out/main/index.js", "--mcp"]
+    }
+  }
+}
+```
+
+接入后 AI 可使用 25 个 MCP 工具，包括 `search_sessions`、`memory_recall`、`memory_save_preference`、`knowledge_search` 等。完整工具列表见下方 MCP 章节。
 
 ## 项目架构
 
