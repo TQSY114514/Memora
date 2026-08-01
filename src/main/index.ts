@@ -50,6 +50,7 @@ function startGui(): void {
   let mainWindow: BrowserWindow | null = null
   let tray: Tray | null = null
   let isQuiting = false
+  let lifecycleTimer: NodeJS.Timeout | null = null
 
   /** 创建系统托盘 */
   function createTray(): void {
@@ -246,7 +247,7 @@ function startGui(): void {
     } catch (e) {
       logger.warn('Memory lifecycle failed (non-blocking)', { error: String(e) })
     }
-    const lifecycleTimer = setInterval(() => {
+    const timer = setInterval(() => {
       try {
         const result = runMemoryLifecycle()
         if (result.archived > 0 || result.promoted > 0) {
@@ -256,6 +257,7 @@ function startGui(): void {
         logger.warn('Memory lifecycle scheduled failed', { error: String(e) })
       }
     }, 6 * 60 * 60 * 1000)  // 6 小时
+    lifecycleTimer = timer
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -275,7 +277,7 @@ function startGui(): void {
     // 停止自动热备份定时器（v1.6）
     backupService.stop()
     // 停止记忆生命周期定时器
-    clearInterval(lifecycleTimer)
+    if (lifecycleTimer) clearInterval(lifecycleTimer)
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
     // 退出前将 WAL 写回主库 + 优化查询计划，避免 WAL 膨胀导致下次启动变慢

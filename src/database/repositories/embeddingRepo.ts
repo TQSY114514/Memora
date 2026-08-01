@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
-import { logger } from '../../main/logger'
 import type { Message } from '@shared/types'
 
 /** 允许的向量维度范围（1-8192），超出则拒绝写入 */
