@@ -143,16 +143,20 @@ function startGui(): void {
     })
 
     // 页面加载失败时给出可见提示，避免静默黑屏
+    // 注意：errorDescription/validatedURL 来自网络层，必须转义防止 XSS
     mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
       logger.error('Renderer load failed', { errorCode, errorDescription, validatedURL })
+      const esc = (s: unknown) => String(s).replace(/[<>&"']/g, (c) => ({
+        '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;'
+      }[c]!))
       mainWindow?.webContents.loadURL(`data:text/html;charset=utf-8,
         <html>
         <body style="background:#0f0e12;color:#e8e6f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
           <div style="text-align:center;max-width:400px">
             <h2>页面加载失败</h2>
-            <p style="color:#a09cb8">错误代码: ${errorCode}</p>
-            <p style="color:#6e6a82;font-size:13px">${errorDescription}</p>
-            <p style="color:#6e6a82;font-size:11px;word-break:break-all">${validatedURL}</p>
+            <p style="color:#a09cb8">错误代码: ${esc(errorCode)}</p>
+            <p style="color:#6e6a82;font-size:13px">${esc(errorDescription)}</p>
+            <p style="color:#6e6a82;font-size:11px;word-break:break-all">${esc(validatedURL)}</p>
           </div>
         </body>
         </html>
@@ -169,9 +173,16 @@ function startGui(): void {
       mainWindow = null
     })
 
-    // 外部链接用系统浏览器打开
+    // 外部链接用系统浏览器打开（仅放行 https/mailto，防止 file:// 或自定义协议 RCE）
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-      shell.openExternal(url)
+      try {
+        const parsed = new URL(url)
+        if (parsed.protocol === 'https:' || parsed.protocol === 'mailto:') {
+          shell.openExternal(url)
+        }
+      } catch {
+        // 无效 URL 静默拒绝
+      }
       return { action: 'deny' }
     })
 

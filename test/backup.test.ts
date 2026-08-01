@@ -52,7 +52,9 @@ vi.mock('electron', () => ({
 vi.mock('../src/database/connection', () => ({
   getDatabase: () => ({ pragma: () => {} }),
   closeDatabase: () => {},
-  initDatabase: () => ({})
+  initDatabase: () => ({}),
+  // 必须与测试写入的 dbPath（join(tmpDir, 'memora.db')）一致，否则 backupNow 报"文件不存在"
+  getDbPath: () => require('path').join(tmpDir, 'memora.db')
 }))
 
 vi.mock('../src/main/logger', () => ({

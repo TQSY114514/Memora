@@ -100,12 +100,15 @@ export function createSession(
   const importedAt = new Date().toISOString()
 
   const tx = db.transaction(() => {
-    db.prepare(
+    // ON CONFLICT DO NOTHING：DB 兜底防并发重复导入（应用层 findBySourceId 已查重，
+    // 此处是并发场景的第二道防线）。冲突时跳过插入，返回已存在会话。
+    const result = db.prepare(
       `INSERT INTO chat_sessions
        (id, source_id, provider, model, title, description, folder_id, is_favorite,
         message_count, created_at, updated_at, imported_at)
        VALUES (@id, @source_id, @provider, @model, @title, @description, @folder_id,
-               @is_favorite, @message_count, @created_at, @updated_at, @imported_at)`
+               @is_favorite, @message_count, @created_at, @updated_at, @imported_at)
+       ON CONFLICT(source_id, provider) WHERE source_id IS NOT NULL DO NOTHING`
     ).run({
       id,
       source_id: session.sourceId ?? null,
@@ -120,6 +123,9 @@ export function createSession(
       updated_at: session.updatedAt,
       imported_at: importedAt
     })
+
+    // 冲突未插入：直接返回，不写消息（已存在会话已有消息）
+    if (result.changes === 0) return
 
     if (messages.length > 0) {
       const stmt = db.prepare(
@@ -151,7 +157,8 @@ export function createSession(
     console.error('[sessionRepo] FTS 索引失败（不影响会话写入）:', e)
   }
 
-  return getSession(id)!
+  // 冲突未插入时返回已存在的会话（DB 兜底）
+  return getSession(id) ?? (session.sourceId ? findBySourceId(session.sourceId, session.provider)! : null)!
 }
 
 /**

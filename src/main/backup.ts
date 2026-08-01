@@ -22,7 +22,7 @@ import { createGzip, createGunzip } from 'zlib'
 import { pipeline } from 'stream/promises'
 import { createReadStream, createWriteStream } from 'fs'
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync, createHash } from 'crypto'
-import { getDatabase, closeDatabase, initDatabase } from '../database/connection'
+import { getDatabase, closeDatabase, initDatabase, getDbPath } from '../database/connection'
 import { logger } from './logger'
 
 export interface BackupConfig {
@@ -128,10 +128,6 @@ class BackupService {
     }
   }
 
-  private getDbPath(): string {
-    return join(app.getPath('userData'), 'memora.db')
-  }
-
   /**
    * 计算文件 SHA-256（v1.8）
    * 使用流式哈希，避免大备份文件一次性读入内存。
@@ -188,7 +184,7 @@ class BackupService {
   async backupNow(): Promise<BackupEntry> {
     this.ensureDir()
 
-    const dbPath = this.getDbPath()
+    const dbPath = getDbPath()
     if (!existsSync(dbPath)) {
       throw new Error('数据库文件不存在，无法备份')
     }
@@ -316,7 +312,7 @@ class BackupService {
       logger.warn('No SHA-256 sidecar for backup, skipping integrity check', { filename })
     }
 
-    const dbPath = this.getDbPath()
+    const dbPath = getDbPath()
     const tmpPath = dbPath + '.restore.tmp'
 
     if (isEncrypted) {

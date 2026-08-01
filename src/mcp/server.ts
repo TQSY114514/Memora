@@ -31,6 +31,7 @@
  */
 
 import { createInterface } from 'readline'
+import { app } from 'electron'
 import { initDatabase } from '../database/connection'
 import { logger } from '../main/logger'
 import { TOOLS } from './schemas'
@@ -171,7 +172,7 @@ export async function startMcpServer(): Promise<void> {
               capabilities: { tools: {} },
               serverInfo: {
                 name: 'Memora',
-                version: '1.7.1'
+                version: app.getVersion()
               }
             }
           })

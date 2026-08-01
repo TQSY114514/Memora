@@ -32,7 +32,8 @@ export const WRITE_TOOLS = new Set([
   'memory_save_preference',
   'update_session',
   'create_folder',
-  'knowledge_entry_update'
+  'knowledge_entry_update',
+  'summarize_session'
 ])
 
 /** 破坏性工具列表（需 --destructive 额外开启，默认拒绝） */

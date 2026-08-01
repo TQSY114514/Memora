@@ -78,6 +78,11 @@ const migrations: Migration[] = [
       // 复合索引：按 workspace + subject + context 过滤（冲突检测查询）
       db.exec('CREATE INDEX IF NOT EXISTS idx_pref_workspace_subject_context ON preferences(workspace_id, subject, context)')
     }
+  },
+  {
+    version: 10,
+    description: 'chat_sessions 加 (source_id, provider) 唯一约束（幂等导入 DB 兜底，防并发重复）',
+    up: (db) => dedupSessionsAndAddUniqueIndex(db)
   }
 ]
 
@@ -355,6 +360,56 @@ function migrateToPreferences(db: Database.Database): void {
       tokenize = 'unicode61 remove_diacritics 2'
     )
   `)
+}
+
+/**
+ * v10：chat_sessions 加 (source_id, provider) 唯一约束
+ * - partial unique index：仅 source_id IS NOT NULL 生效（手动新建无 source_id，不冲突）
+ * - 建索引前先去重：同 (source_id, provider) 保留 updated_at 最新的一条，其余删除
+ *   （messages / session_tags 等通过 ON DELETE CASCADE 自动清理）
+ * - 去重逻辑放在事务里，与索引创建一起原子提交
+ */
+function dedupSessionsAndAddUniqueIndex(db: Database.Database): void {
+  // 找出所有重复组（source_id NOT NULL，按 source_id+provider 分组，count>1）
+  const dupGroups = db
+    .prepare(
+      `SELECT source_id, provider, COUNT(*) as cnt
+       FROM chat_sessions
+       WHERE source_id IS NOT NULL
+       GROUP BY source_id, provider
+       HAVING cnt > 1`
+    )
+    .all() as Array<{ source_id: string; provider: string; cnt: number }>
+
+  if (dupGroups.length > 0) {
+    const findKeepId = db.prepare(
+      `SELECT id FROM chat_sessions
+       WHERE source_id = ? AND provider = ?
+       ORDER BY updated_at DESC, imported_at DESC LIMIT 1`
+    )
+    const deleteDuplicates = db.prepare(
+      `DELETE FROM chat_sessions
+       WHERE source_id = ? AND provider = ? AND id != ?`
+    )
+
+    const tx = db.transaction(() => {
+      for (const g of dupGroups) {
+        const keep = findKeepId.get(g.source_id, g.provider) as { id: string } | undefined
+        if (!keep) continue
+        const info = deleteDuplicates.run(g.source_id, g.provider, keep.id)
+        if (info.changes > 0) {
+          console.log(`[db] v10 去重: (${g.source_id}, ${g.provider}) 删除 ${info.changes} 条重复会话`)
+        }
+      }
+    })
+    tx()
+  }
+
+  // 建 partial unique index（NULL source_id 不参与，手动新建可重复）
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_source_provider_unique
+     ON chat_sessions(source_id, provider) WHERE source_id IS NOT NULL`
+  )
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */

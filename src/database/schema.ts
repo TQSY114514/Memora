@@ -49,6 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_sessions_provider ON chat_sessions(provider);
 CREATE INDEX IF NOT EXISTS idx_sessions_favorite ON chat_sessions(is_favorite);
 CREATE INDEX IF NOT EXISTS idx_sessions_source ON chat_sessions(source_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON chat_sessions(created_at);
+-- 幂等导入兜底：同来源同 provider 只允许一条会话（partial index：NULL source_id 不冲突，手动新建可重复）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_source_provider_unique
+  ON chat_sessions(source_id, provider) WHERE source_id IS NOT NULL;
 
 -- 消息
 CREATE TABLE IF NOT EXISTS messages (

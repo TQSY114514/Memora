@@ -121,7 +121,8 @@ export async function handleSessionsTool(
       const db = getDatabase()
       const msgId = uuidv4()
       const now = new Date().toISOString()
-      const order = (db.prepare('SELECT COUNT(*) as n FROM messages WHERE session_id = ?').get(sessionId) as { n: number }).n
+      // 用 MAX(msg_order)+1 而非 COUNT(*)，避免删除消息后序号重复
+      const order = (db.prepare('SELECT COALESCE(MAX(msg_order), -1) + 1 as n FROM messages WHERE session_id = ?').get(sessionId) as { n: number }).n
 
       const tx = db.transaction(() => {
         db.prepare(

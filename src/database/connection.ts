@@ -28,7 +28,7 @@ export function checkIntegrity(): boolean {
   }
 }
 
-/** 初始化数据库（建表 + 完整性检查 + 开启外键 + WAL + 版本化迁移） */
+/** 初始化数据库（建表 + 完整性检查 + 开启外键 + WAL + busy_timeout + 版本化迁移） */
 export function initDatabase(dbPath?: string): Database.Database {
   if (dbInstance) return dbInstance
 
@@ -46,10 +46,13 @@ export function initDatabase(dbPath?: string): Database.Database {
     }
   }
 
-  // 性能优化：WAL 模式 + 外键约束
+  // 性能优化：WAL 模式 + 外键约束 + 写冲突重试
+  // busy_timeout：MCP Server 是独立进程，与主进程共享同一 DB 文件，
+  // WAL 允许并发读但写互斥，busy_timeout 让写冲突时等待而非立即抛 SQLITE_BUSY
   dbInstance.pragma('journal_mode = WAL')
   dbInstance.pragma('foreign_keys = ON')
   dbInstance.pragma('synchronous = NORMAL')
+  dbInstance.pragma('busy_timeout = 5000')
 
   // 启动时完整性自检：如果数据库损坏，尝试从备份恢复
   if (!isNewFile) {
