@@ -9,6 +9,12 @@
  * 这样 unicode61 按空格切分就能正确命中词组。
  *
  * 零依赖，无需 jieba-wasm 等额外库。
+ *
+ * 评估记录（v1.8，对应优化报告 #12）：
+ *   曾评估改用 SQLite trigram tokenizer（better-sqlite3@11 内置 SQLite 3.46+ 已支持），
+ *   对中日韩子串召回更好且无需预分词。但切换需重建三张 FTS 表 + 改造查询构造 +
+ *   去除预分词逻辑，属核心搜索层变更。当前方案 benchmark 万级对话 <1ms，召回可接受，
+ *   故暂缓 trigram 实施；如未来出现子串跨词漏召问题可再启用（FTS 为派生索引，可安全重建）。
  */
 
 let segmenter: Intl.Segmenter | null = null
