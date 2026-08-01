@@ -35,7 +35,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
   const [entries, setEntries] = useState<KnowledgeEntry[]>([])
   const [counts, setCounts] = useState<{ total: number; knowledge: number; decision: number; task: number; openTask: number } | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list')
+  const [viewMode] = useState<'list' | 'graph'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +63,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
         setCurrentWsId(activeWorkspaceId ?? ws[0].id)
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次加载工作区列表
   }, [])
 
   const refresh = useCallback(async () => {

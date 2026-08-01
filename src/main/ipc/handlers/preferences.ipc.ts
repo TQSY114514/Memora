@@ -13,7 +13,6 @@ import {
   decayConfidence,
   detectConflicts
 } from '@db/repositories'
-import type { PreferenceStatus, PreferenceSource } from '@shared/types'
 
 export function registerPreferenceHandlers(): void {
   safeHandle(IPC.PREF_LIST, (_e, options?: Parameters<typeof listPreferences>[0]) => {

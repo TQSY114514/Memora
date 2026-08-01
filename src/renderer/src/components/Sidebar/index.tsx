@@ -24,7 +24,6 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
     setActiveWorkspace,
     setActiveFolder,
     setWorkspaces,
-    setFolders,
     setSessions,
     clearSearch
   } = useStore()
@@ -41,6 +40,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
   // 初始加载工作区列表
   useEffect(() => {
     refreshWorkspaces()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次加载工作区列表
   }, [])
 
   // 工作区变化时加载其文件夹

@@ -112,11 +112,6 @@ async function extractError(resp: Response): Promise<string> {
 
 // ===== Chat Completions =====
 
-interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
-
 /**
  * 调用对话接口（统一入口，根据 apiStyle 路由）
  * @returns LLM 生成的文本内容

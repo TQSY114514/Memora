@@ -1,7 +1,7 @@
 import { getDatabase } from '../database/connection'
 import { getSessionsByIds } from '../database/repositories/sessionRepo'
 import { segmentQuery } from './segmenter'
-import type { SearchResult, SearchSnippet } from '@shared/types'
+import type { SearchResult } from '@shared/types'
 
 interface FtsHitRow {
   session_id: string
@@ -79,7 +79,7 @@ export function search(
   const limit = options?.limit ?? 50
 
   // 1. 先用 AND（精确匹配，所有词都要命中）
-  let ftsQuery = buildFtsQuery(query, 'AND')
+  const ftsQuery = buildFtsQuery(query, 'AND')
   if (!ftsQuery) return []
   let rows = runFts(ftsQuery, limit * 2, options?.provider) // 多取一些用于过滤
 

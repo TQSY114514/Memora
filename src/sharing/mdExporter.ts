@@ -70,13 +70,6 @@ function renderMessage(msg: Message): string {
   return lines.join('\n')
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso)

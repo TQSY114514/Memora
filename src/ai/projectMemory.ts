@@ -119,7 +119,6 @@ export async function askProjectMemory(
   }
 
   // 3. 加载上下文 + 组装 prompt
-  const db = getDatabase()
   const citations: MemoryCitation[] = []
   const contextBlocks: string[] = []
 

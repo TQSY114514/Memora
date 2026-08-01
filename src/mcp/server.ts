@@ -62,8 +62,11 @@ interface JsonRpcResponse {
   error?: { code: number; message: string; data?: unknown }
 }
 
-/** 调用工具 */
-async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+/**
+ * 调用工具（导出供单测：路由 + 访问控制集成验证）
+ * @internal 仅供 server.ts 与测试使用，外部不应直接调用
+ */
+export async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
   // 破坏性工具检查（最高优先级，默认拒绝）
   if (DESTRUCTIVE_TOOLS.has(name)) {
     if (!isDestructiveEnabled) {

@@ -48,7 +48,6 @@ interface ParsedMeta {
 const SCC_HEADER_RE =
   /^#\s*(.+?)(?:\s*-\s*Source:\s*(\S+))?(?:\s*-\s*Author:\s*(.+?))?\s*$/m
 const SCC_CREATED_RE = /^-\s*Created:\s*(.+?)$/m
-const SCC_MESSAGES_RE = /^-\s*Messages:\s*(\d+)\s*$/m
 const SCC_MODEL_RE = /^-\s*Model:\s*(.+?)$/m
 // --- ## Human / --- ## Assistant / --- ## System / --- ## Tool
 const SCC_TURN_SPLIT_RE = /\n---\s*##\s*/m
@@ -65,7 +64,6 @@ function tryParseSharedClaudeChats(content: string): ParsedSession | null {
 
   const title = headerMatch[1].trim()
   const sourceUrl = headerMatch[2]?.trim()
-  const author = headerMatch[3]?.trim()
   const created = content.match(SCC_CREATED_RE)?.[1].trim()
   const modelStr = content.match(SCC_MODEL_RE)?.[1].trim()
 

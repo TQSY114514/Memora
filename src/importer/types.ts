@@ -1,4 +1,4 @@
-import type { ChatSession, Message, Provider } from '@shared/types'
+import type { Message, Provider } from '@shared/types'
 
 /**
  * Importer 接口

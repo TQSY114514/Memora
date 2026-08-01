@@ -98,7 +98,7 @@ function parseArchive(buf: Buffer): Map<string, Buffer> {
 
 /** 校验 SQLite 文件完整性 */
 function validateSqliteFile(path: string): void {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+   
   const Database = require('better-sqlite3')
   const tmpDb = new Database(path, { readonly: true })
   try {

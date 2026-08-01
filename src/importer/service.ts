@@ -3,7 +3,6 @@ import { StringDecoder } from 'string_decoder'
 import { basename, extname, join } from 'path'
 import { registerBuiltins, detectImporter, getImporter } from '../importer'
 import { createSession, findBySourceId } from '../database/repositories/sessionRepo'
-import { getDatabase } from '../database/connection'
 import { StreamParseError, LARGE_FILE_THRESHOLD, StreamingArrayExtractor } from './streamJsonArray'
 import { sanitizeMessages } from './sanitizer'
 import type { ImportResult, ChatSession } from '@shared/types'
@@ -348,7 +347,6 @@ export function persistSessions(
         }
       }
 
-      const now = new Date().toISOString()
       const sessionInput: Omit<ChatSession, 'id' | 'importedAt' | 'tags'> = {
         sourceId: parsed.sourceId,
         provider: parsed.provider,

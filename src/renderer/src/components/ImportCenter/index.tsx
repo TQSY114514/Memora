@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
-import type { Provider, ScanResult, ScanPreview, DetectedApp, ExtractedSession } from '@shared/types'
+import type { Provider, ScanPreview, DetectedApp, ExtractedSession } from '@shared/types'
 
 interface ImportCenterProps {
   onClose: () => void
@@ -188,7 +188,6 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
     let hasError = false
     try {
       const folderId = activeFolderId ?? undefined
-      let importedCount = 0
 
       // 1. 导入扒取的对话（内存中，应用编辑后的标题/来源）
       const selectedExtracted = extracted.filter((s) => selected.has(s.id))
@@ -199,7 +198,6 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
           source: edits[s.id]?.source ?? s.source
         }))
         const result = await window.Memora.import.extracted(toImport, { folderId })
-        importedCount += result.imported
         if (result.errors.length > 0) {
           setError(result.errors.join('\n'))
           hasError = true
@@ -214,7 +212,6 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
       if (selectedFiles.length > 0) {
         for (const p of selectedFiles) {
           const r = await window.Memora.import.file(p, { folderId })
-          importedCount += r.imported
           if (r.errors.length > 0) {
             setError(r.errors.join('\n'))
             hasError = true

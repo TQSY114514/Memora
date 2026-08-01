@@ -12,7 +12,6 @@ const PreferenceExplorer = lazy(() => import('./components/PreferenceExplorer').
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
-import { useBgImportStore } from './stores/backgroundImportStore'
 import { useAiConfigStore } from './stores/aiConfigStore'
 import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
 import { StartupImportHint } from './components/StartupImportHint'
@@ -30,7 +29,6 @@ export default function App() {
   const { error } = useStore()
   const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
   const { backgroundImage, blur, opacity } = useThemeStore()
-  const { loadConfig: loadBgConfig, loadStatus: loadBgStatus, attachListeners: attachBgListeners } = useBgImportStore()
   const { loadApiKeys } = useAiConfigStore()
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showMemoryPanel, setShowMemoryPanel] = useState(false)
@@ -56,6 +54,7 @@ export default function App() {
     ensureDefaultWorkspace().catch(console.error)
     // 从 main 加密存储加载 apiKey 到内存（不阻塞 UI）
     loadApiKeys().catch(console.error)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次启动时执行一次
   }, [])
 
   // 全局快捷键：Ctrl/Cmd+K 聚焦搜索框

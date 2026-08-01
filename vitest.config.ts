@@ -18,13 +18,14 @@ export default defineConfig({
       ],
       reporter: ['text', 'text-summary', 'lcov'],
       thresholds: {
-        // v1.9：覆盖率门禁提升（新增 safePath/vectorMath/searchQuery 测试后上调）
-        // 当前实际：statements 16.74% / branches 16.15% / functions 13.43% / lines 17.31%
-        // 门禁设为略低于实际值，防止回退同时不阻断 CI
-        statements: 16,
-        branches: 16,
-        functions: 13,
-        lines: 17
+        // v1.9.1：覆盖率门禁提升（新增 safePath ID/filename + htmlExporter XSS +
+        // secretStore 加解密 + mcpServer 路由/访问控制 + accessControl 脱敏测试后上调）
+        // 当前实际：statements 19.23% / branches 19.35% / functions 16.12% / lines 20.02%
+        // 门禁设为略低于实际值，留 >1% 余量防止小幅回退阻断 CI
+        statements: 18,
+        branches: 18,
+        functions: 15,
+        lines: 19
       }
     }
   },

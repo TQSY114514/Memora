@@ -57,6 +57,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
         setCurrentWsId(activeWorkspaceId ?? ws[0].id)
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次加载工作区列表
   }, [])
 
   const refresh = useCallback(async () => {

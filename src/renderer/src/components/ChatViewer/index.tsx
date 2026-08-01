@@ -84,6 +84,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     // 切换会话时滚动到顶部
     if (scrollRef.current) scrollRef.current.scrollTop = 0
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅 session.id 变化时重新加载
   }, [session?.id])
 
   async function handleToggleFavorite() {
@@ -540,12 +541,12 @@ function MessageBubble({ message }: { message: Message }) {
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
-            code: ({ node, className, children, ...props }) => (
+            code: ({ node: _node, className, children, ...props }) => (
               <code className={`px-1 py-0.5 rounded text-xs ${className ?? ''}`} {...props}>
                 {children}
               </code>
             ),
-            pre: ({ node, children, ...props }) => (
+            pre: ({ node: _node, children, ...props }) => (
               <pre
                 className="bg-bg-primary dark:bg-black/40 rounded-md p-3 overflow-x-auto my-2 text-xs"
                 {...props}

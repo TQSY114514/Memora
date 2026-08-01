@@ -166,20 +166,6 @@ export function ChatList() {
     }
   }
 
-  async function handleBatchExport() {
-    const ids = Array.from(selectedIds)
-    for (const id of ids) {
-      const html = await window.Memora.share.exportHtml(id)
-      if (html) {
-        const session = sessions.find((s) => s.id === id)
-        const name = session?.title.replace(/[^\w\u4e00-\u9fa5]/g, '_') ?? id
-        await window.Memora.saveFileDialog({ defaultName: `${name}.html`, content: html })
-      }
-    }
-    setSelectedIds(new Set())
-    setShowBatchBar(false)
-  }
-
   function handleClearSelection() {
     setSelectedIds(new Set())
     setShowBatchBar(false)
