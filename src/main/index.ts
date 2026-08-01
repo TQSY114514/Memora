@@ -159,17 +159,25 @@ function startGui(): void {
 
     // 设置 CSP 头：禁止内联脚本/动态脚本执行，只允许同源资源
     // 注意：React 组件的 inline style 需 'unsafe-inline'；img data: URI 用于部分图标
+    // 开发模式需放宽 CSP：Vite HMR 使用 WebSocket + eval source map
+    const isDevMode = !app.isPackaged
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      const csp = isDevMode
+        ? "default-src 'self'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data:; " +
+          "script-src 'self' 'unsafe-eval' 'unsafe-inline'; " +
+          "font-src 'self' data:; " +
+          "connect-src 'self' ws: wss:;"
+        : "default-src 'self'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data:; " +
+          "script-src 'self'; " +
+          "font-src 'self' data:;"
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self'; " +
-            "style-src 'self' 'unsafe-inline'; " +
-            "img-src 'self' data:; " +
-            "script-src 'self'; " +
-            "font-src 'self' data:;"
-          ]
+          'Content-Security-Policy': [csp]
         }
       })
     })
