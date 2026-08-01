@@ -130,7 +130,12 @@ export function getMemoryHealth(workspaceId?: string): MemoryHealth {
 /** 生成自然语言用户画像摘要 */
 export function generateProfileSummary(workspaceId: string): ProfileSummary {
   const memories = getTieredMemories(workspaceId)
-  const health = getMemoryHealth(workspaceId)
+
+  // 复用 memories 数据计算 health，避免二次查询
+  const working = memories.filter((m) => m.tier === 'working')
+  const shortTerm = memories.filter((m) => m.tier === 'short_term')
+  const longTerm = memories.filter((m) => m.tier === 'long_term')
+  const atRisk = memories.filter((m) => m.strength < 0.2)
 
   // 按 subject 分组，取最高置信度
   const subjectMap = new Map<string, TieredMemory[]>()
@@ -142,6 +147,15 @@ export function generateProfileSummary(workspaceId: string): ProfileSummary {
 
   const highlights: ProfileSummary['highlights'] = []
   const trends: ProfileSummary['trends'] = []
+
+  // 查询 superseded 偏好用于趋势检测（getTieredMemories 只返回 active）
+  const supersededPrefs = listPreferences({ workspaceId, status: 'superseded' })
+  const supersededBySubject = new Map<string, Preference[]>()
+  for (const sp of supersededPrefs) {
+    const group = supersededBySubject.get(sp.subject) || []
+    group.push(sp)
+    supersededBySubject.set(sp.subject, group)
+  }
 
   for (const [subject, items] of subjectMap) {
     // 按 confidence 降序
@@ -160,17 +174,16 @@ export function generateProfileSummary(workspaceId: string): ProfileSummary {
       description
     })
 
-    // 检测趋势：同 subject 下有 superseded 的偏好
-    const superseded = sorted.filter((m) => m.preference.status === 'superseded')
-    if (superseded.length > 0 && sorted.length > 1) {
-      const current = sorted.find((m) => m.preference.status === 'active')
-      const old = superseded[0]
-      if (current && old.preference.value !== current.preference.value) {
+    // 检测趋势：对比 superseded 偏好与当前 active 偏好
+    const oldPrefs = supersededBySubject.get(subject)
+    if (oldPrefs && oldPrefs.length > 0) {
+      const old = oldPrefs[0]  // 取最新的 superseded
+      if (old.value !== best.preference.value) {
         trends.push({
           subject,
-          from: old.preference.value,
-          to: current.preference.value,
-          description: `从「${old.preference.value}」变为「${current.preference.value}」`
+          from: old.value,
+          to: best.preference.value,
+          description: `从「${old.value}」变为「${best.preference.value}」`
         })
       }
     }
@@ -180,13 +193,14 @@ export function generateProfileSummary(workspaceId: string): ProfileSummary {
   const summaryParts: string[] = []
 
   // 概览
+  const totalMemories = memories.length
   summaryParts.push(
-    `该用户共有 ${health.total} 条活跃记忆：` +
-    `${health.longTerm} 条长期记忆、${health.shortTerm} 条短期记忆、${health.working} 条工作记忆。`
+    `该用户共有 ${totalMemories} 条活跃记忆：` +
+    `${longTerm.length} 条长期记忆、${shortTerm.length} 条短期记忆、${working.length} 条工作记忆。`
   )
 
-  if (health.atRisk.length > 0) {
-    summaryParts.push(`⚠️ ${health.atRisk.length} 条记忆处于遗忘风险中。`)
+  if (atRisk.length > 0) {
+    summaryParts.push(`⚠️ ${atRisk.length} 条记忆处于遗忘风险中。`)
   }
 
   // 高置信度偏好
@@ -203,8 +217,8 @@ export function generateProfileSummary(workspaceId: string): ProfileSummary {
   }
 
   // 记忆健康评分
-  const healthScore = health.total > 0
-    ? Math.round((health.longTerm / health.total) * 100)
+  const healthScore = totalMemories > 0
+    ? Math.round((longTerm.length / totalMemories) * 100)
     : 0
   summaryParts.push(`记忆健康评分：${healthScore}/100（长期记忆占比 ${healthScore}%）。`)
 
@@ -214,26 +228,26 @@ export function generateProfileSummary(workspaceId: string): ProfileSummary {
     highlights,
     trends,
     stats: {
-      totalMemories: health.total,
-      longTermCount: health.longTerm,
-      shortTermCount: health.shortTerm,
-      workingCount: health.working,
-      atRiskCount: health.atRisk.length
+      totalMemories,
+      longTermCount: longTerm.length,
+      shortTermCount: shortTerm.length,
+      workingCount: working.length,
+      atRiskCount: atRisk.length
     }
   }
 }
 
 /**
  * 执行一次完整的记忆生命周期维护
- * - 更新所有 active 偏好的强度
  * - 归档过弱的记忆（strength < 0.1）
- * - 返回维护报告
+ * - 为从未访问的记忆设置初始访问时间
+ * - 统计层级变化（promoted: working→short/long, demoted: long→short/working）
  */
 export function runMemoryLifecycle(workspaceId?: string): {
   maintained: number
   archived: number
-  promoted: number  // 升级到长期记忆的数量
-  demoted: number   // 降级到短期/工作记忆的数量
+  promoted: number  // 升级到更高层级的数量
+  demoted: number   // 降级到更低层级的数量
 } {
   const db = getDatabase()
   const memories = getTieredMemories(workspaceId)
@@ -245,6 +259,9 @@ export function runMemoryLifecycle(workspaceId?: string): {
 
   const tx = db.transaction(() => {
     for (const mem of memories) {
+      // 当前层级（维护前）
+      const currentTier = mem.tier
+
       // 太弱的记忆 → 归档
       if (mem.strength < 0.1 && mem.preference.status === 'active') {
         db.prepare(
@@ -256,20 +273,31 @@ export function runMemoryLifecycle(workspaceId?: string): {
         continue
       }
 
-      // 更新 last_accessed_at 和访问计数（如果从未访问过，给一个初始访问）
+      // 为从未访问的记忆设置初始访问时间
       if (!mem.preference.lastAccessedAt) {
         db.prepare(
           `UPDATE preferences
            SET last_accessed_at = ?, access_count = access_count + 1
            WHERE id = ?`
         ).run(now, mem.preference.id)
-      }
 
-      // 追踪层级变化（仅用于统计）
-      const oldTier = classifyMemoryTier(mem.preference)
-      // touch 后重新计算
-      if (oldTier === 'working' && mem.strength > 0.3) promoted++
-      if (oldTier === 'long_term' && mem.strength < 0.6) demoted++
+        // 重新计算层级（设置 lastAccessedAt 后强度会变化）
+        // 原来从未访问 → 默认 30 天衰减，现在 → 0 天衰减，强度提升
+        const updatedPref: Preference = {
+          ...mem.preference,
+          lastAccessedAt: now,
+          accessCount: mem.preference.accessCount + 1
+        }
+        const newTier = classifyMemoryTier(updatedPref)
+
+        if (newTier !== currentTier) {
+          // working → short_term/long_term = promoted
+          // long_term → short_term/working = demoted
+          const tierOrder: Record<MemoryTier, number> = { working: 0, short_term: 1, long_term: 2 }
+          if (tierOrder[newTier] > tierOrder[currentTier]) promoted++
+          else demoted++
+        }
+      }
     }
   })
   tx()

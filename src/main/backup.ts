@@ -15,7 +15,7 @@
  */
 import { app } from 'electron'
 import { join } from 'path'
-import { mkdirSync, readdirSync, statSync, unlinkSync, copyFileSync, existsSync } from 'fs'
+import { mkdirSync, readdirSync, statSync, unlinkSync, copyFileSync, existsSync, openSync, writeSync, closeSync, fstatSync, readSync } from 'fs'
 import { createGzip, createGunzip } from 'zlib'
 import { pipeline } from 'stream/promises'
 import { createReadStream, createWriteStream } from 'fs'
@@ -48,6 +48,10 @@ const AUTH_TAG_LENGTH = 16
 const SALT_LENGTH = 16
 const PBKDF2_ITERATIONS = 100_000
 const KEY_LENGTH = 32  // 256 bits
+
+/** 加密版本标记：用于区分不同加密格式，确保旧备份可兼容 */
+const ENC_MAGIC = Buffer.from('MEMORA_ENC_V1\n')  // 14 bytes
+const ENC_HEADER_LENGTH = ENC_MAGIC.length + SALT_LENGTH + IV_LENGTH  // 14 + 16 + 12 = 42
 
 /**
  * 从密码派生 AES-256 密钥
@@ -133,14 +137,15 @@ class BackupService {
 
     // 压缩数据库文件
     if (encrypted) {
-      // 加密流程：压缩 → 加密
+      // 加密流程：写入版本头 → 压缩 → 加密
       const salt = randomBytes(SALT_LENGTH)
       const key = deriveKey(this.config.encryptionKey!, salt)
       const iv = randomBytes(IV_LENGTH)
       const cipher = createCipheriv(AES_ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
 
       const writeStream = createWriteStream(zipPath)
-      // 写入 salt + iv 作为文件头
+      // 写入版本标记 + salt + iv 作为文件头
+      writeStream.write(ENC_MAGIC)
       writeStream.write(salt)
       writeStream.write(iv)
 
@@ -153,9 +158,9 @@ class BackupService {
 
       // 获取 auth tag 并追加到文件末尾
       const tag = cipher.getAuthTag()
-      const fd = require('fs').openSync(zipPath, 'a')
-      require('fs').writeSync(fd, tag)
-      require('fs').closeSync(fd)
+      const fd = openSync(zipPath, 'a')
+      writeSync(fd, tag)
+      closeSync(fd)
     } else {
       // 普通压缩
       await pipeline(
@@ -216,21 +221,37 @@ class BackupService {
     const tmpPath = dbPath + '.restore.tmp'
 
     if (isEncrypted) {
-      // 加密备份：读取 salt + iv → 解密 → 解压
-      const fd = require('fs').openSync(zipPath, 'r')
-      const fileSize = require('fs').fstatSync(fd).size
+      // 加密备份：读取文件头 → 检测版本 → 解密 → 解压
+      const fd = openSync(zipPath, 'r')
+      const fileSize = fstatSync(fd).size
 
-      // 读取 salt (16 bytes) + iv (12 bytes) 从文件头
-      const header = Buffer.alloc(SALT_LENGTH + IV_LENGTH)
-      require('fs').readSync(fd, header, 0, header.length, 0)
+      // 读取足够的前缀来检测版本：ENC_MAGIC(14) + salt(16) + iv(12) = 42 bytes
+      const headerBuf = Buffer.alloc(ENC_HEADER_LENGTH)
+      readSync(fd, headerBuf, 0, ENC_HEADER_LENGTH, 0)
+
+      let salt: Buffer
+      let iv: Buffer
+      let ciphertextStart: number
+
+      // 检测是否为 V1 格式（含版本标记）
+      const magicBytes = headerBuf.subarray(0, ENC_MAGIC.length)
+      if (magicBytes.equals(ENC_MAGIC)) {
+        // V1 格式：magic(14) + salt(16) + iv(12) + ciphertext + authTag(16)
+        salt = headerBuf.subarray(ENC_MAGIC.length, ENC_MAGIC.length + SALT_LENGTH)
+        iv = headerBuf.subarray(ENC_MAGIC.length + SALT_LENGTH, ENC_HEADER_LENGTH)
+        ciphertextStart = ENC_HEADER_LENGTH
+      } else {
+        // V0 旧格式：salt(16) + iv(12) + ciphertext + authTag(16)（无版本标记）
+        salt = headerBuf.subarray(0, SALT_LENGTH)
+        iv = headerBuf.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
+        ciphertextStart = SALT_LENGTH + IV_LENGTH
+      }
 
       // 读取 auth tag (16 bytes) 从文件末尾
       const tag = Buffer.alloc(AUTH_TAG_LENGTH)
-      require('fs').readSync(fd, tag, 0, AUTH_TAG_LENGTH, fileSize - AUTH_TAG_LENGTH)
-      require('fs').closeSync(fd)
+      readSync(fd, tag, 0, AUTH_TAG_LENGTH, fileSize - AUTH_TAG_LENGTH)
+      closeSync(fd)
 
-      const salt = header.subarray(0, SALT_LENGTH)
-      const iv = header.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
       const key = deriveKey(password!, salt)
 
       const decipher = createDecipheriv(AES_ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
@@ -238,7 +259,7 @@ class BackupService {
 
       // 读取加密数据（跳过 header 和 tag）
       const readStream = createReadStream(zipPath, {
-        start: header.length,
+        start: ciphertextStart,
         end: fileSize - AUTH_TAG_LENGTH - 1
       })
 
