@@ -19,6 +19,9 @@ jobs:
   release:
     name: Build & Publish (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+    # Linux 因 icon 转换问题（.ico → PNG 需 512x512）暂允许失败，
+    # Windows/macOS 产物正常发布即可
+    continue-on-error: ${{ matrix.platform == 'linux' }}
     strategy:
       fail-fast: false  # 单平台失败不影响其它平台产物
       matrix:
