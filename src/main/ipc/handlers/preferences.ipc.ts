@@ -1,4 +1,4 @@
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafeId } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import {
   createPreference,
@@ -33,7 +33,7 @@ export function registerPreferenceHandlers(): void {
   })
 
   safeHandle(IPC.PREF_DELETE, (_e, id: string) => {
-    deletePreference(id)
+    deletePreference(assertSafeId(id))
   })
 
   safeHandle(IPC.PREF_ARCHIVE, (_e, id: string) => {

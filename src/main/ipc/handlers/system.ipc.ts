@@ -1,5 +1,5 @@
 import { dialog, app } from 'electron'
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafeFilename } from '../safeHandle'
 import { writeFileSync } from 'fs'
 import { IPC } from '@shared/constants'
 import { getDatabase } from '@db/connection'
@@ -208,9 +208,9 @@ export function registerSystemHandlers(): void {
 
   safeHandle(IPC.BACKUP_CREATE, async () => backupService.backupNow())
 
-  safeHandle(IPC.BACKUP_RESTORE, async (_e, filename: string, password?: string) => backupService.restoreBackup(filename, password))
+  safeHandle(IPC.BACKUP_RESTORE, async (_e, filename: string, password?: string) => backupService.restoreBackup(assertSafeFilename(filename), password))
 
-  safeHandle(IPC.BACKUP_DELETE, (_e, filename: string) => backupService.deleteBackup(filename))
+  safeHandle(IPC.BACKUP_DELETE, (_e, filename: string) => backupService.deleteBackup(assertSafeFilename(filename)))
 
   safeHandle(IPC.BACKUP_CONFIG_GET, () => backupService.getConfig())
 

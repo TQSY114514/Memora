@@ -1,4 +1,4 @@
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafeId } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import {
   createWorkspace,
@@ -40,5 +40,5 @@ export function registerWorkspaceHandlers(): void {
   safeHandle(IPC.FOLDER_UPDATE, (_e, id: string, patch: Parameters<typeof updateFolder>[1]) =>
     updateFolder(id, patch)
   )
-  safeHandle(IPC.FOLDER_DELETE, (_e, id: string) => deleteFolder(id))
+  safeHandle(IPC.FOLDER_DELETE, (_e, id: string) => deleteFolder(assertSafeId(id)))
 }

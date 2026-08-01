@@ -1,4 +1,4 @@
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafeId } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { getDatabase } from '@db/connection'
 import {
@@ -51,7 +51,7 @@ export function registerKnowledgeHandlers(): void {
   })
 
   safeHandle(IPC.KNOWLEDGE_DELETE, (_e, id: string) => {
-    deleteEntry(id)
+    deleteEntry(assertSafeId(id))
   })
 
   safeHandle(IPC.KNOWLEDGE_TOGGLE_TASK, (_e, id: string) => {

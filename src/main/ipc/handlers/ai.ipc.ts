@@ -1,4 +1,4 @@
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafeId } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { deleteSummary, upsertSummary } from '@db/repositories'
 import { generateSummary, getSessionSummary, generateKnowledgeMd } from '@ai/summarizer'
@@ -27,7 +27,7 @@ export function registerAiHandlers(): void {
   })
 
   safeHandle(IPC.AI_SUMMARY_DELETE, (_e, sessionId: string) => {
-    deleteSummary(sessionId)
+    deleteSummary(assertSafeId(sessionId, 'sessionId'))
   })
 
   safeHandle(
