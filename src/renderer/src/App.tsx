@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
-import { AiSettings } from './components/AiSettings'
-import { ImportCenter } from './components/ImportCenter'
-import { Settings } from './components/Settings'
-import { ProjectMemoryPanel } from './components/ProjectMemory'
-import { KnowledgePanel } from './components/Knowledge'
-import { PreferenceExplorer } from './components/PreferenceExplorer'
+// 按需加载的重组件（代码分割）：首屏不需要，点击触发时才加载对应 chunk
+const AiSettings = lazy(() => import('./components/AiSettings').then(m => ({ default: m.AiSettings })))
+const ImportCenter = lazy(() => import('./components/ImportCenter').then(m => ({ default: m.ImportCenter })))
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })))
+const ProjectMemoryPanel = lazy(() => import('./components/ProjectMemory').then(m => ({ default: m.ProjectMemoryPanel })))
+const KnowledgePanel = lazy(() => import('./components/Knowledge').then(m => ({ default: m.KnowledgePanel })))
+const PreferenceExplorer = lazy(() => import('./components/PreferenceExplorer').then(m => ({ default: m.PreferenceExplorer })))
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
@@ -15,6 +16,15 @@ import { useBgImportStore } from './stores/backgroundImportStore'
 import { useAiConfigStore } from './stores/aiConfigStore'
 import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
 import { StartupImportHint } from './components/StartupImportHint'
+
+/** lazy 组件加载中的 fallback */
+function PanelSkeleton() {
+  return (
+    <div className="flex-1 flex items-center justify-center text-fg-muted text-sm">
+      <div className="animate-pulse">加载中…</div>
+    </div>
+  )
+}
 
 export default function App() {
   const { error } = useStore()
@@ -126,11 +136,17 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
       />
       {showMemoryPanel ? (
-        <ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} />
+        </Suspense>
       ) : showKnowledgePanel ? (
-        <KnowledgePanel onClose={() => setShowKnowledgePanel(false)} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <KnowledgePanel onClose={() => setShowKnowledgePanel(false)} />
+        </Suspense>
       ) : showPreferencePanel ? (
-        <PreferenceExplorer onClose={() => setShowPreferencePanel(false)} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <PreferenceExplorer onClose={() => setShowPreferencePanel(false)} />
+        </Suspense>
       ) : (
         <>
           <ChatList />
@@ -154,18 +170,28 @@ export default function App() {
 
       <StartupImportHint onOpenImportCenter={() => setShowImportCenter(true)} />
 
-      {showImportCenter && <ImportCenter onClose={() => setShowImportCenter(false)} />}
+      {showImportCenter && (
+        <Suspense fallback={<PanelSkeleton />}>
+          <ImportCenter onClose={() => setShowImportCenter(false)} />
+        </Suspense>
+      )}
 
-      {showAiSettings && <AiSettings onClose={() => setShowAiSettings(false)} />}
+      {showAiSettings && (
+        <Suspense fallback={<PanelSkeleton />}>
+          <AiSettings onClose={() => setShowAiSettings(false)} />
+        </Suspense>
+      )}
 
       {showSettings && (
-        <Settings
-          onClose={() => setShowSettings(false)}
-          onOpenAiSettings={() => {
-            setShowSettings(false)
-            setShowAiSettings(true)
-          }}
-        />
+        <Suspense fallback={<PanelSkeleton />}>
+          <Settings
+            onClose={() => setShowSettings(false)}
+            onOpenAiSettings={() => {
+              setShowSettings(false)
+              setShowAiSettings(true)
+            }}
+          />
+        </Suspense>
       )}
       </div>
     </div>

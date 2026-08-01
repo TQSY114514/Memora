@@ -28,6 +28,21 @@ function transformHtmlPlugin(): Plugin {
   }
 }
 
+/**
+ * 生产构建时设置 base 为 app://renderer/，使资源路径为绝对路径。
+ * 用 config 钩子而非静态 base 配置，因为 electron-vite 不保证 NODE_ENV 在配置加载时已设置。
+ */
+function appProtocolBasePlugin(): Plugin {
+  return {
+    name: 'app-protocol-base',
+    config(_config, env) {
+      if (env.command === 'build') {
+        return { base: 'app://renderer/' }
+      }
+    }
+  }
+}
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -67,10 +82,17 @@ export default defineConfig({
         '@shared': resolve('src/shared')
       }
     },
-    plugins: [react(), transformHtmlPlugin()],
+    plugins: [react(), transformHtmlPlugin(), appProtocolBasePlugin()],
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html') }
+        input: { index: resolve('src/renderer/index.html') },
+        output: {
+          // 大依赖拆为独立 chunk，减小主 bundle 体积
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'markdown': ['react-markdown', 'remark-gfm', 'rehype-highlight']
+          }
+        }
       }
     }
   }

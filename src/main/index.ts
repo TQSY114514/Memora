@@ -1,6 +1,7 @@
-import { app, BrowserWindow, shell, Tray, Menu, nativeImage, session } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, shell, Tray, Menu, nativeImage, session, protocol, net } from 'electron'
+import { join, resolve } from 'path'
 import { existsSync } from 'fs'
+import { pathToFileURL } from 'url'
 import { initDatabase, closeDatabase, checkpointDatabase } from '../database/connection'
 import { registerIpcHandlers } from './ipc'
 import { listWorkspaces, deleteWorkspace } from '../database/repositories/workspaceRepo'
@@ -22,6 +23,23 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception', { error: err.stack })
 })
+
+// ===== 自定义协议注册（必须在 app.ready 之前） =====
+// 用 app:// 协议替代 file:// 加载渲染进程：
+// 1. 解决 file:// 下动态 import() 加载 chunk 失败（路径解析为根目录）的问题
+// 2. 恢复 React.lazy 代码分割能力，减小首屏 bundle 体积
+// 3. app:// 作为 privileged scheme 支持 fetch API、stream、secure context
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true
+    }
+  }
+])
 
 // ===== MCP Server 模式 =====
 // 通过 `electron --mcp` 启动时，运行 MCP Server 而非 GUI
@@ -182,11 +200,12 @@ function startGui(): void {
       })
     })
 
-    // 开发环境加载 dev server，生产环境加载打包文件
+    // 开发环境加载 dev server，生产环境用 app:// 自定义协议加载（替代 file://）
+    // app:// 协议下动态 import() 的 chunk 路径能正确解析，支持 React.lazy 代码分割
     if (process.env['ELECTRON_RENDERER_URL']) {
       mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
     } else {
-      mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+      mainWindow.loadURL('app://renderer/index.html')
     }
   }
 
@@ -209,6 +228,22 @@ function startGui(): void {
   app.whenReady().then(() => {
     // 初始化数据库
     initDatabase()
+
+    // 注册 app:// 协议处理器（生产模式下用自定义协议替代 file://）
+    // app://renderer/index.html → {rendererDist}/index.html
+    // app://renderer/assets/xxx.js → {rendererDist}/assets/xxx.js
+    // 路径遍历防护：resolve 后校验最终路径在 rendererDist 目录内
+    const rendererDist = join(__dirname, '../renderer')
+    protocol.handle('app', (request) => {
+      const url = new URL(request.url)
+      // pathname: /index.html, /assets/xxx.js
+      const filePath = join(rendererDist, url.pathname)
+      const resolved = resolve(filePath)
+      if (!resolved.startsWith(rendererDist)) {
+        return new Response('Forbidden', { status: 403 })
+      }
+      return net.fetch(pathToFileURL(resolved).toString())
+    })
 
     // 清理重复的默认工作区
     cleanupDuplicateDefaultWorkspaces()
