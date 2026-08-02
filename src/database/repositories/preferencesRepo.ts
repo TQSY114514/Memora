@@ -11,6 +11,7 @@ import { getDatabase } from '../connection'
 import { buildUpdateSets } from './sqlHelpers'
 import { segment } from '@search/segmenter'
 import { buildFtsQuery } from '../../search/query'
+import { addAuditLog } from './auditRepo'
 import type { Preference, PreferenceStatus, PreferenceSource, UserProfile, ConflictReport } from '@shared/types'
 
 interface PreferenceRow {
@@ -87,8 +88,39 @@ export function createPreference(input: {
   const source = input.source ?? 'manual'
   const ctx = input.context ?? null
 
+  // 宪法条目（source='constitution'）：跳过冲突检测，直接插入。
+  // 宪法条目之间不互相冲突，且始终为 active。
+  if (source === 'constitution') {
+    db.prepare(
+      `INSERT INTO preferences
+       (id, workspace_id, session_id, subject, value, context, confidence, source, status, superseded_by,
+        created_at, updated_at, last_accessed_at, access_count)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0)`
+    ).run(
+      id, input.workspaceId, input.sessionId ?? null,
+      input.subject, input.value, ctx, confidence, source,
+      now, now, now
+    )
+    try { indexPrefForSearch(id, input.subject, input.value) } catch (e) {
+      console.error('[preferencesRepo] FTS 索引失败:', e)
+    }
+    const constitutionPref = getPreference(id)!
+    addAuditLog({
+      entityType: 'preference',
+      entityId: id,
+      action: 'create',
+      afterValue: constitutionPref as unknown as Record<string, unknown>,
+      workspaceId: input.workspaceId,
+      sessionId: input.sessionId
+    })
+    return constitutionPref
+  }
+
   // 跟踪重复值匹配的已有 ID（事务内 return 提前退出时，外层需返回已有记录）
   let existingId: string | null = null
+  // 审计追踪：被取代的旧偏好 / 被置信度增强的旧偏好
+  const supersededOlds: PreferenceRow[] = []
+  let boostedOld: PreferenceRow | null = null
 
   const tx = db.transaction(() => {
     // 冲突检测：查找同 workspace + 同 subject + 同 context 的 active 偏好
@@ -112,6 +144,7 @@ export function createPreference(input: {
            WHERE id = ?`
         ).run(newConfidence, now, now, old.id)
         existingId = old.id
+        boostedOld = old
         return
       }
 
@@ -121,6 +154,7 @@ export function createPreference(input: {
          SET status = 'superseded', superseded_by = ?, updated_at = ?
          WHERE id = ?`
       ).run(id, now, old.id)
+      supersededOlds.push(old)
     }
 
     // 创建新偏好
@@ -139,6 +173,20 @@ export function createPreference(input: {
 
   // 重复值匹配：返回已有记录（事务内已更新置信度，FTS 也已在事务内更新）
   if (existingId) {
+    // 审计：置信度增强（同 value 复现）
+    if (boostedOld) {
+      const updated = getPreference(existingId)!
+      addAuditLog({
+        entityType: 'preference',
+        entityId: existingId,
+        action: 'update',
+        beforeValue: rowToPref(boostedOld) as unknown as Record<string, unknown>,
+        afterValue: updated as unknown as Record<string, unknown>,
+        workspaceId: input.workspaceId,
+        sessionId: input.sessionId,
+        reason: 'confidence boost: same value repeated'
+      })
+    }
     return getPreference(existingId)!
   }
 
@@ -147,7 +195,33 @@ export function createPreference(input: {
     console.error('[preferencesRepo] FTS 索引失败:', e)
   }
 
-  return getPreference(id)!
+  const newPref = getPreference(id)!
+
+  // 审计：旧偏好被取代（不同 value 冲突）
+  for (const old of supersededOlds) {
+    addAuditLog({
+      entityType: 'preference',
+      entityId: old.id,
+      action: 'supersede',
+      beforeValue: rowToPref(old) as unknown as Record<string, unknown>,
+      afterValue: newPref as unknown as Record<string, unknown>,
+      workspaceId: input.workspaceId,
+      sessionId: input.sessionId,
+      reason: 'conflict: same subject different value'
+    })
+  }
+
+  // 审计：新偏好创建
+  addAuditLog({
+    entityType: 'preference',
+    entityId: id,
+    action: 'create',
+    afterValue: newPref as unknown as Record<string, unknown>,
+    workspaceId: input.workspaceId,
+    sessionId: input.sessionId
+  })
+
+  return newPref
 }
 
 /** 获取单个偏好 */
@@ -203,6 +277,9 @@ export function updatePreference(
   patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject' | 'context'>>
 ): Preference | null {
   const db = getDatabase()
+  const before = getPreference(id)
+  if (!before) return null
+
   const { sets, params } = buildUpdateSets(patch, {
     subject: 'subject',
     value: 'value',
@@ -210,7 +287,7 @@ export function updatePreference(
     confidence: 'confidence',
     status: 'status'
   })
-  if (sets.length === 0) return getPreference(id)
+  if (sets.length === 0) return before
 
   sets.push("updated_at = datetime('now')")
   db.prepare(`UPDATE preferences SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
@@ -221,25 +298,77 @@ export function updatePreference(
       console.error('[preferencesRepo] FTS 重建失败:', e)
     }
   }
+
+  // 审计：偏好更新（before/after）
+  if (updated) {
+    addAuditLog({
+      entityType: 'preference',
+      entityId: id,
+      action: 'update',
+      beforeValue: before as unknown as Record<string, unknown>,
+      afterValue: updated as unknown as Record<string, unknown>,
+      workspaceId: before.workspaceId,
+      sessionId: before.sessionId
+    })
+  }
+
   return updated
 }
 
 /** 删除偏好 */
 export function deletePreference(id: string): void {
   const db = getDatabase()
+  const before = getPreference(id)
   const tx = db.transaction(() => {
     unindexPref(id)
     db.prepare('DELETE FROM preferences WHERE id = ?').run(id)
   })
   tx()
+
+  // 审计：偏好删除（beforeValue 记录被删除的状态）
+  if (before) {
+    addAuditLog({
+      entityType: 'preference',
+      entityId: id,
+      action: 'delete',
+      beforeValue: before as unknown as Record<string, unknown>,
+      workspaceId: before.workspaceId,
+      sessionId: before.sessionId
+    })
+  }
 }
 
 /**
  * 遗忘（软删除）：将偏好标记为 archived
  * 不是物理删除，保留审计痕迹
+ *
+ * 注：直接执行 UPDATE 而非调用 updatePreference，避免重复记录 'update' 审计日志。
  */
 export function archivePreference(id: string): Preference | null {
-  return updatePreference(id, { status: 'archived' })
+  const db = getDatabase()
+  const before = getPreference(id)
+  if (!before) return null
+
+  db.prepare(
+    `UPDATE preferences SET status = 'archived', updated_at = ? WHERE id = ?`
+  ).run(new Date().toISOString(), id)
+
+  const archived = getPreference(id)
+
+  // 审计：偏好归档（beforeValue 记录归档前的状态）
+  if (archived) {
+    addAuditLog({
+      entityType: 'preference',
+      entityId: id,
+      action: 'archive',
+      beforeValue: before as unknown as Record<string, unknown>,
+      afterValue: archived as unknown as Record<string, unknown>,
+      workspaceId: before.workspaceId,
+      sessionId: before.sessionId
+    })
+  }
+
+  return archived
 }
 
 /**
@@ -262,11 +391,12 @@ export function decayConfidence(
   const wsFilter = workspaceId ? 'AND workspace_id = ?' : ''
   const params = workspaceId ? [threshold, workspaceId] : [threshold]
 
-  // 查找需要衰减的偏好
+  // 查找需要衰减的偏好（宪法条目永不衰减）
   const rows = db
     .prepare(
       `SELECT id, confidence FROM preferences
        WHERE status = 'active'
+         AND source != 'constitution'
          AND (last_accessed_at < ? OR last_accessed_at IS NULL)
        ${wsFilter}`
     )
@@ -341,14 +471,21 @@ export function searchPreferences(
 /**
  * 获取用户画像（按 subject 分组的偏好聚合）
  * 用于 MCP memory_profile 工具
+ *
+ * 宪法条目（source='constitution'）从常规偏好中分离出来，
+ * 作为第一个分组（subject='constitution'）置顶返回，以便 AI 工具优先读取。
  */
 export function getUserProfile(workspaceId: string): UserProfile {
   const active = listPreferences({ workspaceId, status: 'active' })
   const total = listPreferences({ workspaceId }).length
 
-  // 按 subject 分组
+  // 分离宪法条目与常规偏好
+  const constitution = active.filter((p) => p.source === 'constitution')
+  const regular = active.filter((p) => p.source !== 'constitution')
+
+  // 按 subject 分组（常规偏好）
   const subjectMap = new Map<string, Preference[]>()
-  for (const pref of active) {
+  for (const pref of regular) {
     const group = subjectMap.get(pref.subject) || []
     group.push(pref)
     subjectMap.set(pref.subject, group)
@@ -359,12 +496,45 @@ export function getUserProfile(workspaceId: string): UserProfile {
     preferences: preferences.sort((a, b) => b.confidence - a.confidence)
   }))
 
+  // 宪法条目置顶（subject='constitution'）
+  if (constitution.length > 0) {
+    bySubject.unshift({
+      subject: 'constitution',
+      preferences: constitution.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    })
+  }
+
   return {
     workspaceId,
     totalPreferences: total,
     activePreferences: active.length,
     bySubject
   }
+}
+
+/**
+ * 获取 AI 宪法条目（source='constitution' 且 status='active'）
+ * 按 created_at 升序返回（保持条目定义顺序）。
+ * workspaceId 可空：为空时返回所有工作区的宪法条目（全局宪法）。
+ */
+export function getConstitution(workspaceId?: string): Preference[] {
+  const db = getDatabase()
+  const rows = workspaceId
+    ? (db
+        .prepare(
+          `SELECT * FROM preferences
+           WHERE source = 'constitution' AND status = 'active' AND workspace_id = ?
+           ORDER BY created_at ASC`
+        )
+        .all(workspaceId) as PreferenceRow[])
+    : (db
+        .prepare(
+          `SELECT * FROM preferences
+           WHERE source = 'constitution' AND status = 'active'
+           ORDER BY created_at ASC`
+        )
+        .all() as PreferenceRow[])
+  return rows.map(rowToPref)
 }
 
 /** 统计 */

@@ -190,13 +190,24 @@ export const TOOLS: McpTool[] = [
   {
     name: 'memory_profile',
     description:
-      '用户画像：返回当前用户的全部偏好（preferences），按类别分组。包括用户喜欢什么、用什么、偏好什么。让 AI 快速了解用户。「用户喜欢什么？」「用户用什么编辑器？」「用户偏好什么框架？」用这个工具。',
+      '用户画像：返回当前用户的全部偏好（preferences），按类别分组。宪法条目（source=constitution）会作为第一个分组（subject="constitution"）置顶返回，优先于其他偏好。包括用户喜欢什么、用什么、偏好什么。让 AI 快速了解用户。「用户喜欢什么？」「用户用什么编辑器？」「用户偏好什么框架？」用这个工具。',
     inputSchema: {
       type: 'object',
       properties: {
         workspaceId: { type: 'string', description: '目标工作区 ID' }
       },
       required: ['workspaceId']
+    }
+  },
+  {
+    name: 'memory_get_constitution',
+    description:
+      'AI 宪法：返回用户定义的核心原则/规则（source=constitution 的偏好条目）。这些规则所有 AI 工具都应优先遵循。返回所有 active 的宪法条目，按创建时间排序。AI 启动时应优先读取宪法以了解用户的核心约束。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID（可选，不传则返回全局宪法）' }
+      }
     }
   },
   {
@@ -337,5 +348,24 @@ export const TOOLS: McpTool[] = [
         entryId: { type: 'string', description: '要删除的知识条目 ID' }
       },
       required: ['entryId']
+    }
+  },
+  {
+    name: 'memory_audit_log',
+    description:
+      '查询记忆审计日志：返回偏好/知识/会话的变更历史（create/update/delete/archive/supersede），含 before/after 值。「用户改过什么偏好？」「这条偏好是怎么来的？」「最近有什么变更？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entityType: {
+          type: 'string',
+          description: '筛选实体类型（可选）：preference / knowledge / session',
+          enum: ['preference', 'knowledge', 'session']
+        },
+        entityId: { type: 'string', description: '筛选指定实体 ID（可选）' },
+        workspaceId: { type: 'string', description: '筛选工作区 ID（可选）' },
+        limit: { type: 'number', description: '返回数量上限，默认 10' },
+        offset: { type: 'number', description: '偏移量，默认 0' }
+      }
     }
   }]

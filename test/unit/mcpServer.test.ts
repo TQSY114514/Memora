@@ -85,6 +85,8 @@ const validArgs: Record<string, Record<string, unknown>> = {
   memory_write: { title: 'test', content: 'test' },
   memory_save_preference: { workspaceId: 'w1', subject: 's', value: 'v' },
   memory_profile: { workspaceId: 'w1' },
+  memory_get_constitution: { workspaceId: 'w1' },
+  memory_audit_log: { workspaceId: 'w1' },
   memory_forget: { preferenceId: 'p1' },
   preference_search: { query: 'test' },
   list_workspaces: {},

@@ -6,7 +6,9 @@ import { PreferenceCard } from './PreferenceCard'
 import { PreferenceEditor } from './PreferenceEditor'
 import { ProfileView } from './ProfileView'
 import { MemoryHealthView } from './MemoryHealthView'
+import { ConflictResolutionView } from './ConflictResolutionView'
 import { MemoryExplainDrawer } from './MemoryExplainDrawer'
+import { ConstitutionView } from './ConstitutionView'
 
 interface PreferenceExplorerProps {
   onClose: () => void
@@ -28,7 +30,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
     archived: number
   } | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
-  const [viewMode, setViewMode] = useState<'list' | 'profile' | 'health'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'profile' | 'health' | 'conflicts' | 'constitution'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +39,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
   const [explaining, setExplaining] = useState<Preference | null>(null)
   const [decaying, setDecaying] = useState(false)
   const [decayMsg, setDecayMsg] = useState<string | null>(null)
+  const [conflictCount, setConflictCount] = useState(0)
   // 搜索防抖：避免每输入一个字符就触发 FTS 查询
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -83,6 +86,24 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  const refreshConflictCount = useCallback(async () => {
+    if (!currentWsId) {
+      setConflictCount(0)
+      return
+    }
+    try {
+      const reports = await window.Memora.preference.conflicts(currentWsId)
+      setConflictCount(reports.reduce((sum, r) => sum + r.conflicts.length, 0))
+    } catch {
+      setConflictCount(0)
+    }
+  }, [currentWsId])
+
+  // 首次加载及切换工作区时获取冲突数量
+  useEffect(() => {
+    refreshConflictCount()
+  }, [refreshConflictCount])
 
   // 切换工作区时同步状态
   function handleSwitchWorkspace(id: string) {
@@ -209,6 +230,37 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             >
               📊 健康
             </button>
+            <button
+              onClick={() => setViewMode('conflicts')}
+              className={`text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
+                viewMode === 'conflicts' ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+              }`}
+              title="冲突解决视图（检测并处理偏好冲突）"
+            >
+              <span>⚠️ 冲突</span>
+              {conflictCount > 0 && (
+                <span
+                  className={`text-[10px] px-1 rounded-full ${
+                    viewMode === 'conflicts'
+                      ? 'bg-white/30 text-white'
+                      : 'bg-red-500/15 text-red-500'
+                  }`}
+                >
+                  {conflictCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setViewMode('constitution')}
+              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
+                viewMode === 'constitution'
+                  ? 'bg-amber-500 text-white'
+                  : 'text-fg-muted hover:bg-bg-hover'
+              }`}
+              title="AI 宪法（所有 AI 工具都应遵循的核心原则）"
+            >
+              🛡 宪法
+            </button>
           </div>
           {workspaces.length > 1 && (
             <select
@@ -297,11 +349,21 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
         {error && <p className="text-[11px] text-red-500 break-all">✗ {error}</p>}
       </div>
 
-      {/* 列表 / 画像 / 健康 */}
+      {/* 列表 / 画像 / 健康 / 冲突 / 宪法 */}
       {viewMode === 'profile' ? (
         <ProfileView workspaceId={currentWsId} onEdit={(p) => setEditing(p)} />
       ) : viewMode === 'health' ? (
         <MemoryHealthView workspaceId={currentWsId} />
+      ) : viewMode === 'conflicts' ? (
+        <ConflictResolutionView
+          workspaceId={currentWsId}
+          onResolved={() => {
+            refresh()
+            refreshConflictCount()
+          }}
+        />
+      ) : viewMode === 'constitution' ? (
+        <ConstitutionView workspaceId={currentWsId} />
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">

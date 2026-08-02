@@ -157,6 +157,7 @@ export const IPC = {
   PREF_COUNT: 'pref:count',
   PREF_PROFILE: 'pref:profile',
   PREF_DECAY: 'pref:decay',
+  PREF_CONSTITUTION: 'pref:constitution',
 
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',
@@ -191,6 +192,9 @@ export const IPC = {
 
   // 冲突检测（v1.6）
   PREF_CONFLICTS: 'pref:conflicts',
+
+  // Memory Audit Log（v1.8）：偏好/知识/会话变更审计日志
+  PREF_AUDIT_LOGS: 'pref:audit-logs',
 
   // 搜索增强（v1.6）
   SEARCH_ADVANCED: 'search:advanced',

@@ -83,6 +83,11 @@ const migrations: Migration[] = [
     version: 10,
     description: 'chat_sessions 加 (source_id, provider) 唯一约束（幂等导入 DB 兜底，防并发重复）',
     up: (db) => dedupSessionsAndAddUniqueIndex(db)
+  },
+  {
+    version: 11,
+    description: '建 audit_logs 表（Memory Audit Log：追踪偏好/知识/会话的变更历史，含 before/after 值）',
+    up: (db) => createAuditLogsTable(db)
   }
 ]
 
@@ -410,6 +415,33 @@ function dedupSessionsAndAddUniqueIndex(db: Database.Database): void {
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_source_provider_unique
      ON chat_sessions(source_id, provider) WHERE source_id IS NOT NULL`
   )
+}
+
+/**
+ * v11：Memory Audit Log 表
+ * - 追踪偏好/知识/会话的变更（create/update/delete/archive/supersede/conflict_resolve）
+ * - 记录 before/after 值（JSON），支持审计与回溯
+ *
+ * 注：新库由本迁移幂等建表；旧库已存在 schema_version 记录则自动跳过。
+ */
+function createAuditLogsTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id           TEXT PRIMARY KEY,
+      entity_type  TEXT NOT NULL,
+      entity_id    TEXT NOT NULL,
+      action       TEXT NOT NULL,
+      before_value TEXT,
+      after_value  TEXT,
+      workspace_id TEXT,
+      session_id   TEXT,
+      reason       TEXT,
+      created_at   TEXT NOT NULL
+    )
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_logs(workspace_id)')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC)')
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */

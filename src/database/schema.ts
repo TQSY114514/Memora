@@ -202,4 +202,22 @@ CREATE VIRTUAL TABLE IF NOT EXISTS preferences_fts USING fts5(
   value,
   tokenize = 'unicode61 remove_diacritics 2'
 );
+
+-- Memory Audit Log（v1.8）：追踪偏好/知识/会话的变更历史
+-- 记录 before/after 值（JSON），支持审计与回溯
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id           TEXT PRIMARY KEY,
+  entity_type  TEXT NOT NULL,        -- 'preference' | 'knowledge' | 'session'
+  entity_id    TEXT NOT NULL,
+  action       TEXT NOT NULL,        -- 'create' | 'update' | 'delete' | 'archive' | 'supersede' | 'conflict_resolve'
+  before_value TEXT,                  -- JSON of previous state (nullable for create)
+  after_value  TEXT,                  -- JSON of new state (nullable for delete)
+  workspace_id TEXT,                  -- workspace context
+  session_id   TEXT,                  -- source session (nullable)
+  reason       TEXT,                  -- human-readable reason
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_logs(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
 `

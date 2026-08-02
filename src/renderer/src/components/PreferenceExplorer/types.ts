@@ -10,7 +10,8 @@ export const SOURCE_META: Record<PreferenceSource, string> = {
   manual: '手动',
   conversation: '对话提取',
   mcp: 'MCP',
-  inferred: '推断'
+  inferred: '推断',
+  constitution: '宪法'
 }
 
 /** 相对时间格式化：今天 / 昨天 / N天前 / N月N日 */

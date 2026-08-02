@@ -11,7 +11,9 @@ import {
   countPreferences,
   getUserProfile,
   decayConfidence,
-  detectConflicts
+  detectConflicts,
+  listAuditLogs,
+  getConstitution
 } from '@db/repositories'
 
 export function registerPreferenceHandlers(): void {
@@ -58,5 +60,15 @@ export function registerPreferenceHandlers(): void {
   // 冲突检测（v1.6）
   safeHandle(IPC.PREF_CONFLICTS, (_e, workspaceId?: string) => {
     return detectConflicts(workspaceId)
+  })
+
+  // Memory Audit Log（v1.8）：查询偏好/知识/会话变更审计日志
+  safeHandle(IPC.PREF_AUDIT_LOGS, (_e, options?: { entityType?: string; entityId?: string; workspaceId?: string; limit?: number; offset?: number }) => {
+    return listAuditLogs(options)
+  })
+
+  // AI 宪法（v1.7.2）
+  safeHandle(IPC.PREF_CONSTITUTION, (_e, workspaceId?: string) => {
+    return getConstitution(workspaceId)
   })
 }

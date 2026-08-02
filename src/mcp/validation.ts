@@ -148,6 +148,9 @@ export const toolSchemas: Record<string, z.ZodType> = {
   memory_profile: z.object({
     workspaceId: safeId
   }),
+  memory_get_constitution: z.object({
+    workspaceId: safeId.optional()
+  }),
   memory_forget: z.object({
     preferenceId: safeId
   }),
@@ -155,6 +158,13 @@ export const toolSchemas: Record<string, z.ZodType> = {
     query: nonEmptyString,
     workspaceId: safeId.optional(),
     limit: limitSchema
+  }),
+  memory_audit_log: z.object({
+    entityType: z.enum(['preference', 'knowledge', 'session']).optional(),
+    entityId: safeId.optional(),
+    workspaceId: safeId.optional(),
+    limit: limitSchema,
+    offset: offsetSchema
   }),
 
   // workspace 域

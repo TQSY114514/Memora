@@ -132,8 +132,10 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     case 'memory_write':
     case 'memory_save_preference':
     case 'memory_profile':
+    case 'memory_get_constitution':
     case 'memory_forget':
     case 'preference_search':
+    case 'memory_audit_log':
       return handleMemoryTool(name, validatedArgs)
 
     // workspace 域

@@ -11,8 +11,10 @@ import {
   getUserProfile,
   createPreference,
   archivePreference,
-  searchPreferences
+  searchPreferences,
+  getConstitution
 } from '../../database/repositories/preferencesRepo'
+import { listAuditLogs } from '../../database/repositories/auditRepo'
 import { semanticSearch } from '../../search/semantic'
 import { v4 as uuidv4 } from 'uuid'
 import { loadAiConfigForTool } from './shared'
@@ -125,6 +127,21 @@ export async function handleMemoryTool(
       return getUserProfile(workspaceId)
     }
 
+    case 'memory_get_constitution': {
+      const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
+      const constitution = getConstitution(workspaceId)
+      return constitution.map((p) => ({
+        id: p.id,
+        subject: p.subject,
+        value: p.value,
+        confidence: p.confidence,
+        status: p.status,
+        source: p.source,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt
+      }))
+    }
+
     case 'memory_save_preference': {
       const workspaceId = String(args.workspaceId ?? '')
       const subject = String(args.subject ?? '')
@@ -176,6 +193,27 @@ export async function handleMemoryTool(
         createdAt: p.createdAt,
         lastAccessedAt: p.lastAccessedAt,
         accessCount: p.accessCount
+      }))
+    }
+
+    case 'memory_audit_log': {
+      const entityType = args.entityType ? String(args.entityType) : undefined
+      const entityId = args.entityId ? String(args.entityId) : undefined
+      const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
+      const limit = Number(args.limit ?? 10)
+      const offset = Number(args.offset ?? 0)
+      const logs = listAuditLogs({ entityType, entityId, workspaceId, limit, offset })
+      return logs.map((l) => ({
+        id: l.id,
+        entityType: l.entityType,
+        entityId: l.entityId,
+        action: l.action,
+        beforeValue: l.beforeValue,
+        afterValue: l.afterValue,
+        workspaceId: l.workspaceId,
+        sessionId: l.sessionId,
+        reason: l.reason,
+        createdAt: l.createdAt
       }))
     }
 

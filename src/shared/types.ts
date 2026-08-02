@@ -397,7 +397,7 @@ export interface RelatedSession {
 export type PreferenceStatus = 'active' | 'superseded' | 'archived'
 
 /** 偏好来源 */
-export type PreferenceSource = 'conversation' | 'manual' | 'mcp' | 'inferred'
+export type PreferenceSource = 'conversation' | 'manual' | 'mcp' | 'inferred' | 'constitution'
 
 /**
  * 用户偏好（Preference 实体）
@@ -448,6 +448,31 @@ export interface ConflictReport {
     preferenceB: Preference
     reason: string
   }>
+}
+
+/**
+ * Memory Audit Log（v1.8）
+ * 追踪偏好/知识/会话的变更历史（create/update/delete/archive/supersede/conflict_resolve）
+ * beforeValue/afterValue 为 JSON 字符串，记录变更前后的实体状态
+ */
+export interface AuditLog {
+  id: string
+  /** 实体类型：'preference' | 'knowledge' | 'session' */
+  entityType: string
+  entityId: string
+  /** 操作类型：'create' | 'update' | 'delete' | 'archive' | 'supersede' | 'conflict_resolve' */
+  action: string
+  /** 变更前状态（JSON 字符串，create 时为 undefined） */
+  beforeValue?: string
+  /** 变更后状态（JSON 字符串，delete 时为 undefined） */
+  afterValue?: string
+  /** 工作区上下文 */
+  workspaceId?: string
+  /** 来源会话（可空） */
+  sessionId?: string
+  /** 人类可读的变更原因 */
+  reason?: string
+  createdAt: string
 }
 
 /** 热备份配置（v1.6） */

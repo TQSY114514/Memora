@@ -8,8 +8,8 @@ import { TOOLS } from '../src/mcp/schemas'
  * 这些测试纯数据校验，不依赖 DB / electron，可在 vitest node 环境运行。
  */
 describe('MCP TOOLS schema', () => {
-  it('暴露恰好 25 个工具', () => {
-    expect(TOOLS).toHaveLength(25)
+  it('暴露恰好 27 个工具', () => {
+    expect(TOOLS).toHaveLength(27)
   })
 
   it('工具名唯一', () => {
@@ -65,6 +65,8 @@ describe('MCP TOOLS schema', () => {
     expect(names.has('memory_write')).toBe(true)
     expect(names.has('memory_forget')).toBe(true)
     expect(names.has('memory_profile')).toBe(true)
+    expect(names.has('memory_get_constitution')).toBe(true)
+    expect(names.has('memory_audit_log')).toBe(true)
     // 工作区/文件夹域
     expect(names.has('list_workspaces')).toBe(true)
     expect(names.has('list_folders')).toBe(true)

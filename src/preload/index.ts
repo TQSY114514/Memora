@@ -33,7 +33,8 @@ import type {
   ConflictReport,
   TieredMemory,
   MemoryHealth,
-  ProfileSummary
+  ProfileSummary,
+  AuditLog
 } from '../shared/types'
 
 /**
@@ -498,7 +499,13 @@ const api = {
       ipcRenderer.invoke(IPC.PREF_DECAY, workspaceId, daysThreshold, decayRate),
     /** 冲突检测（v1.6） */
     conflicts: (workspaceId?: string): Promise<ConflictReport[]> =>
-      ipcRenderer.invoke(IPC.PREF_CONFLICTS, workspaceId)
+      ipcRenderer.invoke(IPC.PREF_CONFLICTS, workspaceId),
+    /** AI 宪法：返回核心原则条目（source='constitution'） */
+    constitution: (workspaceId?: string): Promise<Preference[]> =>
+      ipcRenderer.invoke(IPC.PREF_CONSTITUTION, workspaceId),
+    /** Memory Audit Log：查询偏好/知识/会话变更审计日志 */
+    auditLogs: (options?: { entityType?: string; entityId?: string; workspaceId?: string; limit?: number; offset?: number }): Promise<AuditLog[]> =>
+      ipcRenderer.invoke(IPC.PREF_AUDIT_LOGS, options)
   },
 
   // ===== 记忆生命周期（v1.7.0） =====
