@@ -342,6 +342,117 @@ function extractClaudeCodeContent(content: unknown): string {
 }
 
 // ============================================================
+// OpenCode 扒取：读取 ~/.opencode 下的对话 JSON 文件
+// ============================================================
+
+interface OpenCodeMessage {
+  role?: string
+  content?: string | Array<{ type: string; text?: string }>
+}
+
+interface OpenCodeSession {
+  id?: string
+  title?: string
+  name?: string
+  messages?: OpenCodeMessage[]
+  createdAt?: string | number
+  updatedAt?: string | number
+}
+
+function extractOpenCode(dir: string): ExtractedSession[] {
+  console.log('[extractor] extractOpenCode dir:', dir)
+  const sessions: ExtractedSession[] = []
+
+  // OpenCode 数据可能在多个子目录中
+  function scanDir(currentDir: string, depth: number = 0): void {
+    if (depth > 3) return
+    const entries = safeReaddir(currentDir)
+    for (const entry of entries) {
+      const fullPath = join(currentDir, entry)
+      if (isDir(fullPath)) {
+        scanDir(fullPath, depth + 1)
+      } else if (entry.endsWith('.json')) {
+        const session = parseOpenCodeJson(fullPath)
+        if (session) sessions.push(session)
+      }
+    }
+  }
+
+  scanDir(dir)
+  console.log('[extractor] extractOpenCode done:', sessions.length, 'sessions')
+  return sessions
+}
+
+function parseOpenCodeJson(filePath: string): ExtractedSession | null {
+  let content: string
+  try {
+    content = readFileSync(filePath, 'utf-8')
+  } catch {
+    return null
+  }
+
+  const parsed = tryParse<OpenCodeSession | OpenCodeMessage[]>(content)
+  if (!parsed) return null
+
+  let messages: ParsedMessage[] = []
+  let title = ''
+  let createdAt = ''
+  let updatedAt = ''
+
+  if (Array.isArray(parsed)) {
+    // 直接是消息数组
+    messages = extractOpenCodeMessages(parsed)
+  } else {
+    // 对象格式：{ messages: [...], title: "...", ... }
+    const obj = parsed as OpenCodeSession & Record<string, unknown>
+    const rawMsgs = obj.messages || (obj as any).conversation || (obj as any).history || []
+    messages = extractOpenCodeMessages(Array.isArray(rawMsgs) ? rawMsgs : [])
+    title = obj.title || obj.name || (obj as any).name || ''
+    createdAt = toISO(obj.createdAt)
+    updatedAt = toISO(obj.updatedAt || obj.createdAt)
+  }
+
+  if (messages.length === 0) return null
+
+  return {
+    id: tmpId(),
+    provider: 'OpenCode' as Provider,
+    title: title || fallbackTitle(messages),
+    source: 'OpenCode 本地扒取',
+    messageCount: messages.length,
+    createdAt: createdAt || messages[0]?.createdAt || new Date().toISOString(),
+    updatedAt: updatedAt || messages[messages.length - 1]?.createdAt || new Date().toISOString(),
+    messages
+  }
+}
+
+function extractOpenCodeMessages(raw: OpenCodeMessage[]): ParsedMessage[] {
+  const msgs: ParsedMessage[] = []
+  for (const m of raw) {
+    if (!m) continue
+    const role = normalizeRole(m.role)
+    const content = extractOpenCodeContent(m.content)
+    if (!content.trim()) continue
+    msgs.push({ role, content, createdAt: new Date().toISOString() })
+  }
+  return msgs
+}
+
+function extractOpenCodeContent(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map((c) => {
+        if (typeof c === 'string') return c
+        if (c && typeof c === 'object' && 'text' in c) return String(c.text)
+        return ''
+      })
+      .join('\n')
+  }
+  return ''
+}
+
+// ============================================================
 // 统一扒取入口
 // ============================================================
 
@@ -371,8 +482,11 @@ export function extractLocal(
     case 'ClaudeCode':
       sessions = extractClaudeCode(dataPath)
       break
+    case 'OpenCode':
+      sessions = extractOpenCode(dataPath)
+      break
     default:
-      throw new Error(`不支持的 provider: ${provider}（仅支持 Cursor / ClaudeCode）`)
+      throw new Error(`不支持的 provider: ${provider}（仅支持 Cursor / ClaudeCode / OpenCode）`)
   }
 
   console.log('[extractor] extractLocal result:', { provider, sessionsFound: sessions.length })

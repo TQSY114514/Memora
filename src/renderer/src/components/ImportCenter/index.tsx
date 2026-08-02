@@ -201,9 +201,6 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
         if (result.errors.length > 0) {
           setError(result.errors.join('\n'))
           hasError = true
-        } else if (result.imported === 0 && result.skipped > 0) {
-          setError(`${result.skipped} 个对话已存在，已跳过导入`)
-          hasError = true
         }
       }
 

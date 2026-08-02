@@ -110,6 +110,7 @@ export const IPC = {
   SHARE_EXPORT_HTML_BATCH: 'share:export-html-batch',
   SHARE_EXPORT_MD: 'share:export-md',
   SHARE_EXPORT_CLAUDE_CODE: 'share:export-claude-code',
+  SHARE_EXPORT_JSON: 'share:export-json',
   DB_VACUUM: 'db:vacuum',
   DB_CLEAN_ORPHANS: 'db:clean-orphans',
 

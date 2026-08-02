@@ -1,7 +1,7 @@
 import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { getSession } from '@db/repositories'
-import { renderSessionToHtml, renderSessionToMd, renderSessionToClaudeCode } from '@sharing'
+import { renderSessionToHtml, renderSessionToMd, renderSessionToClaudeCode, renderSessionToJson } from '@sharing'
 import type { ChatSession } from '@shared/types'
 
 export function registerSharingHandlers(): void {
@@ -32,6 +32,16 @@ export function registerSharingHandlers(): void {
       const session = getSession(sessionId, true) as ChatSession | null
       if (!session) return null
       return renderSessionToClaudeCode(session, options)
+    }
+  )
+
+  // ===== 导出通用 JSON（可导入其他 AI 工具 / OpenCode / 备份） =====
+  safeHandle(
+    IPC.SHARE_EXPORT_JSON,
+    (_e, sessionId: string, options?: { customTitle?: string; customDescription?: string }) => {
+      const session = getSession(sessionId, true) as ChatSession | null
+      if (!session) return null
+      return renderSessionToJson(session, options)
     }
   )
 }

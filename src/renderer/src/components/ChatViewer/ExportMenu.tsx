@@ -14,7 +14,7 @@ interface ExportMenuProps {
   session: ChatSession
 }
 
-type FormatKey = 'html' | 'md' | 'claudeCode'
+type FormatKey = 'html' | 'md' | 'claudeCode' | 'json'
 
 interface FormatItem {
   key: FormatKey
@@ -63,6 +63,9 @@ export function ExportMenu({ session }: ExportMenuProps) {
       } else if (kind === 'md') {
         content = await window.Memora.share.exportMd(session.id)
         ext = 'md'
+      } else if (kind === 'json') {
+        content = await window.Memora.share.exportJson(session.id)
+        ext = 'json'
       } else {
         content = await window.Memora.share.exportClaudeCode(session.id)
         ext = 'jsonl'
@@ -91,6 +94,14 @@ export function ExportMenu({ session }: ExportMenuProps) {
       desc: '导入 Obsidian / Notion / 语雀',
       ext: '.md',
       icon: <IconMd />
+    },
+    {
+      key: 'json',
+      title: '通用 JSON',
+      desc: '导入 OpenCode / 其他 AI 工具',
+      ext: '.json',
+      icon: <IconJson />,
+      accent: true
     },
     {
       key: 'claudeCode',
@@ -253,6 +264,21 @@ function IconClaude() {
       <rect x="14" y="4" width="6" height="16" rx="1.2" opacity="0.3" />
       <path d="M14 12h6" opacity="0.6" />
       <path d="M14 15h4" opacity="0.6" />
+    </svg>
+  )
+}
+
+function IconJson() {
+  // 通用 JSON：用「花括号 + 数据节点」表达结构化数据
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 4H7a2 2 0 0 0-2 2v1" />
+      <path d="M8 20H7a2 2 0 0 1-2-2v-1" />
+      <path d="M16 4h1a2 2 0 0 1 2 2v1" />
+      <path d="M16 20h1a2 2 0 0 0 2-2v-1" />
+      <circle cx="12" cy="8" r="1.5" opacity="0.6" />
+      <circle cx="12" cy="12" r="1.5" opacity="0.6" />
+      <circle cx="12" cy="16" r="1.5" opacity="0.6" />
     </svg>
   )
 }

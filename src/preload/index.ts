@@ -220,7 +220,13 @@ const api = {
       sessionId: string,
       options?: { customTitle?: string; customDescription?: string }
     ): Promise<string | null> =>
-      ipcRenderer.invoke(IPC.SHARE_EXPORT_CLAUDE_CODE, sessionId, options)
+      ipcRenderer.invoke(IPC.SHARE_EXPORT_CLAUDE_CODE, sessionId, options),
+    /** 导出为通用 JSON（可导入其他 AI 工具 / OpenCode / 备份） */
+    exportJson: (
+      sessionId: string,
+      options?: { customTitle?: string; customDescription?: string }
+    ): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.SHARE_EXPORT_JSON, sessionId, options)
   },
 
   // ===== 批量操作 =====
