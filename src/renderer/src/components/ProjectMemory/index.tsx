@@ -57,7 +57,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
 
   async function handleOpenSession(sessionId: string) {
     setActiveSession(sessionId)
-    const session = await window.Memora.session.get(sessionId, true)
+    const session = await window.Memora.session.get(sessionId, false)
     setActiveSessionData(session)
     onClose()
   }

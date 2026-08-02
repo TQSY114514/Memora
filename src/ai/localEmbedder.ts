@@ -15,6 +15,7 @@
 import { app } from 'electron'
 import { Worker } from 'worker_threads'
 import { join } from 'path'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
 
 /** 本地嵌入模型预设 */
 export interface LocalEmbeddingModel {
@@ -60,9 +61,17 @@ export function getLocalModelDim(modelId: string): number {
 }
 
 /** 当前状态 */
+export interface ModelDownloadProgress {
+  status?: string
+  file?: string | null
+  percent?: number | null
+  loaded?: number | null
+  total?: number | null
+}
+
 export type LocalEmbedderStatus =
   | { state: 'idle' }
-  | { state: 'loading'; model: string }
+  | { state: 'loading'; model: string; progress?: ModelDownloadProgress }
   | { state: 'ready'; model: string; dim: number }
   | { state: 'error'; model: string; error: string }
 
@@ -70,6 +79,89 @@ let status: LocalEmbedderStatus = { state: 'idle' }
 
 export function getLocalEmbedderStatus(): LocalEmbedderStatus {
   return status
+}
+
+// ===== Download mirror (for users behind GFW / slow connections to huggingface.co) =====
+
+let mirror: string | null = null
+
+function mirrorConfigPath(): string {
+  return join(app.getPath('userData'), 'models', 'config.json')
+}
+
+function loadMirrorConfig(): string | null {
+  try {
+    const raw = readFileSync(mirrorConfigPath(), 'utf-8')
+    const parsed = JSON.parse(raw) as { mirror?: string }
+    return typeof parsed.mirror === 'string' && parsed.mirror.trim() ? parsed.mirror.trim() : null
+  } catch {
+    return null
+  }
+}
+
+/** ?????????null = ?? HuggingFace? */
+export function getLocalModelMirror(): string | null {
+  return mirror
+}
+
+/** ?????????????????????? */
+export async function setLocalModelMirror(value: string): Promise<string | null> {
+  const next = value.trim() || null
+  mirror = next
+  try {
+    const dir = join(app.getPath('userData'), 'models')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(mirrorConfigPath(), JSON.stringify({ mirror: next ?? '' }, null, 2), 'utf-8')
+  } catch { /* persistence failure is non-fatal */ }
+  if (worker) worker.postMessage({ type: 'set-mirror', mirror: next })
+  return mirror
+}
+
+/** ???????????????????????? */
+export async function deleteLocalModel(modelId: string): Promise<{ ok: boolean; error?: string }> {
+  if (status.state === 'loading' || (status.state === 'ready' && status.model === modelId)) {
+    status = { state: 'idle' }
+  }
+  try {
+    if (!useFallback && worker) {
+      const r = await requestWorker<{ ok: boolean; error?: string }>('delete-model', { modelId })
+      return r
+    }
+    const dir = join(app.getPath('userData'), 'models', modelId)
+    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true })
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** ???????????????????? */
+export function getLocalModelCacheInfo(): { ok: boolean; models: Array<{ id: string; sizeBytes: number }>; totalBytes: number; error?: string } {
+  const models: Array<{ id: string; sizeBytes: number }> = []
+  let totalBytes = 0
+  try {
+    const root = join(app.getPath('userData'), 'models')
+    if (existsSync(root)) {
+      for (const name of readdirSync(root)) {
+        const dir = join(root, name)
+        if (!statSync(dir).isDirectory()) continue
+        let size = 0
+        const walk = (d: string): void => {
+          for (const f of readdirSync(d)) {
+            const fp = join(d, f)
+            const st = statSync(fp)
+            if (st.isDirectory()) walk(fp)
+            else size += st.size
+          }
+        }
+        try { walk(dir) } catch { /* skip unreadable dirs */ }
+        if (size > 0) { models.push({ id: name, sizeBytes: size }); totalBytes += size }
+      }
+    }
+  } catch (e) {
+    return { ok: false, models: [], totalBytes: 0, error: e instanceof Error ? e.message : String(e) }
+  }
+  return { ok: true, models, totalBytes }
 }
 
 // ===== Worker 管理 =====
@@ -88,10 +180,11 @@ let nextReqId = 1
 
 /** 启动 worker */
 function initWorker(): void {
+  if (mirror === null) mirror = loadMirrorConfig()
   if (worker || useFallback) return
   try {
     worker = new Worker(join(__dirname, 'localEmbedder.worker.js'))
-    worker.on('message', (msg: { type: string; reqId?: number; ok?: boolean; dim?: number; error?: string; vectors?: number[][] }) => {
+    worker.on('message', (msg: { type: string; reqId?: number; ok?: boolean; dim?: number; error?: string; vectors?: number[][]; modelId?: string; progress?: ModelDownloadProgress }) => {
       if (msg.type === 'ready') {
         workerReady = true
       } else if (msg.type === 'load-result' || msg.type === 'embed-result') {
@@ -105,6 +198,17 @@ function initWorker(): void {
           } else {
             p.resolve({ ok, vectors: msg.vectors, error: msg.error } as EmbedResult)
           }
+        }
+      } else if (msg.type === 'progress') {
+        if (msg.reqId !== undefined && pending.has(msg.reqId) && status.state === 'loading') {
+          status = { ...status, progress: msg.progress }
+        }
+      } else if (msg.type === 'set-mirror-result' || msg.type === 'delete-model-result') {
+        const id = msg.reqId!
+        const p = pending.get(id)
+        if (p) {
+          pending.delete(id)
+          p.resolve({ ok: msg.ok === true, error: msg.error } as LoadResult)
         }
       } else if (msg.type === 'error') {
         // worker 级别错误，reject 所有 pending
@@ -122,7 +226,7 @@ function initWorker(): void {
       for (const [, p] of pending) p.reject(e)
       pending.clear()
     })
-    worker.postMessage({ type: 'init', cacheDir: join(app.getPath('userData'), 'models') })
+    worker.postMessage({ type: 'init', cacheDir: join(app.getPath('userData'), 'models'), mirror })
   } catch (err) {
     console.warn('[localEmbedder] worker creation failed, fallback to sync:', err)
     useFallback = true
@@ -130,7 +234,7 @@ function initWorker(): void {
 }
 
 /** 发送请求并等待响应 */
-function requestWorker<T>(type: 'load' | 'embed', payload: { modelId?: string; inputs?: string[] }): Promise<T> {
+function requestWorker<T>(type: 'load' | 'embed' | 'delete-model', payload: { modelId?: string; inputs?: string[] }): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     if (!worker) {
       reject(new Error('worker not initialized'))
@@ -155,6 +259,7 @@ async function fbLoad(modelId: string): Promise<LoadResult> {
     }
     const { env } = await import('@huggingface/transformers')
     env.cacheDir = join(app.getPath('userData'), 'models')
+    if (mirror) env.remoteHost = mirror
     try {
       fbExtractor = await fbPipeline('feature-extraction', modelId, { dtype: 'q8' })
     } catch {

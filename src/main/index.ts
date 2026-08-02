@@ -69,6 +69,7 @@ function startGui(): void {
   let tray: Tray | null = null
   let isQuiting = false
   let lifecycleTimer: NodeJS.Timeout | null = null
+  let checkpointTimer: NodeJS.Timeout | null = null
 
   /** 创建系统托盘 */
   function createTray(): void {
@@ -245,7 +246,7 @@ function startGui(): void {
     // app://renderer/assets/xxx.js → {rendererDist}/assets/xxx.js
     // 路径遍历防护：resolve 后校验最终路径在 rendererDist 目录内
     const rendererDist = join(__dirname, '../renderer')
-    protocol.handle('app', (request) => {
+    protocol.handle('app', async (request) => {
       const url = new URL(request.url)
       // pathname: /index.html, /assets/xxx.js
       const filePath = join(rendererDist, url.pathname)
@@ -253,23 +254,16 @@ function startGui(): void {
       if (!resolved.startsWith(rendererDist)) {
         return new Response('Forbidden', { status: 403 })
       }
-      return net.fetch(pathToFileURL(resolved).toString())
+      const resp = await net.fetch(pathToFileURL(resolved).toString())
+      // Cache built assets aggressively; never cache index.html.
+      const headers = new Headers(resp.headers)
+      headers.set(
+        'Cache-Control',
+        url.pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache'
+      )
+      return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers })
     })
 
-    // 清理重复的默认工作区
-    cleanupDuplicateDefaultWorkspaces()
-
-    // 记忆衰减：启动时对超过 30 天未访问的偏好降低置信度
-    try {
-      const decayed = decayConfidence()
-      if (decayed > 0) {
-        logger.info('Memory decay on startup', { decayed, daysThreshold: 30 })
-      }
-    } catch (e) {
-      logger.warn('Memory decay failed (non-blocking)', { error: String(e) })
-    }
-
-    // 注册 IPC 处理器
     registerIpcHandlers()
 
     // 创建托盘 + 窗口
@@ -291,16 +285,42 @@ function startGui(): void {
     // 自动热备份：启动定时备份（v1.6）
     backupService.start()
 
-    // 记忆生命周期自动调度：启动时执行一次 + 每 6 小时定期执行
-    // 归档过弱记忆、更新访问时间、统计层级变化
-    try {
-      const result = runMemoryLifecycle()
-      if (result.archived > 0 || result.promoted > 0) {
-        logger.info('Memory lifecycle on startup', result)
+    // Non-critical startup work (duplicate-workspace cleanup, memory decay, first lifecycle run)
+    // is deferred until the window finished loading so it does not block first paint.
+    const runDeferredStartup = (): void => {
+      cleanupDuplicateDefaultWorkspaces()
+      try {
+        const decayed = decayConfidence()
+        if (decayed > 0) {
+          logger.info('Memory decay on startup', { decayed, daysThreshold: 30 })
+        }
+      } catch (e) {
+        logger.warn('Memory decay failed (non-blocking)', { error: String(e) })
       }
-    } catch (e) {
-      logger.warn('Memory lifecycle failed (non-blocking)', { error: String(e) })
+      try {
+        const result = runMemoryLifecycle()
+        if (result.archived > 0 || result.promoted > 0) {
+          logger.info('Memory lifecycle on startup', result)
+        }
+      } catch (e) {
+        logger.warn('Memory lifecycle failed (non-blocking)', { error: String(e) })
+      }
     }
+    const deferredFallback = setTimeout(runDeferredStartup, 10_000)
+    mainWindow?.webContents.once('did-finish-load', () => {
+      clearTimeout(deferredFallback)
+      runDeferredStartup()
+    })
+
+    // Periodic PASSIVE WAL checkpoint keeps the WAL small without blocking other connections.
+    const checkpointTimerHandle = setInterval(() => {
+      try {
+        checkpointDatabase('PASSIVE')
+      } catch (e) {
+        logger.warn('Periodic checkpoint failed', { error: String(e) })
+      }
+    }, 15 * 60 * 1000)
+    checkpointTimer = checkpointTimerHandle
     const timer = setInterval(() => {
       try {
         const result = runMemoryLifecycle()
@@ -332,6 +352,7 @@ function startGui(): void {
     backupService.stop()
     // 停止记忆生命周期定时器
     if (lifecycleTimer) clearInterval(lifecycleTimer)
+    if (checkpointTimer) clearInterval(checkpointTimer)
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
     // 释放本地嵌入模型资源（v1.8 #15，best-effort）
@@ -339,7 +360,7 @@ function startGui(): void {
       .then(({ disposeLocalEmbedder }) => disposeLocalEmbedder())
       .catch(() => {})
     // 退出前将 WAL 写回主库 + 优化查询计划，避免 WAL 膨胀导致下次启动变慢
-    checkpointDatabase()
+    checkpointDatabase('PASSIVE')
     closeDatabase()
   })
 

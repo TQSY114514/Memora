@@ -1,13 +1,15 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, lazy, Suspense } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, Message, SessionSummary, RelatedSession, DistillationTemplate } from '@shared/types'
 import { Dashboard } from '../Dashboard'
 import { ExportMenu } from './ExportMenu'
+
+// Heavy markdown pipeline (react-markdown + remark-gfm, ~370KB) is code-split out of first paint.
+const MarkdownMessage = lazy(() => import('./MarkdownMessage'))
+const MESSAGE_PAGE_SIZE = 200
 
 interface ChatViewerProps {
   onOpenAiSettings: () => void
@@ -34,7 +36,12 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
 
   const session = activeSession!
   const meta = PROVIDER_META[session.provider as Provider] || PROVIDER_META.Unknown
-  const messages = session.messages || []
+  // Paginated messages: huge sessions are loaded in pages over IPC instead of all at once.
+  const [messages, setMessages] = useState<Message[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [messagesLoading, setMessagesLoading] = useState(true)
+  const messagesLoadingRef = useRef(false)
   const aiConfigured = isAiConfigured(config)
 
   const [summary, setSummary] = useState<SessionSummary | null>(null)
@@ -81,8 +88,24 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setExtractMsg(null)
 
     if (!session) return
-    // 用 cancelled 标志避免快速切换会话时旧请求覆盖新会话状态（race condition）
     let cancelled = false
+    setMessages([])
+    setHasMore(false)
+    setMessagesLoading(true)
+    window.Memora.session
+      .listMessages(session.id, { limit: MESSAGE_PAGE_SIZE, offset: 0 })
+      .then((first) => {
+        if (cancelled) return
+        setMessages(first)
+        setHasMore(first.length === MESSAGE_PAGE_SIZE)
+      })
+      .catch((e) => {
+        if (!cancelled) console.warn('[ChatViewer] load messages failed:', e)
+      })
+      .finally(() => {
+        if (!cancelled) setMessagesLoading(false)
+      })
+    // 用 cancelled 标志避免快速切换会话时旧请求覆盖新会话状态（race condition）
     window.Memora.ai.getSummary(session.id).then((s) => { if (!cancelled) setSummary(s) }).catch((e) => { if (!cancelled) console.warn('[ChatViewer] 加载总结失败:', e) })
     window.Memora.ai.getEmbedStatus(session.id).then((s) => { if (!cancelled) setEmbedStatus(s) }).catch((e) => { if (!cancelled) console.warn('[ChatViewer] 加载嵌入状态失败:', e) })
     // 切换会话时滚动到顶部
@@ -109,10 +132,37 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次挂载时加载
   }, [])
 
+  async function loadMore() {
+    if (!session || loadingMore || !hasMore || messagesLoadingRef.current) return
+    messagesLoadingRef.current = true
+    setLoadingMore(true)
+    try {
+      const next = await window.Memora.session.listMessages(session.id, {
+        limit: MESSAGE_PAGE_SIZE,
+        offset: messages.length
+      })
+      setMessages((prev) => [...prev, ...next])
+      setHasMore(next.length === MESSAGE_PAGE_SIZE)
+    } catch (e) {
+      console.warn('[ChatViewer] load more messages failed:', e)
+    } finally {
+      messagesLoadingRef.current = false
+      setLoadingMore(false)
+    }
+  }
+
+  function handleScroll() {
+    const el = scrollRef.current
+    if (!el || loadingMore || !hasMore || messagesLoadingRef.current) return
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 600) {
+      void loadMore()
+    }
+  }
+
   async function handleToggleFavorite() {
     if (!session) return
     await window.Memora.session.toggleFavorite(session.id)
-    const updated = await window.Memora.session.get(session.id, true)
+    const updated = await window.Memora.session.get(session.id, false)
     setActiveSessionData(updated)
   }
 
@@ -267,7 +317,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           </span>
           {session.model && <span>模型: {session.model}</span>}
           <span>📅 {new Date(session.createdAt).toLocaleDateString('zh-CN')}</span>
-          <span>💬 {messages.length} 条消息</span>
+          <span>💬 {messages.length}{hasMore ? '+' : ''} 条消息</span>
           {session.tags.length > 0 && (
             <span className="flex items-center gap-1">
               {session.tags.map((t) => (
@@ -490,7 +540,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
                       key={i}
                       onClick={async () => {
                         setActiveSession(r.session.id)
-                        const s = await window.Memora.session.get(r.session.id, true)
+                        const s = await window.Memora.session.get(r.session.id, false)
                         setActiveSessionData(s)
                       }}
                       className="w-full text-left p-2 rounded-md border border-border hover:bg-bg-hover transition-colors flex items-start gap-2"
@@ -520,8 +570,10 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       )}
 
       {/* 消息流（虚拟滚动） */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+        {messagesLoading ? (
+          <div className="px-6 py-12 text-center text-sm text-fg-muted">加载中…</div>
+        ) : messages.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-fg-muted">此对话没有消息</div>
         ) : (
           <div
@@ -554,6 +606,9 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             })}
           </div>
         )}
+        {loadingMore && (
+          <div className="py-3 text-center text-xs text-fg-muted">加载中…</div>
+        )}
       </div>
     </div>
   )
@@ -581,26 +636,9 @@ function MessageBubble({ message }: { message: Message }) {
         )}
       </div>
       <div className="prose prose-sm dark:prose-invert max-w-none text-fg-primary">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            code: ({ node: _node, className, children, ...props }) => (
-              <code className={`px-1 py-0.5 rounded text-xs ${className ?? ''}`} {...props}>
-                {children}
-              </code>
-            ),
-            pre: ({ node: _node, children, ...props }) => (
-              <pre
-                className="bg-bg-primary dark:bg-black/40 rounded-md p-3 overflow-x-auto my-2 text-xs"
-                {...props}
-              >
-                {children}
-              </pre>
-            )
-          }}
-        >
-          {message.content}
-        </ReactMarkdown>
+        <Suspense fallback={<p className="whitespace-pre-wrap">{message.content}</p>}>
+          <MarkdownMessage content={message.content} />
+        </Suspense>
       </div>
     </article>
   )

@@ -91,7 +91,7 @@ export default defineConfig({
           // 大依赖拆为独立 chunk，减小主 bundle 体积
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
-            'markdown': ['react-markdown', 'remark-gfm', 'rehype-highlight']
+            'markdown': ['react-markdown', 'remark-gfm']
           }
         }
       }

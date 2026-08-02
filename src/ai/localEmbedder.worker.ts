@@ -20,10 +20,13 @@
 export {}
 
 const { parentPort } = require('worker_threads')
+const { existsSync, rmSync, readdirSync, statSync } = require('fs')
+const { join } = require('path')
 
 let pipelineFn: any = null
 let extractor: any = null
 let cacheDir: string | null = null
+let mirror: string | null = null
 
 /** mean pooling fallback（pipeline 未配置 pooling 时用） */
 function meanPoolAndNormalize(output: any): number[][] {
@@ -50,7 +53,7 @@ function meanPoolAndNormalize(output: any): number[][] {
   return results
 }
 
-async function handleLoad(modelId: string): Promise<{ ok: boolean; dim?: number; error?: string }> {
+async function handleLoad(modelId: string, reqId?: number): Promise<{ ok: boolean; dim?: number; error?: string }> {
   try {
     if (!pipelineFn) {
       const transformers = await import('@huggingface/transformers')
@@ -58,13 +61,29 @@ async function handleLoad(modelId: string): Promise<{ ok: boolean; dim?: number;
     }
     const { env } = await import('@huggingface/transformers')
     if (cacheDir) env.cacheDir = cacheDir
+    if (mirror) env.remoteHost = mirror
+
+    // Report download/progress events to the main process so the UI can show progress.
+    const progressCallback = (p: any): void => {
+      parentPort!.postMessage({
+        type: 'progress',
+        reqId,
+        progress: {
+          status: p.status ?? 'download',
+          file: p.file ?? null,
+          percent: typeof p.progress === 'number' ? p.progress : null,
+          loaded: typeof p.loaded === 'number' ? p.loaded : null,
+          total: typeof p.total === 'number' ? p.total : null
+        }
+      })
+    }
 
     // 优先 q8 量化（内存减半、推理提速 ~2×），模型无 q8 文件时回退 fp32
     try {
-      extractor = await pipelineFn('feature-extraction', modelId, { dtype: 'q8' })
+extractor = await pipelineFn('feature-extraction', modelId, { dtype: 'q8', progress_callback: progressCallback })
     } catch (q8Err) {
       console.warn(`[localEmbedder.worker] q8 量化加载失败，回退 fp32: ${(q8Err as Error).message}`)
-      extractor = await pipelineFn('feature-extraction', modelId, { dtype: 'fp32' })
+extractor = await pipelineFn('feature-extraction', modelId, { dtype: 'fp32', progress_callback: progressCallback })
     }
 
     // 从首次推理输出推断维度，避免硬编码
@@ -103,17 +122,76 @@ async function handleEmbed(inputs: string[]): Promise<{ ok: boolean; vectors?: n
   }
 }
 
-parentPort!.on('message', async (msg: { type: string; reqId?: number; modelId?: string; inputs?: string[]; cacheDir?: string }) => {
+/** Dispose the loaded model and remove its files from the local cache. */
+async function handleDeleteModel(modelId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    if (extractor && typeof extractor.dispose === 'function') {
+      try { await extractor.dispose() } catch { /* ignore */ }
+    }
+    extractor = null
+    if (cacheDir) {
+      const modelDir = join(cacheDir, modelId)
+      if (existsSync(modelDir)) rmSync(modelDir, { recursive: true, force: true })
+    }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** Total size of downloaded models in the cache (per-model + total bytes). */
+function listModelCache(): { ok: boolean; models: Array<{ id: string; sizeBytes: number }>; totalBytes: number } {
+  const models: Array<{ id: string; sizeBytes: number }> = []
+  let totalBytes = 0
+  try {
+    if (cacheDir && existsSync(cacheDir)) {
+      for (const name of readdirSync(cacheDir)) {
+        const dir = join(cacheDir, name)
+        if (!statSync(dir).isDirectory()) continue
+        let size = 0
+        const walk = (d: string): void => {
+          for (const f of readdirSync(d)) {
+            const fp = join(d, f)
+            const st = statSync(fp)
+            if (st.isDirectory()) walk(fp)
+            else size += st.size
+          }
+        }
+        try { walk(dir) } catch { /* skip unreadable dirs */ }
+        if (size > 0) { models.push({ id: name, sizeBytes: size }); totalBytes += size }
+      }
+    }
+  } catch { /* ignore */ }
+  return { ok: true, models, totalBytes }
+}
+
+
+parentPort!.on('message', async (msg: { type: string; reqId?: number; modelId?: string; inputs?: string[]; cacheDir?: string; mirror?: string | null }) => {
   try {
     if (msg.type === 'init') {
       cacheDir = msg.cacheDir ?? null
+      mirror = msg.mirror ?? null
       parentPort!.postMessage({ type: 'ready' })
     } else if (msg.type === 'load') {
-      const r = await handleLoad(msg.modelId!)
+      const r = await handleLoad(msg.modelId!, msg.reqId)
       parentPort!.postMessage({ type: 'load-result', reqId: msg.reqId, ...r })
     } else if (msg.type === 'embed') {
       const r = await handleEmbed(msg.inputs!)
       parentPort!.postMessage({ type: 'embed-result', reqId: msg.reqId, ...r })
+    } else if (msg.type === 'set-mirror') {
+      mirror = msg.mirror ?? null
+      if (mirror) {
+        const { env } = await import('@huggingface/transformers')
+        env.remoteHost = mirror
+      }
+      parentPort!.postMessage({ type: 'set-mirror-result', reqId: msg.reqId, ok: true })
+    } else if (msg.type === 'delete-model') {
+      const r = await handleDeleteModel(msg.modelId!)
+      parentPort!.postMessage({ type: 'delete-model-result', reqId: msg.reqId, ...r })
+    } else if (msg.type === 'list-cache') {
+      const r = listModelCache()
+      parentPort!.postMessage({ type: 'list-cache-result', reqId: msg.reqId, ...r })
+
     } else if (msg.type === 'dispose') {
       if (extractor && typeof extractor.dispose === 'function') {
         try { await extractor.dispose() } catch { /* 忽略 */ }

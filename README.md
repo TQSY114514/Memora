@@ -290,6 +290,8 @@ confidence=0.6        新记忆→active             ≤0.05→archived
 
 - 每个供应商可独立重命名、删除、切换协议
 - 配置仅保存在本地，apiKey 加密存储（safeStorage）
+
+**本地嵌入模型下载**：使用本地嵌入模式时，模型默认从 HuggingFace 下载。国内网络可在 AI 配置 → 本地嵌入模型 → 下载镜像中填写镜像地址（如 `https://hf-mirror.com`）加速，模型缓存大小与清理入口也在同一处。
 - 测试连接通过 main 进程代理，同时验证 chat + embeddings 接口
 
 ### MCP Server
@@ -400,6 +402,9 @@ npm run dist:win
 # 预览生产版本
 npm run preview
 ```
+
+> **⚠️ 未签名安装包说明**：个人开源项目的安装包未做代码签名，Windows SmartScreen / Defender 可能提示“未知发布者”或误报，macOS 首次打开也可能被 Gatekeeper 拦截。请选择“仍要运行 / 打开”，或以源码方式自行构建。这是未签名 Electron 应用的普遍现象，并非软件问题。
+
 
 ### MCP Server 模式
 

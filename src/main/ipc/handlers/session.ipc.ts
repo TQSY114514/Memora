@@ -2,6 +2,7 @@ import { safeHandle, assertSafeId, assertSafeIds } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import {
   getSession,
+  listMessagesBySession,
   listSessions,
   updateSession,
   deleteSession,
@@ -19,6 +20,11 @@ export function registerSessionHandlers(): void {
   // ===== Session =====
   safeHandle(IPC.SESSION_GET, (_e, id: string, withMessages = true) =>
     getSession(assertSafeId(id), withMessages)
+  )
+  safeHandle(
+    IPC.SESSION_LIST_MESSAGES,
+    (_e, id: string, options?: { limit?: number; offset?: number }) =>
+      listMessagesBySession(assertSafeId(id), options)
   )
   safeHandle(
     IPC.SESSION_LIST,

@@ -105,8 +105,8 @@ export function updateFolder(
   })
   if (sets.length === 0) return
 
-  sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE folders SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
+  sets.push('updated_at = @nowIso')
+  db.prepare(`UPDATE folders SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id, nowIso: new Date().toISOString() })
 }
 
 export function deleteFolder(id: string): void {

@@ -289,8 +289,8 @@ export function updatePreference(
   })
   if (sets.length === 0) return before
 
-  sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE preferences SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
+  sets.push('updated_at = @nowIso')
+  db.prepare(`UPDATE preferences SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id, nowIso: new Date().toISOString() })
 
   const updated = getPreference(id)
   if (updated && (patch.subject !== undefined || patch.value !== undefined)) {

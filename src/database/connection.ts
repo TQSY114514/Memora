@@ -29,6 +29,29 @@ export function checkIntegrity(): boolean {
 }
 
 /** 初始化数据库（建表 + 完整性检查 + 开启外键 + WAL + busy_timeout + 版本化迁移） */
+/** Fast integrity check (quick_check), used at startup. Much cheaper than full integrity_check. */
+export function quickCheckIntegrity(): boolean {
+  if (!dbInstance) return false
+  try {
+    const result = dbInstance.pragma('quick_check') as Array<{ quick_check: string }>
+    return result.length > 0 && result[0].quick_check === 'ok'
+  } catch {
+    return false
+  }
+}
+
+/** Full integrity check (slow on large DBs). Call after the window is shown. */
+export function runFullIntegrityCheck(): { ok: boolean; detail?: string } {
+  if (!dbInstance) return { ok: false, detail: 'database not initialized' }
+  try {
+    const result = dbInstance.pragma('integrity_check') as Array<{ integrity_check: string }>
+    const ok = result.length > 0 && result[0].integrity_check === 'ok'
+    return { ok, detail: ok ? undefined : result[0]?.integrity_check }
+  } catch (e) {
+    return { ok: false, detail: String(e) }
+  }
+}
+
 export function initDatabase(dbPath?: string): Database.Database {
   if (dbInstance) return dbInstance
 
@@ -55,21 +78,19 @@ export function initDatabase(dbPath?: string): Database.Database {
   dbInstance.pragma('busy_timeout = 5000')
 
   // 启动时完整性自检：如果数据库损坏，尝试从备份恢复
+  // Startup self-check: use quick_check first (fast), escalate to full integrity_check only on failure.
+  // The full integrity_check on a large DB can take seconds, so it is deferred to runFullIntegrityCheck()
+  // after the window is shown (see src/main/index.ts).
   if (!isNewFile) {
-    const healthy = checkIntegrity()
-    if (!healthy) {
-      // 数据库损坏 — 记录日志，尝试恢复
-      console.error('[Database] Integrity check FAILED! Database may be corrupted.')
-      // 尝试 integrity_check 的快速模式
-      const quickResult = dbInstance.pragma('quick_check') as Array<{ quick_check: string }>
-      if (quickResult.length > 0 && quickResult[0].quick_check !== 'ok') {
-        console.error('[Database] Quick check details:', quickResult[0].quick_check)
+    const quickOk = quickCheckIntegrity()
+    if (!quickOk) {
+      const full = runFullIntegrityCheck()
+      if (!full.ok) {
+        console.error('[Database] Integrity check FAILED! Database may be corrupted.', full.detail ?? '')
       }
-      // 不阻塞启动 — 让 schema/migration 尝试修复，最坏情况用户可从备份恢复
     }
   }
 
-  // 建表（含 schema_version 表 + version 1/2 初始记录）
   dbInstance.exec(SCHEMA_SQL)
 
   // 版本化迁移（version 3+ 的增量变更）
@@ -86,17 +107,17 @@ export function initDatabase(dbPath?: string): Database.Database {
 }
 
 /** 退出前检查点：将 WAL 日志写回主库文件，避免 WAL 文件膨胀导致下次启动变慢 */
-export function checkpointDatabase(): void {
+export function checkpointDatabase(mode: 'PASSIVE' | 'TRUNCATE' = 'PASSIVE'): void {
   if (dbInstance) {
     try {
-      dbInstance.pragma('wal_checkpoint(TRUNCATE)')
+      // PASSIVE does not block other connections; TRUNCATE forces a full reset of the WAL.
+      dbInstance.pragma(`wal_checkpoint(${mode})`)
       dbInstance.pragma('optimize')
     } catch {
-      // 退出时检查点失败不阻塞退出
+      // checkpoint failure should not block other flows
     }
   }
 }
-
 /** 获取数据库实例（必须先 initDatabase） */
 export function getDatabase(): Database.Database {
   if (!dbInstance) {

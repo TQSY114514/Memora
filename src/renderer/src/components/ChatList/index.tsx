@@ -80,7 +80,7 @@ export function ChatList() {
     setShowBatchBar(false)
     setActiveSession(sessionId)
     try {
-      const session = await window.Memora.session.get(sessionId, true)
+      const session = await window.Memora.session.get(sessionId, false)
       setActiveSessionData(session)
     } catch (e) {
       dialog.alert('加载对话失败：' + (e instanceof Error ? e.message : String(e)))

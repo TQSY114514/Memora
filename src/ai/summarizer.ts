@@ -124,7 +124,7 @@ export async function generateSummary(
   }
 
   const userPrompt = renderSession(session)
-  const raw = await callChat(config, systemPrompt, userPrompt, { temperature: 0.3 })
+  const raw = await callChat(config, systemPrompt, userPrompt, { temperature: 0.3, timeoutMs: 180_000 })
   const parsed = parseSummaryJson(raw)
 
   const summary = upsertSummary(sessionId, {

@@ -47,7 +47,21 @@ export function AiSettings({ onClose }: AiSettingsProps) {
     model?: string
     dim?: number
     error?: string
+    progress?: {
+      status?: string
+      file?: string | null
+      percent?: number | null
+      loaded?: number | null
+      total?: number | null
+    }
   }>({ state: 'idle' })
+  // 本地模型下载镜像与缓存管理
+  const [mirror, setMirror] = useState('')
+  const [cacheInfo, setCacheInfo] = useState<{
+    models: Array<{ id: string; sizeBytes: number }>
+    totalBytes: number
+  } | null>(null)
+  const [cacheBusy, setCacheBusy] = useState(false)
 
   useEffect(() => {
     window.Memora.secret.isEncryptionAvailable().then(setEncryptionAvailable).catch(() => {})
@@ -57,6 +71,8 @@ export function AiSettings({ onClose }: AiSettingsProps) {
   useEffect(() => {
     if (config.embeddingMode !== 'local') return
     let cancelled = false
+    window.Memora.ai.getLocalModelMirror().then((m) => { if (!cancelled) setMirror(m ?? '') }).catch(() => {})
+    window.Memora.ai.getLocalModelCacheInfo().then((info) => { if (!cancelled && info.ok) setCacheInfo(info) }).catch(() => {})
     const fetchStatus = () => {
       window.Memora.ai.getLocalEmbedderStatus().then((s) => {
         if (!cancelled) {
@@ -70,6 +86,32 @@ export function AiSettings({ onClose }: AiSettingsProps) {
     fetchStatus()
     return () => { cancelled = true }
   }, [config.embeddingMode])
+
+  async function handleSaveMirror() {
+    try {
+      const next = await window.Memora.ai.setLocalModelMirror(mirror)
+      setMirror(next ?? '')
+    } catch { /* ignore */ }
+  }
+
+  async function handleCleanModelCache() {
+    if (cacheBusy) return
+    setCacheBusy(true)
+    try {
+      await window.Memora.ai.deleteLocalModel(config.embeddingModel)
+      const info = await window.Memora.ai.getLocalModelCacheInfo()
+      if (info.ok) setCacheInfo(info)
+    } catch { /* ignore */ } finally {
+      setCacheBusy(false)
+    }
+  }
+
+  function formatBytes(bytes: number): string {
+    if (bytes <= 0) return '0 B'
+    const units = ['B', 'KB', 'MB', 'GB']
+    const idx = Math.min(Math.floor(Math.log2(bytes) / 10), units.length - 1)
+    return `${(bytes / Math.pow(1024, idx)).toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`
+  }
 
   async function handleTest() {
     setTestStatus('testing')
@@ -407,7 +449,14 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     </button>
                   )}
                   {localEmbedderStatus.state === 'loading' && (
-                    <span className="text-fg-muted">模型加载中…（首次需下载）</span>
+                    <>
+                      <span className="text-fg-muted">模型加载中…（首次需下载）</span>
+                      {localEmbedderStatus.progress?.percent != null && (
+                        <span className="text-fg-muted">
+                          （{Math.round(localEmbedderStatus.progress.percent)}%）
+                        </span>
+                      )}
+                    </>
                   )}
                   {localEmbedderStatus.state === 'ready' && (
                     <span className="text-green-600">
@@ -420,6 +469,36 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     </span>
                   )}
                 </div>
+                {/* 模型下载镜像：国内网络可配置 hf-mirror.com 等镜像加速 */}
+                <div className="flex items-center gap-2 text-xs">
+                  <input
+                    type="text"
+                    value={mirror}
+                    onChange={(e) => setMirror(e.target.value)}
+                    placeholder="https://hf-mirror.com"
+                    className="Memora-input flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveMirror}
+                    className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
+                  >
+                    保存镜像
+                  </button>
+                </div>
+                {cacheInfo && (
+                  <div className="flex items-center gap-2 text-[10px] text-fg-muted">
+                    <span>模型缓存：{formatBytes(cacheInfo.totalBytes)}</span>
+                    <button
+                      type="button"
+                      onClick={handleCleanModelCache}
+                      disabled={cacheBusy}
+                      className="text-fg-muted underline hover:text-red-500 disabled:opacity-50"
+                    >
+                      清理当前模型
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">

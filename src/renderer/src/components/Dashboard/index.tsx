@@ -22,7 +22,7 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
 
   async function handleOpenSession(id: string) {
     setActiveSession(id)
-    const session = await window.Memora.session.get(id, true)
+    const session = await window.Memora.session.get(id, false)
     setActiveSessionData(session)
   }
 

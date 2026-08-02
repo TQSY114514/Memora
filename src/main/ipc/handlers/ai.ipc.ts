@@ -11,7 +11,14 @@ import {
   deleteProviderConfig
 } from '@main/aiConfigFile'
 import { callChat, embedQuery } from '@ai/apiClient'
-import { getLocalEmbedderStatus, loadModel } from '@ai/localEmbedder'
+import {
+  getLocalEmbedderStatus,
+  loadModel,
+  getLocalModelMirror,
+  setLocalModelMirror,
+  deleteLocalModel,
+  getLocalModelCacheInfo
+} from '@ai/localEmbedder'
 import type { AiConfig, AiApiStyle } from '@shared/types'
 
 export function registerAiHandlers(): void {
@@ -62,6 +69,11 @@ export function registerAiHandlers(): void {
   safeHandle(IPC.AI_EMBED_LOCAL_LOAD, async (_e, modelId: string) => {
     await loadModel(modelId)
   })
+
+  safeHandle(IPC.AI_EMBED_LOCAL_MIRROR_GET, () => getLocalModelMirror())
+  safeHandle(IPC.AI_EMBED_LOCAL_MIRROR_SET, async (_e, mirror: string) => setLocalModelMirror(mirror))
+  safeHandle(IPC.AI_EMBED_LOCAL_DELETE_MODEL, async (_e, modelId: string) => deleteLocalModel(modelId))
+  safeHandle(IPC.AI_EMBED_LOCAL_CACHE_INFO, () => getLocalModelCacheInfo())
 
   // ===== Project Memory 智能问答（Phase 3） =====
   safeHandle(

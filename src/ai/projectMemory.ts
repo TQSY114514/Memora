@@ -159,7 +159,7 @@ ${contextBlocks.join('\n\n---\n\n')}
 
 请基于以上片段回答用户的问题。`
 
-  const answer = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3 })
+  const answer = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3, timeoutMs: 180_000 })
 
   return {
     question: trimmed,

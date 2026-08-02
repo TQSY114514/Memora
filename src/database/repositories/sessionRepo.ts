@@ -227,6 +227,26 @@ export function getSession(id: string, withMessages = true): ChatSession | null 
   return rowToSession(row, tags, messages)
 }
 
+/** Paginated session messages (msg_order ASC). Avoids shipping entire huge sessions over IPC. */
+export function listMessagesBySession(
+  sessionId: string,
+  options?: { limit?: number; offset?: number }
+): Message[] {
+  const db = getDatabase()
+  const limit = Math.min(Math.max(options?.limit ?? 200, 1), 500)
+  const offset = Math.max(options?.offset ?? 0, 0)
+  const rows = db
+    .prepare(
+      'SELECT id, session_id, role, content, model, tokens, msg_order, created_at ' +
+      'FROM messages ' +
+      'WHERE session_id = ? ' +
+      'ORDER BY msg_order ASC ' +
+      'LIMIT ? OFFSET ?'
+    )
+    .all(sessionId, limit, offset) as MessageRow[]
+  return rows.map(rowToMessage)
+}
+
 /** 列出会话（轻量，不加载消息内容） */
 export function listSessions(options?: {
   folderId?: string
@@ -325,8 +345,8 @@ export function updateSession(
   })
   if (sets.length === 0) return
 
-  sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE chat_sessions SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
+  sets.push('updated_at = @nowIso')
+  db.prepare(`UPDATE chat_sessions SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id, nowIso: new Date().toISOString() })
 }
 
 /** 切换收藏 */
@@ -341,8 +361,8 @@ export function toggleFavorite(id: string): void {
 export function moveSession(id: string, folderId: string | null): void {
   const db = getDatabase()
   db.prepare(
-    "UPDATE chat_sessions SET folder_id = ?, updated_at = datetime('now') WHERE id = ?"
-  ).run(folderId, id)
+    'UPDATE chat_sessions SET folder_id = ?, updated_at = ? WHERE id = ?'
+  ).run(folderId, new Date().toISOString(), id)
 }
 
 /** 删除会话（级联删除消息、标签关联）+ 删除 FTS 索引 */

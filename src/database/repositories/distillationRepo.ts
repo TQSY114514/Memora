@@ -100,10 +100,11 @@ export function updateDistillationTemplate(
     params.output_format = normalizeOutputFormat(params.output_format)
   }
 
-  sets.push("updated_at = datetime('now')")
+  sets.push('updated_at = @nowIso')
   db.prepare(`UPDATE distillation_templates SET ${sets.join(', ')} WHERE id = @id`).run({
     ...params,
-    id
+    id,
+    nowIso: new Date().toISOString()
   })
 
   return getDistillationTemplate(id)

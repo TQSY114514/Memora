@@ -154,7 +154,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
 
   async function handleOpenSource(sessionId: string) {
     setActiveSession(sessionId)
-    const session = await window.Memora.session.get(sessionId, true)
+    const session = await window.Memora.session.get(sessionId, false)
     setActiveSessionData(session)
     onClose()
   }

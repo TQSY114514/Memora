@@ -120,21 +120,22 @@ export async function callChat(
   config: AiConfig,
   systemPrompt: string,
   userPrompt: string,
-  options?: { temperature?: number }
+  options?: { temperature?: number; timeoutMs?: number }
 ): Promise<string> {
   const style = config.apiStyle ?? 'openai'
   const temperature = options?.temperature ?? 0.3
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT
 
   switch (style) {
     case 'anthropic':
-      return callChatAnthropic(config, systemPrompt, userPrompt, temperature)
+      return callChatAnthropic(config, systemPrompt, userPrompt, temperature, timeoutMs)
     case 'ollama':
-      return callChatOllama(config, systemPrompt, userPrompt, temperature)
+      return callChatOllama(config, systemPrompt, userPrompt, temperature, timeoutMs)
     case 'gemini':
-      return callChatGemini(config, systemPrompt, userPrompt, temperature)
+      return callChatGemini(config, systemPrompt, userPrompt, temperature, timeoutMs)
     case 'openai':
     default:
-      return callChatOpenai(config, systemPrompt, userPrompt, temperature)
+      return callChatOpenai(config, systemPrompt, userPrompt, temperature, timeoutMs)
   }
 }
 
@@ -143,7 +144,8 @@ async function callChatOpenai(
   config: AiConfig,
   systemPrompt: string,
   userPrompt: string,
-  temperature: number
+  temperature: number,
+  timeoutMs = DEFAULT_TIMEOUT
 ): Promise<string> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`
   const resp = await fetchWithRetry(url, {
@@ -160,7 +162,7 @@ async function callChatOpenai(
       ],
       temperature
     })
-  })
+  }, { timeout: timeoutMs })
   if (!resp.ok) throw new Error(await extractError(resp))
 
   const data = (await resp.json()) as {
@@ -178,7 +180,8 @@ async function callChatAnthropic(
   config: AiConfig,
   systemPrompt: string,
   userPrompt: string,
-  temperature: number
+  temperature: number,
+  timeoutMs = DEFAULT_TIMEOUT
 ): Promise<string> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/v1/messages`
   const resp = await fetchWithRetry(url, {
@@ -195,7 +198,7 @@ async function callChatAnthropic(
       max_tokens: 4096,
       temperature
     })
-  })
+  }, { timeout: timeoutMs })
   if (!resp.ok) throw new Error(await extractError(resp))
 
   const data = (await resp.json()) as {
@@ -213,7 +216,8 @@ async function callChatOllama(
   config: AiConfig,
   systemPrompt: string,
   userPrompt: string,
-  temperature: number
+  temperature: number,
+  timeoutMs = DEFAULT_TIMEOUT
 ): Promise<string> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/api/chat`
   const resp = await fetchWithRetry(url, {
@@ -228,7 +232,7 @@ async function callChatOllama(
       stream: false,
       options: { temperature }
     })
-  })
+  }, { timeout: timeoutMs })
   if (!resp.ok) throw new Error(await extractError(resp))
 
   const data = (await resp.json()) as {
@@ -246,7 +250,8 @@ async function callChatGemini(
   config: AiConfig,
   systemPrompt: string,
   userPrompt: string,
-  temperature: number
+  temperature: number,
+  timeoutMs = DEFAULT_TIMEOUT
 ): Promise<string> {
   const base = config.baseUrl.replace(/\/$/, '')
   const url = `${base}/v1beta/models/${config.chatModel}:generateContent?key=${config.apiKey}`
@@ -258,7 +263,7 @@ async function callChatGemini(
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       generationConfig: { temperature }
     })
-  })
+  }, { timeout: timeoutMs })
   if (!resp.ok) throw new Error(await extractError(resp))
 
   const data = (await resp.json()) as {

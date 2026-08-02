@@ -203,8 +203,8 @@ export function updateEntry(
   })
   if (sets.length === 0) return getEntry(id)
 
-  sets.push("updated_at = datetime('now')")
-  db.prepare(`UPDATE knowledge_entries SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id })
+  sets.push('updated_at = @nowIso')
+  db.prepare(`UPDATE knowledge_entries SET ${sets.join(', ')} WHERE id = @id`).run({ ...params, id, nowIso: new Date().toISOString() })
 
   // 更新 FTS 索引（title/content 变化时）
   const updated = getEntry(id)

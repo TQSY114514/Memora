@@ -57,6 +57,7 @@ export const IPC = {
   // Session
   SESSION_LIST: 'session:list',
   SESSION_GET: 'session:get',
+  SESSION_LIST_MESSAGES: 'session:list-messages',
   SESSION_UPDATE: 'session:update',
   SESSION_DELETE: 'session:delete',
   SESSION_MOVE: 'session:move',
@@ -122,6 +123,10 @@ export const IPC = {
   AI_EMBED_STATUS: 'ai:embed:status',
   AI_EMBED_LOCAL_STATUS: 'ai:embed:local:status',
   AI_EMBED_LOCAL_LOAD: 'ai:embed:local:load',
+  AI_EMBED_LOCAL_MIRROR_GET: 'ai:embed:local:mirror:get',
+  AI_EMBED_LOCAL_MIRROR_SET: 'ai:embed:local:mirror:set',
+  AI_EMBED_LOCAL_DELETE_MODEL: 'ai:embed:local:delete-model',
+  AI_EMBED_LOCAL_CACHE_INFO: 'ai:embed:local:cache-info',
 
   // 语义搜索（Phase 2）
   SEARCH_SEMANTIC: 'search:semantic',

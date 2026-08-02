@@ -4,6 +4,7 @@ import type {
   Workspace,
   Folder,
   ChatSession,
+  Message,
   Tag,
   SearchResult,
   ImportResult,
@@ -71,8 +72,10 @@ const api = {
   },
 
   // ===== Workspace =====/** 监听自动更新下载进度（main -> renderer 事件） */
-  onUpdateProgress: (callback: (progress: { percent: number }) => void): void => {
-    ipcRenderer.on('update-progress', (_event, progress) => callback(progress))
+  onUpdateProgress: (callback: (progress: { percent: number }) => void): (() => void) => {
+    const h = (_event: unknown, progress: { percent: number }): void => callback(progress)
+    ipcRenderer.on('update-progress', h)
+    return () => ipcRenderer.removeListener('update-progress', h)
   },
 
   // ===== Workspace =====
@@ -104,6 +107,11 @@ const api = {
   session: {
     get: (id: string, withMessages = true): Promise<ChatSession | null> =>
       ipcRenderer.invoke(IPC.SESSION_GET, id, withMessages),
+    /** Paginated session messages (msg_order ASC); huge sessions avoid one-shot full transfer. */
+    listMessages: (
+      id: string,
+      options?: { limit?: number; offset?: number }
+    ): Promise<Message[]> => ipcRenderer.invoke(IPC.SESSION_LIST_MESSAGES, id, options),
     list: (options?: {
       folderId?: string
       provider?: string
@@ -309,10 +317,29 @@ const api = {
       model?: string
       dim?: number
       error?: string
+      progress?: {
+        status?: string
+        file?: string | null
+        percent?: number | null
+        loaded?: number | null
+        total?: number | null
+      }
     }> => ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_STATUS),
     /** 预加载本地嵌入模型（v1.8 #15） */
     loadLocalModel: (modelId: string): Promise<void> =>
-      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_LOAD, modelId)
+      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_LOAD, modelId),
+    /** 获取模型下载镜像（null = 官方 HuggingFace） */
+    getLocalModelMirror: (): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_MIRROR_GET),
+    /** 设置模型下载镜像，空字符串恢复官方源 */
+    setLocalModelMirror: (mirror: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_MIRROR_SET, mirror),
+    /** 删除本地缓存的模型文件 */
+    deleteLocalModel: (modelId: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_DELETE_MODEL, modelId),
+    /** 模型缓存占用统计 */
+    getLocalModelCacheInfo: (): Promise<{ ok: boolean; models: Array<{ id: string; sizeBytes: number }>; totalBytes: number; error?: string }> =>
+      ipcRenderer.invoke(IPC.AI_EMBED_LOCAL_CACHE_INFO)
   },
 
   // ===== API Key 安全存储（safeStorage 加密） =====
