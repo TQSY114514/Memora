@@ -15,6 +15,11 @@ import { registerDistillationHandlers } from './handlers/distillation.ipc'
 import { registerAuditHandlers } from './handlers/audit.ipc'
 import { registerMcpPermissionsHandlers } from './handlers/mcpPermissions.ipc'
 import { registerMemoryAgentHandlers } from './handlers/memoryAgent.ipc'
+import { registerSyncHandlers } from './handlers/sync.ipc'
+import { registerCapsuleHandlers } from './handlers/capsule.ipc'
+import { registerTeamHandlers } from './handlers/team.ipc'
+import { registerTemplateHandlers } from './handlers/templates.ipc'
+import { registerMigrationHandlers } from './handlers/migration.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -34,4 +39,9 @@ export function registerIpcHandlers(): void {
   registerAuditHandlers()
   registerMcpPermissionsHandlers()
   registerMemoryAgentHandlers()
+  registerSyncHandlers()
+  registerCapsuleHandlers()
+  registerTeamHandlers()
+  registerTemplateHandlers()
+  registerMigrationHandlers()
 }

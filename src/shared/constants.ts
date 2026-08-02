@@ -240,7 +240,52 @@ export const IPC = {
   MEMORY_AGENT_START: 'memory-agent:start',
   MEMORY_AGENT_STOP: 'memory-agent:stop',
   MEMORY_AGENT_GAPS: 'memory-agent:gaps',
-  MEMORY_AGENT_REVIEW_QUEUE: 'memory-agent:review-queue'
+  MEMORY_AGENT_REVIEW_QUEUE: 'memory-agent:review-queue',
+
+  // ===== 云端同步（v1.11） =====
+  SYNC_CONFIG_GET: 'sync:config:get',
+  SYNC_CONFIG_SET: 'sync:config:set',
+  SYNC_TEST_CONNECTION: 'sync:test-connection',
+  SYNC_UPLOAD: 'sync:upload',
+  SYNC_DOWNLOAD: 'sync:download',
+  SYNC_LIST_FILES: 'sync:list-files',
+  SYNC_DELETE_FILE: 'sync:delete-file',
+  SYNC_PERFORM: 'sync:perform',
+
+  // ===== 时间胶囊（v1.11） =====
+  CAPSULE_CREATE: 'capsule:create',
+  CAPSULE_LIST: 'capsule:list',
+  CAPSULE_UNLOCK: 'capsule:unlock',
+  CAPSULE_CHECK_DUE: 'capsule:check-due',
+  CAPSULE_DELETE: 'capsule:delete',
+
+  // ===== 团队协作（v1.11） =====
+  TEAM_CREATE_WORKSPACE: 'team:create-workspace',
+  TEAM_LIST_WORKSPACES: 'team:list-workspaces',
+  TEAM_GENERATE_INVITE: 'team:generate-invite',
+  TEAM_JOIN_WORKSPACE: 'team:join-workspace',
+  TEAM_SET_VISIBILITY: 'team:set-visibility',
+  TEAM_GET_VISIBILITY: 'team:get-visibility',
+  TEAM_CHECK_VISIBILITY: 'team:check-visibility',
+  TEAM_ADD_COMMENT: 'team:add-comment',
+  TEAM_LIST_COMMENTS: 'team:list-comments',
+  TEAM_GET_REPLIES: 'team:get-replies',
+  TEAM_RESOLVE_COMMENT: 'team:resolve-comment',
+
+  // ===== 模板市场（v1.11） =====
+  TEMPLATE_LIST: 'template:list',
+  TEMPLATE_GET: 'template:get',
+  TEMPLATE_EXPORT: 'template:export',
+  TEMPLATE_IMPORT: 'template:import',
+  TEMPLATE_FILTER: 'template:filter',
+  TEMPLATE_SEARCH: 'template:search',
+
+  // ===== 迁移向导（v1.11） =====
+  MIGRATION_PLATFORMS: 'migration:platforms',
+  MIGRATION_DEFAULT_CONFIG: 'migration:default-config',
+  MIGRATION_STEP_LABEL: 'migration:step-label',
+  MIGRATION_STEP_DESC: 'migration:step-desc',
+  MIGRATION_FORMAT_DURATION: 'migration:format-duration'
 } as const
 
 /** Provider 显示元信息 */

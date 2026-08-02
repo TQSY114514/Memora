@@ -11,6 +11,11 @@ const KnowledgePanel = lazy(() => import('./components/Knowledge').then(m => ({ 
 const PreferenceExplorer = lazy(() => import('./components/PreferenceExplorer').then(m => ({ default: m.PreferenceExplorer })))
 const McpPermissionsPanel = lazy(() => import('./components/McpPermissions').then(m => ({ default: m.McpPermissionsPanel })))
 const MemoryAgentPanel = lazy(() => import('./components/MemoryAgent').then(m => ({ default: m.MemoryAgentPanel })))
+const CloudSyncPanel = lazy(() => import('./components/CloudSync').then(m => ({ default: m.CloudSyncPanel })))
+const TimeCapsulePanel = lazy(() => import('./components/TimeCapsule').then(m => ({ default: m.TimeCapsulePanel })))
+const TeamWorkspacePanel = lazy(() => import('./components/TeamWorkspace').then(m => ({ default: m.TeamWorkspacePanel })))
+const TemplateMarketPanel = lazy(() => import('./components/TemplateMarket').then(m => ({ default: m.TemplateMarketPanel })))
+const MigrationWizardPanel = lazy(() => import('./components/MigrationWizard').then(m => ({ default: m.MigrationWizardPanel })))
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
@@ -40,6 +45,11 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showMcpPermissions, setShowMcpPermissions] = useState(false)
   const [showMemoryAgent, setShowMemoryAgent] = useState(false)
+  const [showCloudSync, setShowCloudSync] = useState(false)
+  const [showTimeCapsule, setShowTimeCapsule] = useState(false)
+  const [showTeamWorkspace, setShowTeamWorkspace] = useState(false)
+  const [showTemplateMarket, setShowTemplateMarket] = useState(false)
+  const [showMigrationWizard, setShowMigrationWizard] = useState(false)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const ensured = useRef(false)
@@ -139,6 +149,11 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenMcpPermissions={() => setShowMcpPermissions(true)}
         onOpenMemoryAgent={() => setShowMemoryAgent(true)}
+        onOpenCloudSync={() => setShowCloudSync(true)}
+        onOpenTimeCapsule={() => setShowTimeCapsule(true)}
+        onOpenTeamWorkspace={() => setShowTeamWorkspace(true)}
+        onOpenTemplateMarket={() => setShowTemplateMarket(true)}
+        onOpenMigrationWizard={() => setShowMigrationWizard(true)}
       />
       {showMemoryPanel ? (
         <Suspense fallback={<PanelSkeleton />}>
@@ -159,6 +174,26 @@ export default function App() {
       ) : showMemoryAgent ? (
         <Suspense fallback={<PanelSkeleton />}>
           <MemoryAgentPanel onClose={() => setShowMemoryAgent(false)} />
+        </Suspense>
+      ) : showCloudSync ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <CloudSyncPanel onClose={() => setShowCloudSync(false)} />
+        </Suspense>
+      ) : showTimeCapsule ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <TimeCapsulePanel onClose={() => setShowTimeCapsule(false)} />
+        </Suspense>
+      ) : showTeamWorkspace ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <TeamWorkspacePanel onClose={() => setShowTeamWorkspace(false)} />
+        </Suspense>
+      ) : showTemplateMarket ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <TemplateMarketPanel onClose={() => setShowTemplateMarket(false)} />
+        </Suspense>
+      ) : showMigrationWizard ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <MigrationWizardPanel onClose={() => setShowMigrationWizard(false)} />
         </Suspense>
       ) : (
         <>

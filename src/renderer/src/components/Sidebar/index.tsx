@@ -16,9 +16,14 @@ interface SidebarProps {
   onOpenPreferences: () => void
   onOpenMcpPermissions: () => void
   onOpenMemoryAgent: () => void
+  onOpenCloudSync: () => void
+  onOpenTimeCapsule: () => void
+  onOpenTeamWorkspace: () => void
+  onOpenTemplateMarket: () => void
+  onOpenMigrationWizard: () => void
 }
 
-export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences, onOpenMcpPermissions, onOpenMemoryAgent }: SidebarProps) {
+export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences, onOpenMcpPermissions, onOpenMemoryAgent, onOpenCloudSync, onOpenTimeCapsule, onOpenTeamWorkspace, onOpenTemplateMarket, onOpenMigrationWizard }: SidebarProps) {
   const {
     workspaces,
     activeWorkspaceId,
@@ -352,6 +357,41 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
           title="记忆智能体 - 知识缺口扫描 & 复习提醒"
         >
           记忆智能体
+        </button>
+        <button
+          onClick={onOpenCloudSync}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="端到端加密云端同步"
+        >
+          云端同步
+        </button>
+        <button
+          onClick={onOpenTimeCapsule}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="记忆时间胶囊 - 封存记忆，未来开启"
+        >
+          时间胶囊
+        </button>
+        <button
+          onClick={onOpenTeamWorkspace}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="团队记忆共享 - 协作工作区"
+        >
+          团队共享
+        </button>
+        <button
+          onClick={onOpenTemplateMarket}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="记忆模板市场 - 社区专家记忆包"
+        >
+          模板市场
+        </button>
+        <button
+          onClick={onOpenMigrationWizard}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="AI 迁移向导 - 从其他平台迁移"
+        >
+          迁移向导
         </button>
         <button
           onClick={onOpenImportCenter}

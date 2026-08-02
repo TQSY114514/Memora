@@ -40,6 +40,12 @@
     "src/ai/**/*",
     "src/mcp/**/*",
     "src/memoryAgent/**/*",
+    "src/crypto/**/*",
+    "src/sync/**/*",
+    "src/capsule/**/*",
+    "src/team/**/*",
+    "src/templates/**/*",
+    "src/migration/**/*",
     "electron.vite.config.ts"
   ]
 }
