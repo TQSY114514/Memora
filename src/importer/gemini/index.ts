@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, extractTextParts } from '../common'
 
 /**
  * Gemini 导入器
@@ -88,46 +89,17 @@ interface GeminiSimpleMessage {
 
 /** 安全解析 JSON，返回对话数组（统一为数组形式） */
 function safeParse(json: string): GeminiConversation[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as GeminiConversation[]
-    if (data && typeof data === 'object') {
-      const conv = data as GeminiConversation
-      // 任一特征字段命中即视为单条对话
-      if (conv.prompts || conv.contents || conv.messages) return [conv]
-    }
-    return null
-  } catch {
-    return null
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as GeminiConversation[]
+  if (data && typeof data === 'object') {
+    const conv = data as GeminiConversation
+    // 任一特征字段命中即视为单条对话
+    if (conv.prompts || conv.contents || conv.messages) return [conv]
   }
+  return null
 }
 
 /** 角色归一化：Gemini 用 'model' 表示 AI 回复 */
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  // Gemini 的 AI 回复角色为 'model'
-  if (r === 'assistant' || r === 'model' || r === 'ai' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool' || r === 'function') return 'tool'
-  return 'assistant'
-}
-
-/** 从 content.parts 中拼接文本 */
-function extractPartsText(parts?: GeminiContentPart[]): string {
-  if (!parts || !Array.isArray(parts)) return ''
-  return parts
-    .map((p) => (p && typeof p === 'string' ? p : p?.text) || '')
-    .filter(Boolean)
-    .join('\n')
-}
-
-/** Unix 秒级时间戳转 ISO 字符串 */
-function tsToIso(ts?: number): string {
-  if (!ts || typeof ts !== 'number' || Number.isNaN(ts)) return new Date().toISOString()
-  return new Date(ts * 1000).toISOString()
-}
-
 /** 从 prompts 数组结构提取消息（user prompt + assistant response 配对） */
 function extractFromPrompts(prompts: GeminiPrompt[]): ParsedMessage[] {
   const messages: ParsedMessage[] = []
@@ -136,7 +108,7 @@ function extractFromPrompts(prompts: GeminiPrompt[]): ParsedMessage[] {
   for (const p of prompts) {
     // 用户输入
     const userText = (p.prompt || p.text || '').trim()
-    const userTime = p.createdAt || p.created_at || (p.timestamp ? tsToIso(p.timestamp) : now)
+    const userTime = p.createdAt || p.created_at || (p.timestamp ? toIsoTimestamp(p.timestamp) ?? now : now)
     if (userText) {
       messages.push({
         role: 'user',
@@ -149,12 +121,12 @@ function extractFromPrompts(prompts: GeminiPrompt[]): ParsedMessage[] {
     let assistantText = ''
     if (p.candidates && p.candidates.length > 0) {
       assistantText = p.candidates
-        .map((c) => extractPartsText(c.content?.parts))
+        .map((c) => extractTextParts(c.content?.parts))
         .filter(Boolean)
         .join('\n\n')
     }
     if (!assistantText && p.responseParts) {
-      assistantText = extractPartsText(p.responseParts)
+      assistantText = extractTextParts(p.responseParts)
     }
 
     if (assistantText.trim()) {
@@ -176,7 +148,7 @@ function extractFromContents(contents: GeminiContent[]): ParsedMessage[] {
 
   for (const c of contents) {
     const role = normalizeRole(c.role)
-    const text = extractPartsText(c.parts)
+    const text = extractTextParts(c.parts)
     if (text.trim()) {
       messages.push({
         role,
@@ -222,15 +194,6 @@ function extractMessages(conv: GeminiConversation): ParsedMessage[] {
 }
 
 /** title 为空时回退到首条 user 消息截取 */
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
-}
-
 export const geminiImporter: Importer = {
   provider: 'Gemini' as Provider,
 

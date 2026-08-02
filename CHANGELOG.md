@@ -22,6 +22,12 @@
 - `package.json`：`overrides` 强制升级 sharp 修复 audit 漏洞，`asarUnpack` 包含 onnxruntime/sharp 原生模块
 - 退出时 best-effort 释放本地嵌入模型资源
 
+### Changed
+- 新增 `src/importer/common.ts` 公共助手，统一 8+ 个导入器的角色归一化、时间戳转换、标题回退、文本片段提取与 JSON 解析，删除各导入器内的重复实现（chatgpt/claude/cursor/deepseek/gemini/grok/json/kimi/markdown/qwen/localExtractor）
+- 标题截断改为按码点进行，避免切断 emoji；JSON 导入器 `function` 角色统一归一到 `tool`
+- 收窄 `import.ipc.ts` / `mcp/tools/sessions.ts` 的 `any` 类型，`updateSession` 的 `folderId` 明确支持 `null`（移出文件夹）
+- `postcss.config.js` 改为 `postcss.config.cjs`，消除 vitest 的 MODULE_TYPELESS_PACKAGE_JSON 警告
+
 ## [1.12.0] - 2026-08-02
 
 ### 定位升级

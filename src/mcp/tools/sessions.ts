@@ -14,6 +14,7 @@ import { generateSummary } from '../../ai/summarizer'
 import { search } from '../../search/query'
 import { v4 as uuidv4 } from 'uuid'
 import { loadAiConfigForTool } from './shared'
+import type { MessageRole, Provider } from '../../shared/types'
 
 export async function handleSessionsTool(
   name: string,
@@ -91,14 +92,14 @@ export async function handleSessionsTool(
       const messages = rawMessages.map((m, idx) => ({
         id: uuidv4(),
         sessionId: '',
-        role: String(m.role ?? 'user') as any,
+        role: String(m.role ?? 'user') as MessageRole,
         content: String(m.content ?? ''),
         model: m.model ? String(m.model) : undefined,
         order: idx,
         createdAt: m.createdAt ? String(m.createdAt) : new Date().toISOString()
       }))
       const session = createSession({
-        provider: provider as any,
+        provider: provider as Provider,
         title,
         folderId,
         isFavorite: false,
@@ -143,12 +144,12 @@ export async function handleSessionsTool(
     case 'update_session': {
       const sessionId = String(args.sessionId ?? '')
       if (!sessionId) throw new Error('sessionId 不能为空')
-      const patch: Record<string, unknown> = {}
+      const patch: Parameters<typeof updateSession>[1] = {}
       if (args.title !== undefined) patch.title = String(args.title)
       if (args.description !== undefined) patch.description = String(args.description)
       if (args.folderId !== undefined) patch.folderId = args.folderId === '' ? null : String(args.folderId)
       if (args.isFavorite !== undefined) patch.isFavorite = Boolean(args.isFavorite)
-      updateSession(sessionId, patch as any)
+      updateSession(sessionId, patch)
       const updated = getSession(sessionId, false)
       return { sessionId, updated: !!updated }
     }

@@ -16,6 +16,7 @@ import { join } from 'path'
 import type { Provider, ExtractedSession } from '@shared/types'
 import type { ParsedMessage } from './types'
 import { registerBuiltins } from './index'
+import { normalizeRole, toIsoTimestamp, fallbackTitle } from './common'
 
 /**
  * 动态加载 better-sqlite3（仅 Cursor 扒取需要）
@@ -48,29 +49,6 @@ function tryParse<T>(s: string): T | null {
   } catch {
     return null
   }
-}
-
-function toISO(v: unknown): string {
-  if (!v) return new Date().toISOString()
-  if (typeof v === 'number') {
-    const ms = v < 1e12 ? v * 1000 : v
-    const d = new Date(ms)
-    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString()
-  }
-  if (typeof v === 'string') {
-    const d = new Date(v)
-    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString()
-  }
-  return new Date().toISOString()
-}
-
-function fallbackTitle(msgs: ParsedMessage[]): string {
-  const first = msgs.find((m) => m.role === 'user')
-  if (first) {
-    const t = first.content.replace(/\s+/g, ' ').trim()
-    return t.length > 50 ? t.slice(0, 50) + '…' : t
-  }
-  return '未命名对话'
 }
 
 // ============================================================
@@ -144,8 +122,8 @@ function extractCursor(dbPath: string): ExtractedSession[] {
         if (sourceId) seen.add(sourceId)
 
         const title = chat.title || chat.name || chat.chatTitle || fallbackTitle(messages)
-        const createdAt = toISO(chat.createdAt)
-        const updatedAt = toISO(chat.lastUpdatedAt || chat.createdAt)
+        const createdAt = toIsoTimestamp(chat.createdAt) ?? new Date().toISOString()
+        const updatedAt = toIsoTimestamp(chat.lastUpdatedAt || chat.createdAt) ?? new Date().toISOString()
 
         sessions.push({
           id: tmpId(),
@@ -191,15 +169,6 @@ function extractCursorChats(data: unknown, depth = 0): CursorComposerChat[] {
     }
   }
   return []
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  if (r === 'assistant' || r === 'ai' || r === 'model' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
 }
 
 /** 从 Cursor 对话对象提取消息 */
@@ -310,7 +279,7 @@ function parseClaudeCodeJsonl(filePath: string, projectName: string): ExtractedS
     const text = extractClaudeCodeContent(entry.message?.content)
     if (!text.trim()) continue
 
-    const ts = entry.timestamp ? toISO(entry.timestamp) : new Date().toISOString()
+    const ts = entry.timestamp ? toIsoTimestamp(entry.timestamp) ?? new Date().toISOString() : new Date().toISOString()
     if (!firstTs) firstTs = ts
     lastTs = ts
 
@@ -413,8 +382,8 @@ function parseOpenCodeJson(filePath: string): ExtractedSession | null {
     const rawMsgs = obj.messages || (obj as any).conversation || (obj as any).history || []
     messages = extractOpenCodeMessages(Array.isArray(rawMsgs) ? rawMsgs : [])
     title = obj.title || obj.name || (obj as any).name || ''
-    createdAt = toISO(obj.createdAt)
-    updatedAt = toISO(obj.updatedAt || obj.createdAt)
+    createdAt = toIsoTimestamp(obj.createdAt) ?? new Date().toISOString()
+    updatedAt = toIsoTimestamp(obj.updatedAt || obj.createdAt) ?? new Date().toISOString()
   }
 
   if (messages.length === 0) return null

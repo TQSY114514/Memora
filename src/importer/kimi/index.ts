@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
 
 /**
  * Kimi 导入器
@@ -67,29 +68,16 @@ function extractHydrationState(html: string): KimiHydrationState | null {
 }
 
 function safeParse(json: string): KimiConversation[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as KimiConversation[]
-    if (data && typeof data === 'object') {
-      const obj = data as KimiHydrationState & KimiConversation
-      // HYDRATION_INIT_STATE 结构
-      if (obj.conversation) return [obj.conversation]
-      if (obj.chat) return [obj.chat]
-      if (obj.messages) return [obj as KimiConversation]
-    }
-    return null
-  } catch {
-    return null
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as KimiConversation[]
+  if (data && typeof data === 'object') {
+    const obj = data as KimiHydrationState & KimiConversation
+    // HYDRATION_INIT_STATE 结构
+    if (obj.conversation) return [obj.conversation]
+    if (obj.chat) return [obj.chat]
+    if (obj.messages) return [obj as KimiConversation]
   }
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  if (r === 'assistant' || r === 'ai' || r === 'model' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
+  return null
 }
 
 function renderToolCalls(calls: KimiToolCall[]): string {
@@ -127,15 +115,6 @@ function extractMessages(conv: KimiConversation): ParsedMessage[] {
     })
   }
   return messages
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 export const kimiImporter: Importer = {

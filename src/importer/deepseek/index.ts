@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
 
 /**
  * DeepSeek 导入器
@@ -45,31 +46,18 @@ interface DeepSeekApiResponse {
 }
 
 function safeParse(json: string): DeepSeekData[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as DeepSeekData[]
-    if (data && typeof data === 'object') {
-      const apiResp = data as DeepSeekApiResponse
-      // API 响应包裹
-      if (apiResp.data?.biz_data) return [apiResp.data.biz_data]
-      if (apiResp.biz_data) return [apiResp.biz_data]
-      // 直接是对话对象
-      const conv = data as DeepSeekData
-      if (conv.messages) return [conv]
-    }
-    return null
-  } catch {
-    return null
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as DeepSeekData[]
+  if (data && typeof data === 'object') {
+    const apiResp = data as DeepSeekApiResponse
+    // API 响应包裹
+    if (apiResp.data?.biz_data) return [apiResp.data.biz_data]
+    if (apiResp.biz_data) return [apiResp.biz_data]
+    // 直接是对话对象
+    const conv = data as DeepSeekData
+    if (conv.messages) return [conv]
   }
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  if (r === 'assistant' || r === 'ai' || r === 'model' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
+  return null
 }
 
 function extractMessages(data: DeepSeekData): ParsedMessage[] {
@@ -98,15 +86,6 @@ function extractMessages(data: DeepSeekData): ParsedMessage[] {
     })
   }
   return messages
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 const PLACEHOLDER_TITLES = ['Shared Conversation', 'shared conversation', '']

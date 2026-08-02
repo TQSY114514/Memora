@@ -6,6 +6,7 @@ import { importFile, importDirectory, importExtractedSessions } from '@importer/
 import { scanDirectories } from '@importer/scanner'
 import { detectInstalledApps } from '@importer/appDetector'
 import { extractLocal } from '@importer/localExtractor'
+import type { Provider } from '@shared/types'
 import { z } from 'zod'
 
 /** 安全获取 Electron 系统目录（目录不存在时返回 null） */
@@ -105,7 +106,7 @@ export function registerImportHandlers(): void {
         throw new Error(`[IPC] 未检测到 ${safeProvider} 的可扒取数据路径`)
       }
       const opts = options ? { maxSessions: z.number().int().min(1).max(10000).optional().parse(options.maxSessions) } : undefined
-      return extractLocal(safeProvider as any, match.dataPath, opts)
+      return extractLocal(safeProvider as Provider, match.dataPath, opts)
     }
   )
 
@@ -131,7 +132,21 @@ export function registerImportHandlers(): void {
     (_e, sessions: unknown[], options?: { folderId?: string }) => {
       const parsed = z.array(extractedSessionSchema).max(1000).parse(sessions)
       const folderId = options?.folderId ? assertSafeId(options.folderId, 'folderId') : undefined
-      return importExtractedSessions(parsed as any, { folderId })
+      const extracted: Parameters<typeof importExtractedSessions>[0] = parsed.map((s) => ({
+        id: s.id ?? '',
+        provider: s.provider,
+        title: s.title,
+        source: s.source ?? '',
+        messageCount: s.messageCount ?? s.messages.length,
+        createdAt: s.createdAt ?? new Date().toISOString(),
+        updatedAt: s.updatedAt ?? new Date().toISOString(),
+        messages: s.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          createdAt: m.createdAt ?? new Date().toISOString()
+        }))
+      }))
+      return importExtractedSessions(extracted, { folderId })
     }
   )
 }

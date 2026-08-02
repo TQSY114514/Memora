@@ -1,5 +1,6 @@
 ﻿import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
 
 /**
  * 通用 JSON 导入器
@@ -30,32 +31,10 @@ interface SimpleSession {
 }
 
 function tryParse(json: string): SimpleSession[] | SimpleSession | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as SimpleSession[]
-    if (data && typeof data === 'object') return data as SimpleSession
-    return null
-  } catch {
-    return null
-  }
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  switch (role) {
-    case 'user':
-    case 'human':
-      return 'user'
-    case 'assistant':
-    case 'ai':
-    case 'model':
-      return 'assistant'
-    case 'system':
-      return 'system'
-    case 'tool':
-      return 'tool'
-    default:
-      return 'assistant'
-  }
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as SimpleSession[]
+  if (data && typeof data === 'object') return data as SimpleSession
+  return null
 }
 
 export const jsonImporter: Importer = {
@@ -103,13 +82,4 @@ export const jsonImporter: Importer = {
     }
     return sessions
   }
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }

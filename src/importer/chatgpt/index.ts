@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, extractTextParts } from '../common'
 
 /**
  * ChatGPT 导入器
@@ -49,17 +50,13 @@ interface ChatGPTConversation {
 }
 
 function safeParse(json: string): ChatGPTConversation[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as ChatGPTConversation[]
-    // 单条对话也支持
-    if (data && typeof data === 'object' && data.mapping) {
-      return [data as ChatGPTConversation]
-    }
-    return null
-  } catch {
-    return null
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as ChatGPTConversation[]
+  // 单条对话也支持
+  if (data && typeof data === 'object' && (data as ChatGPTConversation).mapping) {
+    return [data as ChatGPTConversation]
   }
+  return null
 }
 
 /** 从 mapping 中按拓扑顺序提取消息（ChatGPT 用树结构，取主路径） */
@@ -89,13 +86,13 @@ function extractMessages(
 
     if (node.message?.content?.parts) {
       const role = normalizeRole(node.message.author?.role)
-      const text = extractText(node.message.content.parts)
+      const text = extractTextParts(node.message.content.parts)
       if (text) {
         messages.push({
           role,
           content: text,
           model: node.message.model,
-          createdAt: tsToIso(node.message.create_time)
+          createdAt: toIsoTimestamp(node.message.create_time) ?? new Date().toISOString()
         })
       }
     }
@@ -104,48 +101,6 @@ function extractMessages(
   }
 
   return messages
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  switch (role) {
-    case 'user':
-      return 'user'
-    case 'assistant':
-      return 'assistant'
-    case 'system':
-      return 'system'
-    case 'tool':
-      return 'tool'
-    default:
-      return 'assistant'
-  }
-}
-
-function extractText(parts: unknown[]): string {
-  return parts
-    .map((p) => {
-      if (typeof p === 'string') return p
-      if (p && typeof p === 'object' && 'text' in p) {
-        return String((p as { text: unknown }).text ?? '')
-      }
-      return ''
-    })
-    .filter(Boolean)
-    .join('\n')
-}
-
-function tsToIso(ts?: number): string {
-  if (!ts) return new Date().toISOString()
-  return new Date(ts * 1000).toISOString()
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 export const chatgptImporter: Importer = {
@@ -175,8 +130,8 @@ export const chatgptImporter: Importer = {
         if (messages.length === 0) continue
 
         const title = conv.title && conv.title.trim() ? conv.title.trim() : fallbackTitle(messages)
-        const createdAt = tsToIso(conv.create_time)
-        const updatedAt = tsToIso(conv.update_time ?? conv.create_time)
+        const createdAt = toIsoTimestamp(conv.create_time) ?? new Date().toISOString()
+        const updatedAt = toIsoTimestamp(conv.update_time ?? conv.create_time) ?? createdAt
 
         sessions.push({
           sourceId: conv.id,

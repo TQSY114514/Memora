@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
 
 /**
  * Claude 导入器
@@ -42,18 +43,14 @@ interface ClaudeConversation {
 }
 
 function safeParse(json: string): ClaudeConversation[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as ClaudeConversation[]
-    if (data && typeof data === 'object') {
-      // 单条对话
-      const conv = data as ClaudeConversation
-      if (conv.chat_messages || conv.messages) return [conv]
-    }
-    return null
-  } catch {
-    return null
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as ClaudeConversation[]
+  if (data && typeof data === 'object') {
+    // 单条对话
+    const conv = data as ClaudeConversation
+    if (conv.chat_messages || conv.messages) return [conv]
   }
+  return null
 }
 
 function extractMessageText(msg: ClaudeMessage): string {
@@ -78,15 +75,6 @@ function extractMessageText(msg: ClaudeMessage): string {
   return msg.text || ''
 }
 
-function normalizeSender(sender?: string): ParsedMessage['role'] {
-  const s = (sender || '').toLowerCase()
-  if (s === 'human' || s === 'user') return 'user'
-  if (s === 'assistant' || s === 'ai' || s === 'model') return 'assistant'
-  if (s === 'system') return 'system'
-  if (s === 'tool') return 'tool'
-  return 'assistant'
-}
-
 function extractMessages(conv: ClaudeConversation): ParsedMessage[] {
   const raw = conv.chat_messages || conv.messages || []
   const messages: ParsedMessage[] = []
@@ -94,21 +82,12 @@ function extractMessages(conv: ClaudeConversation): ParsedMessage[] {
     const text = extractMessageText(msg)
     if (!text.trim()) continue
     messages.push({
-      role: normalizeSender(msg.sender || msg.role),
+      role: normalizeRole(msg.sender || msg.role),
       content: text,
       createdAt: msg.created_at || new Date().toISOString()
     })
   }
   return messages
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 export const claudeImporter: Importer = {

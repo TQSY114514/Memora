@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle } from '../common'
 
 /**
  * Grok 导入器
@@ -50,53 +51,17 @@ interface GrokExport {
 }
 
 function safeParse(json: string): GrokConversation[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as GrokConversation[]
-    if (data && typeof data === 'object') {
-      const wrapped = data as GrokExport
-      // 包裹形式：{ conversation: { messages: [...] } }
-      if (wrapped.conversation) return [wrapped.conversation]
-      const conv = data as GrokConversation
-      // 直接是对话对象
-      if (conv.messages) return [conv]
-    }
-    return null
-  } catch {
-    return null
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as GrokConversation[]
+  if (data && typeof data === 'object') {
+    const wrapped = data as GrokExport
+    // 包裹形式：{ conversation: { messages: [...] } }
+    if (wrapped.conversation) return [wrapped.conversation]
+    const conv = data as GrokConversation
+    // 直接是对话对象
+    if (conv.messages) return [conv]
   }
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  // Grok 偶尔用 "model" 表示助手（同 Gemini）
-  if (r === 'assistant' || r === 'ai' || r === 'model' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
-}
-
-/** 时间字段可能是 ISO 字符串或 Unix 秒，统一转为 ISO 字符串 */
-function toIsoTs(value?: string | number): string | undefined {
-  if (value === undefined || value === null || value === '') return undefined
-  if (typeof value === 'number') {
-    // Unix 秒 → 毫秒；若已是毫秒（>1e12）则直接用
-    const ms = value > 1e12 ? value : value * 1000
-    const d = new Date(ms)
-    return isNaN(d.getTime()) ? undefined : d.toISOString()
-  }
-  const s = String(value)
-  // 纯数字字符串按时间戳处理
-  if (/^\d+$/.test(s)) {
-    const n = Number(s)
-    const ms = n > 1e12 ? n : n * 1000
-    const d = new Date(ms)
-    return isNaN(d.getTime()) ? undefined : d.toISOString()
-  }
-  // 已是 ISO 字符串
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? undefined : d.toISOString()
+  return null
 }
 
 function extractMessages(conv: GrokConversation): ParsedMessage[] {
@@ -114,22 +79,13 @@ function extractMessages(conv: GrokConversation): ParsedMessage[] {
         role,
         content,
         model: msg.model || convModel,
-        createdAt: toIsoTs(msg.created_at || msg.createdAt || msg.timestamp) || now
+        createdAt: toIsoTimestamp(msg.created_at || msg.createdAt || msg.timestamp) || now
       })
     } catch {
       // 单条消息解析失败不阻断
     }
   }
   return messages
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 /** Grok 特征关键词（模型名 / 域名） */
@@ -175,10 +131,10 @@ export const grokImporter: Importer = {
           provider: 'Grok' as Provider,
           model: conv.model,
           title,
-          createdAt: toIsoTs(conv.created_at || conv.createdAt) || messages[0]?.createdAt || now,
+          createdAt: toIsoTimestamp(conv.created_at || conv.createdAt) || messages[0]?.createdAt || now,
           updatedAt:
-            toIsoTs(conv.updated_at || conv.updatedAt) ||
-            toIsoTs(conv.created_at || conv.createdAt) ||
+            toIsoTimestamp(conv.updated_at || conv.updatedAt) ||
+            toIsoTimestamp(conv.created_at || conv.createdAt) ||
             now,
           messages
         })

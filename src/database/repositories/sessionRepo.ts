@@ -329,7 +329,10 @@ export function listSessionsByRule(workspaceId: string, rule: FolderRule): ChatS
 /** 更新会话元信息 */
 export function updateSession(
   id: string,
-  patch: Partial<Pick<ChatSession, 'title' | 'description' | 'folderId' | 'isFavorite'>>
+  patch: Partial<Pick<ChatSession, 'title' | 'description' | 'isFavorite'>> & {
+    /** 传 null 表示移出文件夹 */
+    folderId?: string | null
+  }
 ): void {
   const db = getDatabase()
   // isFavorite 需要从 boolean 转为 integer（better-sqlite3 不支持绑定 boolean）

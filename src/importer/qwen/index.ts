@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
 
 /**
  * 通义千问 (Qwen) 导入器
@@ -46,32 +47,19 @@ interface QwenApiResponse {
 }
 
 function safeParse(json: string): QwenChat[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) return data as QwenChat[]
-    if (data && typeof data === 'object') {
-      const obj = data as QwenApiResponse & QwenChat
-      // API 响应包裹
-      if (obj.data?.chat) return [obj.data.chat]
-      if (obj.data?.messages) {
-        return [{ messages: obj.data.messages }]
-      }
-      // 直接是对话对象
-      if ((obj as QwenChat).messages) return [obj as QwenChat]
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) return data as QwenChat[]
+  if (data && typeof data === 'object') {
+    const obj = data as QwenApiResponse & QwenChat
+    // API 响应包裹
+    if (obj.data?.chat) return [obj.data.chat]
+    if (obj.data?.messages) {
+      return [{ messages: obj.data.messages }]
     }
-    return null
-  } catch {
-    return null
+    // 直接是对话对象
+    if ((obj as QwenChat).messages) return [obj as QwenChat]
   }
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  if (r === 'assistant' || r === 'ai' || r === 'model' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
+  return null
 }
 
 function extractMessages(chat: QwenChat): ParsedMessage[] {
@@ -99,15 +87,6 @@ function extractMessages(chat: QwenChat): ParsedMessage[] {
     })
   }
   return messages
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 export const qwenImporter: Importer = {

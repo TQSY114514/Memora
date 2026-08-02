@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle } from '../common'
 
 /**
  * Cursor 导入器
@@ -49,53 +50,25 @@ interface CursorRoot {
 }
 
 function safeParse(json: string): CursorConversation[] | null {
-  try {
-    const data = JSON.parse(json)
-    if (Array.isArray(data)) {
-      // 顶层数组：可能是对话数组，也可能是单条消息数组
-      if (data.length && data[0] && (data[0] as CursorConversation).messages) {
-        return data as CursorConversation[]
-      }
-      // 视为单对话的消息列表
-      return [{ messages: data as CursorMessage[] }]
+  const data = safeParseJson(json)
+  if (Array.isArray(data)) {
+    // 顶层数组：可能是对话数组，也可能是单条消息数组
+    if (data.length && data[0] && (data[0] as CursorConversation).messages) {
+      return data as CursorConversation[]
     }
-    if (data && typeof data === 'object') {
-      const root = data as CursorRoot
-      // 多对话
-      if (Array.isArray(root.chats)) return root.chats
-      if (Array.isArray(root.conversations)) return root.conversations
-      // 单对话（含 messages）
-      const conv = data as CursorConversation
-      if (Array.isArray(conv.messages)) return [conv]
-    }
-    return null
-  } catch {
-    return null
+    // 视为单对话的消息列表
+    return [{ messages: data as CursorMessage[] }]
   }
-}
-
-function normalizeRole(role?: string): ParsedMessage['role'] {
-  const r = (role || '').toLowerCase()
-  if (r === 'user' || r === 'human') return 'user'
-  if (r === 'assistant' || r === 'ai' || r === 'model' || r === 'bot') return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
-}
-
-function toISOTime(value: unknown): string | undefined {
-  if (!value) return undefined
-  if (typeof value === 'number') {
-    // 13 位毫秒 / 10 位秒
-    const ms = value < 1e12 ? value * 1000 : value
-    const d = new Date(ms)
-    return isNaN(d.getTime()) ? undefined : d.toISOString()
+  if (data && typeof data === 'object') {
+    const root = data as CursorRoot
+    // 多对话
+    if (Array.isArray(root.chats)) return root.chats
+    if (Array.isArray(root.conversations)) return root.conversations
+    // 单对话（含 messages）
+    const conv = data as CursorConversation
+    if (Array.isArray(conv.messages)) return [conv]
   }
-  if (typeof value === 'string') {
-    const d = new Date(value)
-    return isNaN(d.getTime()) ? undefined : d.toISOString()
-  }
-  return undefined
+  return null
 }
 
 function extractMessages(conv: CursorConversation): ParsedMessage[] {
@@ -110,9 +83,9 @@ function extractMessages(conv: CursorConversation): ParsedMessage[] {
       if (!content.trim()) continue
 
       const createdAt =
-        toISOTime(msg.created_at) ||
-        toISOTime(msg.createdAt) ||
-        toISOTime(msg.timestamp) ||
+        toIsoTimestamp(msg.created_at) ||
+        toIsoTimestamp(msg.createdAt) ||
+        toIsoTimestamp(msg.timestamp) ||
         now
 
       messages.push({
@@ -126,15 +99,6 @@ function extractMessages(conv: CursorConversation): ParsedMessage[] {
     }
   }
   return messages
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 // 占位标题，需回退到首条 user 消息
@@ -187,12 +151,12 @@ export const cursorImporter: Importer = {
           : rawTitle
 
         const createdAt =
-          toISOTime(conv.created_at) ||
+          toIsoTimestamp(conv.created_at) ||
           messages[0]?.createdAt ||
           now
         const updatedAt =
-          toISOTime(conv.updated_at) ||
-          toISOTime(conv.created_at) ||
+          toIsoTimestamp(conv.updated_at) ||
+          toIsoTimestamp(conv.created_at) ||
           messages[messages.length - 1]?.createdAt ||
           now
 

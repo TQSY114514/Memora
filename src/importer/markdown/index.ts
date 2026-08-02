@@ -1,5 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
+import { normalizeRole, fallbackTitle } from '../common'
 
 /**
  * 通用 Markdown 导入器
@@ -318,24 +319,6 @@ function parsePlainMarkdown(content: string): ParsedSession {
     updatedAt: now,
     messages
   }
-}
-
-function normalizeRole(role: string): ParsedMessage['role'] {
-  const r = role.toLowerCase()
-  if (['human', 'user', '你', '我'].includes(r)) return 'user'
-  if (['assistant', 'ai', 'model', 'bot'].includes(r)) return 'assistant'
-  if (r === 'system') return 'system'
-  if (r === 'tool') return 'tool'
-  return 'assistant'
-}
-
-function fallbackTitle(messages: ParsedMessage[]): string {
-  const first = messages.find((m) => m.role === 'user')
-  if (first) {
-    const text = first.content.replace(/\s+/g, ' ').trim()
-    return text.length > 50 ? text.slice(0, 50) + '…' : text
-  }
-  return '未命名对话'
 }
 
 export const markdownImporter: Importer = {
