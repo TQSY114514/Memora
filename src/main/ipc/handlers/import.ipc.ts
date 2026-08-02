@@ -1,11 +1,12 @@
 import { app } from 'electron'
-import { safeHandle, assertSafePath, assertSafePaths } from '../safeHandle'
+import { safeHandle, assertSafePath, assertSafePaths, assertSafeId } from '../safeHandle'
 import { existsSync } from 'fs'
 import { IPC } from '@shared/constants'
 import { importFile, importDirectory, importExtractedSessions } from '@importer/service'
 import { scanDirectories } from '@importer/scanner'
 import { detectInstalledApps } from '@importer/appDetector'
 import { extractLocal } from '@importer/localExtractor'
+import { z } from 'zod'
 
 /** 安全获取 Electron 系统目录（目录不存在时返回 null） */
 function safeGetPath(name: 'downloads' | 'documents' | 'desktop'): string | null {
@@ -97,20 +98,40 @@ export function registerImportHandlers(): void {
   safeHandle(
     IPC.EXTRACT_APP,
     (_e, provider: string, _dataPath: string, options?: { maxSessions?: number }) => {
+      const safeProvider = z.string().trim().min(1).max(50).parse(provider)
       const detected = detectInstalledApps()
-      const match = detected.find((a) => a.provider === provider && a.dataPath)
+      const match = detected.find((a) => a.provider === safeProvider && a.dataPath)
       if (!match || !match.dataPath) {
-        throw new Error(`[IPC] 未检测到 ${provider} 的可扒取数据路径`)
+        throw new Error(`[IPC] 未检测到 ${safeProvider} 的可扒取数据路径`)
       }
-      return extractLocal(provider as any, match.dataPath, options)
+      const opts = options ? { maxSessions: z.number().int().min(1).max(10000).optional().parse(options.maxSessions) } : undefined
+      return extractLocal(safeProvider as any, match.dataPath, opts)
     }
   )
 
   // 导入已扒取的对话（内存中，可编辑标题/来源）
+  // 安全：用 Zod 校验 sessions 数组结构，防止畸形数据注入
+  const extractedSessionSchema = z.object({
+    id: z.string().min(1).max(128).optional(),
+    provider: z.string().min(1).max(50),
+    title: z.string().min(1).max(500),
+    source: z.string().max(200).optional(),
+    messageCount: z.number().int().min(0).optional(),
+    createdAt: z.string().max(50).optional(),
+    updatedAt: z.string().max(50).optional(),
+    messages: z.array(z.object({
+      role: z.string().min(1).max(20),
+      content: z.string().max(500000),
+      createdAt: z.string().max(50).optional()
+    })).max(10000)
+  }).strict()
+
   safeHandle(
     IPC.IMPORT_EXTRACTED,
-    (_e, sessions: any[], options?: { folderId?: string }) => {
-      return importExtractedSessions(sessions, options)
+    (_e, sessions: unknown[], options?: { folderId?: string }) => {
+      const parsed = z.array(extractedSessionSchema).max(1000).parse(sessions)
+      const folderId = options?.folderId ? assertSafeId(options.folderId, 'folderId') : undefined
+      return importExtractedSessions(parsed as any, { folderId })
     }
   )
 }

@@ -25,6 +25,7 @@ export function renderSessionToHtml(session: ChatSession, options?: {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
 <title>${escapeHtml(title)} · Memora</title>
 <style>${SHARED_CSS}</style>
 </head>

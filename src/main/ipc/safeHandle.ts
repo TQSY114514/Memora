@@ -6,21 +6,50 @@ import { logger } from '../logger'
 /**
  * IPC 频率限制器（防滥用/暴力调用）
  *
- * 每个通道维护一个滑动窗口，限制单位时间内的最大调用次数。
- * 超限时抛出错误，阻止执行。
+ * 按通道分級限流：
+ * - 读操作（list/get/search/scan）：120 次/10 秒
+ * - 写操作（create/update/delete/import/extract）：30 次/10 秒
+ * - 敏感操作（backup/secret/ai）：10 次/10 秒
+ * - 默认：60 次/10 秒
  */
-const RATE_LIMIT_WINDOW_MS = 10_000  // 10 秒窗口
-const RATE_LIMIT_MAX_CALLS = 60      // 每窗口最大调用次数
+const RATE_LIMIT_WINDOW_MS = 10_000
+
+type RateLimitTier = 'read' | 'write' | 'sensitive' | 'default'
+const TIER_LIMITS: Record<RateLimitTier, number> = {
+  read: 120,
+  write: 30,
+  sensitive: 10,
+  default: 60
+}
+
+/** 通道名 → 限流层级映射（按前缀匹配） */
+function getRateLimitTier(channel: string): RateLimitTier {
+  // 敏感操作：备份、密钥、AI 调用
+  if (/^(backup:|secret:|ai:|db:vacuum|db:clean|system:import|system:export)/.test(channel)) {
+    return 'sensitive'
+  }
+  // 写操作：创建/更新/删除/导入/导出/提取
+  if (/^(import:|scanner:scan|scanner:extract|folder:create|folder:update|folder:delete|session:update|session:delete|session:move|session:batch|tag:create|tag:delete|tag:attach|tag:detach|workspace:create|workspace:update|workspace:delete|knowledge:create|knowledge:update|knowledge:delete|knowledge:toggle|knowledge:relation|knowledge:extract|pref:create|pref:update|pref:delete|pref:archive|pref:decay|memory:lifecycle|share:export|import:bg-start|import:bg-stop|import:bg-run-once|import:bg-config-set)/.test(channel)) {
+    return 'write'
+  }
+  // 读操作：列表/获取/搜索
+  if (/^(workspace:list|workspace:tree|folder:list|session:get|session:list|session:list-by-rule|tag:list|knowledge:list|knowledge:get|knowledge:search|knowledge:count|knowledge:related|knowledge:graph|pref:list|pref:get|pref:search|pref:count|pref:profile|pref:conflicts|memory:tiered|memory:health|memory:profile-summary|search:|scanner:get|scanner:detect|stats:get|backup:list|backup:config-get|log:|app:get|ai:embed:status|ai:embed:local|ai:summary:get|ai:related|ai:test|ai:config-file-load|ai:config-file-set-active|import:bg-status|import:bg-config-get|secret:encryption)/.test(channel)) {
+    return 'read'
+  }
+  return 'default'
+}
 
 const rateLimitMap = new Map<string, number[]>()
 
 function checkRateLimit(channel: string): void {
+  const tier = getRateLimitTier(channel)
+  const maxCalls = TIER_LIMITS[tier]
   const now = Date.now()
   const timestamps = rateLimitMap.get(channel) ?? []
   // 清除窗口外的记录
   const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
-  if (recent.length >= RATE_LIMIT_MAX_CALLS) {
-    throw new Error(`[IPC] ${channel} 调用频率超限（${RATE_LIMIT_MAX_CALLS}次/${RATE_LIMIT_WINDOW_MS / 1000}秒）`)
+  if (recent.length >= maxCalls) {
+    throw new Error(`[IPC] ${channel} 调用频率超限（${maxCalls}次/${RATE_LIMIT_WINDOW_MS / 1000}秒）`)
   }
   recent.push(now)
   rateLimitMap.set(channel, recent)

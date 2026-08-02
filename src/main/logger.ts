@@ -23,8 +23,16 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
 /** 敏感字段名（大小写不敏感） */
 const SENSITIVE_KEYS = new Set([
   'apikey', 'api_key', 'token', 'password', 'secret', 'credential',
-  'accesskey', 'secretkey', 'authorization', 'x-api-key'
+  'accesskey', 'secretkey', 'authorization', 'x-api-key',
+  'accesstoken', 'refresh_token', 'sessionid', 'session_id',
+  'privatekey', 'private_key', 'client_secret', 'clientsecret'
 ])
+
+/** 敏感值模式（在日志消息中检测并脱敏） */
+const SENSITIVE_VALUE_PATTERNS = [
+  /(?:sk-|sk_ant-|sk-or-|Bearer\s)[A-Za-z0-9_-]{10,}/g,  // OpenAI/Anthropic/OrBearer
+  /[A-Za-z0-9_-]{32,}\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,  // JWT
+]
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const MAX_ROTATIONS = 3
@@ -59,18 +67,37 @@ class Logger {
   private formatMessage(level: LogLevel, message: string, context?: Record<string, unknown>): string {
     const timestamp = new Date().toISOString()
     const ctx = context ? ' ' + JSON.stringify(this.sanitize(context)) : ''
-    return `[${timestamp}] [${level.toUpperCase()}] ${message}${ctx}`
+    // 对消息文本中的敏感值模式进行脱敏
+    const safeMessage = this.redactValues(message)
+    return `[${timestamp}] [${level.toUpperCase()}] ${safeMessage}${ctx}`
   }
 
-  /** 过滤敏感字段 */
+  /** 对字符串中的敏感值模式（API Key、JWT 等）进行脱敏 */
+  private redactValues(text: string): string {
+    let result = text
+    for (const pattern of SENSITIVE_VALUE_PATTERNS) {
+      result = result.replace(pattern, '[REDACTED]')
+    }
+    return result
+  }
+
+  /** 过滤敏感字段（递归处理嵌套对象和数组） */
   private sanitize(obj: Record<string, unknown>): Record<string, unknown> {
     const result: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(obj)) {
       const lowerKey = key.toLowerCase().replace(/[-_]/g, '')
       if (SENSITIVE_KEYS.has(lowerKey) || this.isSensitiveKey(key)) {
         result[key] = '[REDACTED]'
-      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      } else if (Array.isArray(value)) {
+        result[key] = value.map((item) =>
+          typeof item === 'object' && item !== null
+            ? this.sanitize(item as Record<string, unknown>)
+            : item
+        )
+      } else if (typeof value === 'object' && value !== null) {
         result[key] = this.sanitize(value as Record<string, unknown>)
+      } else if (typeof value === 'string') {
+        result[key] = this.redactValues(value)
       } else {
         result[key] = value
       }
