@@ -10,6 +10,8 @@ import { registerKnowledgeHandlers } from './handlers/knowledge.ipc'
 import { registerPreferenceHandlers } from './handlers/preferences.ipc'
 import { registerMemoryLifecycleHandlers } from './handlers/memoryLifecycle.ipc'
 import { registerDataMigrationHandlers } from './handlers/dataMigration.ipc'
+import { registerMemoryIOHandlers } from './handlers/memoryIO.ipc'
+import { registerDistillationHandlers } from './handlers/distillation.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -24,4 +26,6 @@ export function registerIpcHandlers(): void {
   registerPreferenceHandlers()
   registerMemoryLifecycleHandlers()
   registerDataMigrationHandlers()
+  registerMemoryIOHandlers()
+  registerDistillationHandlers()
 }

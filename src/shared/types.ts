@@ -281,6 +281,25 @@ export interface SessionSummary {
   updatedAt: string
 }
 
+/** 蒸馏模板输出格式 */
+export type DistillationOutputFormat = 'json' | 'markdown' | 'text'
+
+/**
+ * 蒸馏模板（v1.9 自定义蒸馏模板）
+ * 用户可自定义记忆蒸馏的 system prompt（替代 summarizer.ts 中硬编码的 SYSTEM_PROMPT）
+ * 内置模板 isBuiltin=true，不可删除；用户模板可增删改
+ */
+export interface DistillationTemplate {
+  id: string
+  name: string
+  description?: string
+  systemPrompt: string
+  outputFormat: DistillationOutputFormat
+  isBuiltin: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 /** 知识条目类型（Knowledge Vault 核心） */
 export type KnowledgeType = 'knowledge' | 'decision' | 'task'
 
@@ -593,4 +612,35 @@ export interface ProfileSummary {
     workingCount: number
     atRiskCount: number
   }
+}
+
+// ===== Memora Memory Format (MMF) v1.8 =====
+
+/**
+ * Memora Memory Format (MMF) —— 可移植的记忆归档格式
+ *
+ * 把工作区的偏好、宪法、知识、审计日志整体导出为 JSON 文件，
+ * 可在另一个 Memora 实例（或工作区）中导入还原。
+ */
+export interface MMFFile {
+  format: 'memora-memory-format'
+  version: 1
+  exportedAt: string
+  workspace: { id: string; name: string }
+  preferences: Preference[]
+  constitution: Preference[]
+  knowledge: KnowledgeEntry[]
+  auditLogs: AuditLog[]
+  stats: {
+    totalPreferences: number
+    totalKnowledge: number
+    totalAuditLogs: number
+  }
+}
+
+/** MMF 导入结果统计 */
+export interface MMFImportResult {
+  imported: { preferences: number; constitution: number; knowledge: number }
+  skipped: number
+  errors: string[]
 }

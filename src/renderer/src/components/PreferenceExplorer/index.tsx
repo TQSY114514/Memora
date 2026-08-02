@@ -43,6 +43,13 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
   // 搜索防抖：避免每输入一个字符就触发 FTS 查询
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // MMF 导出/导入
+  const [exporting, setExporting] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importJsonText, setImportJsonText] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
@@ -182,6 +189,66 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
     refresh()
   }
 
+  // ===== MMF 导出 =====
+  async function handleExport() {
+    if (!currentWsId) return
+    setExporting(true)
+    try {
+      const json = await window.Memora.memory.exportMemory(currentWsId)
+      const wsName = workspaces.find((ws) => ws.id === currentWsId)?.name || 'workspace'
+      const dateStr = new Date().toISOString().slice(0, 10)
+      await window.Memora.saveFileDialog({
+        defaultName: `memora-${wsName}-${dateStr}.json`,
+        content: json
+      })
+    } catch (e) {
+      dialog.alert(e instanceof Error ? e.message : String(e))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // ===== MMF 导入 =====
+  function openImportModal() {
+    setImportJsonText('')
+    setImportResult(null)
+    setShowImportModal(true)
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      setImportJsonText(text)
+    } catch (err) {
+      setImportResult(`✗ 读取文件失败：${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      // 重置 input 以便同一文件可再次选择
+      e.target.value = ''
+    }
+  }
+
+  async function handleImport() {
+    if (!currentWsId || !importJsonText.trim()) return
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const result = await window.Memora.memory.importMemory(importJsonText.trim(), currentWsId)
+      const { preferences, constitution, knowledge } = result.imported
+      setImportResult(
+        `✓ 导入成功：${preferences} 条偏好，${knowledge} 条知识，${constitution} 条宪法` +
+          (result.skipped > 0 ? `（跳过 ${result.skipped} 条重复）` : '') +
+          (result.errors.length > 0 ? `\n${result.errors.length} 条错误` : '')
+      )
+      await refresh()
+    } catch (e) {
+      setImportResult(`✗ ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const tabs: Array<{ key: FilterType; label: string; count?: number }> = [
     { key: 'all', label: '全部', count: counts?.total },
     { key: 'active', label: '生效中', count: counts?.active },
@@ -307,6 +374,22 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
           >
             {decaying ? '⏳ 衰减中…' : '⏬ 运行衰减'}
           </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting || !currentWsId}
+            className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
+            title="导出当前工作区的全部记忆（偏好 + 宪法 + 知识 + 审计日志）为 MMF JSON 文件"
+          >
+            {exporting ? '⏳ 导出中…' : '📤 导出记忆'}
+          </button>
+          <button
+            onClick={openImportModal}
+            disabled={!currentWsId}
+            className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
+            title="从 MMF JSON 文件导入记忆到当前工作区"
+          >
+            📥 导入记忆
+          </button>
         </div>
 
         {/* 状态筛选 + 统计 */}
@@ -353,7 +436,10 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
       {viewMode === 'profile' ? (
         <ProfileView workspaceId={currentWsId} onEdit={(p) => setEditing(p)} />
       ) : viewMode === 'health' ? (
-        <MemoryHealthView workspaceId={currentWsId} />
+        <MemoryHealthView
+          workspaceId={currentWsId}
+          onNavigateConflicts={() => setViewMode('conflicts')}
+        />
       ) : viewMode === 'conflicts' ? (
         <ConflictResolutionView
           workspaceId={currentWsId}
@@ -428,6 +514,84 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
       {/* 记忆溯源抽屉 */}
       {explaining && (
         <MemoryExplainDrawer pref={explaining} onClose={() => setExplaining(null)} />
+      )}
+
+      {/* MMF 导入弹层 */}
+      {showImportModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => !importing && setShowImportModal(false)}
+        >
+          <div
+            className="bg-bg-primary rounded-lg shadow-xl w-full max-w-2xl mx-4 flex flex-col max-h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold">📥 导入记忆（MMF）</h3>
+              <button
+                onClick={() => !importing && setShowImportModal(false)}
+                className="text-fg-muted hover:text-fg-primary text-sm"
+                disabled={importing}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3 overflow-y-auto">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
+                >
+                  📂 选择文件…
+                </button>
+                <span className="text-[11px] text-fg-muted">
+                  选择 .json 文件，或直接在下方粘贴 MMF JSON 内容
+                </span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </div>
+              <textarea
+                value={importJsonText}
+                onChange={(e) => setImportJsonText(e.target.value)}
+                placeholder='粘贴 MMF JSON 内容（含 "format": "memora-memory-format" ...）'
+                disabled={importing}
+                className="Memora-input w-full text-xs font-mono"
+                rows={10}
+              />
+              {importResult && (
+                <p
+                  className={`text-[11px] whitespace-pre-wrap break-all ${
+                    importResult.startsWith('✓') ? 'text-green-600' : 'text-red-500'
+                  }`}
+                >
+                  {importResult}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
+              <button
+                onClick={() => setShowImportModal(false)}
+                disabled={importing}
+                className="Memora-btn Memora-btn-ghost text-xs"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={importing || !importJsonText.trim()}
+                className="Memora-btn Memora-btn-primary text-xs"
+              >
+                {importing ? '⏳ 导入中…' : '确认导入'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <PromptDialog state={dialog.state} onClose={dialog.handleClose} />

@@ -2,6 +2,7 @@ import type { AiConfig, SessionSummary } from '@shared/types'
 import { getSession } from '../database/repositories/sessionRepo'
 import { upsertSummary, getSummary } from '../database/repositories/summaryRepo'
 import { createPreference } from '../database/repositories/preferencesRepo'
+import { getDistillationTemplate } from '../database/repositories/distillationRepo'
 import { getDatabase } from '../database/connection'
 import { callChat } from './apiClient'
 
@@ -104,7 +105,8 @@ function parseSummaryJson(raw: string): {
 /** 生成（或重新生成）会话总结 */
 export async function generateSummary(
   sessionId: string,
-  config: AiConfig
+  config: AiConfig,
+  templateId?: string  // 可选：蒸馏模板 ID，未提供或找不到时回退到默认 SYSTEM_PROMPT
 ): Promise<SessionSummary> {
   const session = getSession(sessionId, true)
   if (!session) throw new Error('会话不存在')
@@ -112,8 +114,17 @@ export async function generateSummary(
     throw new Error('会话无消息内容')
   }
 
+  // 选择 system prompt：指定模板且存在则用模板的，否则回退到默认 SYSTEM_PROMPT
+  let systemPrompt = SYSTEM_PROMPT
+  if (templateId) {
+    const tpl = getDistillationTemplate(templateId)
+    if (tpl) {
+      systemPrompt = tpl.systemPrompt
+    }
+  }
+
   const userPrompt = renderSession(session)
-  const raw = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3 })
+  const raw = await callChat(config, systemPrompt, userPrompt, { temperature: 0.3 })
   const parsed = parseSummaryJson(raw)
 
   const summary = upsertSummary(sessionId, {

@@ -88,6 +88,11 @@ const migrations: Migration[] = [
     version: 11,
     description: '建 audit_logs 表（Memory Audit Log：追踪偏好/知识/会话的变更历史，含 before/after 值）',
     up: (db) => createAuditLogsTable(db)
+  },
+  {
+    version: 12,
+    description: '建 distillation_templates 表（自定义蒸馏模板：用户可定制记忆蒸馏的 system prompt）',
+    up: (db) => createDistillationTemplatesTable(db)
   }
 ]
 
@@ -442,6 +447,104 @@ function createAuditLogsTable(db: Database.Database): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_logs(workspace_id)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC)')
+}
+
+/**
+ * v12：蒸馏模板表（Custom Distillation Templates）
+ * - 用户可自定义记忆蒸馏的 system prompt（替代 summarizer.ts 中硬编码的 SYSTEM_PROMPT）
+ * - 内置 3 个模板：默认 / 技术决策 / 学习笔记（is_builtin=1，不可删除）
+ *
+ * 注：新库由 schema.ts 直接建表；本迁移服务旧库并幂等插入内置模板。
+ */
+function createDistillationTemplatesTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS distillation_templates (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      description   TEXT,
+      system_prompt TEXT NOT NULL,
+      output_format TEXT DEFAULT 'json',
+      is_builtin    INTEGER DEFAULT 0,
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    )
+  `)
+
+  const now = new Date().toISOString()
+  const insertBuiltin = db.prepare(
+    `INSERT OR IGNORE INTO distillation_templates
+     (id, name, description, system_prompt, output_format, is_builtin, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 1, ?, ?)`
+  )
+
+  // 内置默认模板：与 summarizer.ts 的 SYSTEM_PROMPT 保持一致
+  const defaultPrompt = `你是一个 AI 对话总结助手。用户会给你一段 AI 对话记录，请生成结构化总结。
+
+输出格式（严格 JSON，不要 markdown 代码块包裹）：
+{
+  "summary": "2-3 段对话摘要，概括讨论的主题、过程和结论",
+  "keyPoints": ["关键决定1", "关键要点2", "..."],
+  "todos": ["待办事项1", "待办事项2", "..."],
+  "knowledge": ["可复用知识要点1", "可复用知识要点2", "..."],
+  "suggestedTags": ["建议标签1", "建议标签2", "..."],
+  "preferences": [{"subject": "类别", "value": "值"}, ...]
+}
+
+要求：
+- summary 用中文，简洁清晰，不超过 300 字
+- keyPoints 提取对话中做出的关键决定、重要结论、核心要点（3-8 条）
+- todos 提取对话中提到的待办事项、后续行动项（若没有则返回空数组）
+- knowledge 提取对话中产生的、未来可复用的知识要点（如技术原理、最佳实践、踩坑经验；若没有则返回空数组）
+- suggestedTags 提取 2-5 个能概括对话主题的简短标签（不带 # 号，每个 2-6 字）
+- preferences 提取对话中反映的用户偏好（如用户提到喜欢/使用/选择某物）。subject 是类别（如 music/phone/language/editor/framework/food/hobby），value 是具体值。只提取明确表达的偏好，不要推断。若没有则返回空数组
+- 如果对话内容很短或无实质内容，所有数组字段可以为空`
+
+  const technicalDecisionPrompt = `你是技术决策记录专家。请分析对话并提取：
+1. 背景：为什么需要这个决策
+2. 方案：考虑了哪些方案
+3. 决策：最终选择了什么
+4. 理由：为什么这样选择
+
+输出JSON: { "summary": "...", "keyPoints": [...], "knowledge": [...], "preferences": [...], "decision": { "background": "...", "options": [...], "choice": "...", "rationale": "..." } }`
+
+  const learningNotesPrompt = `你是学习笔记整理专家。请从对话中提取知识点，按以下结构整理：
+1. 主题：讨论的核心主题
+2. 关键概念：需要理解的重要概念
+3. 知识要点：可复用的知识点
+4. 实践建议：如何应用这些知识
+
+输出JSON: { "summary": "...", "keyPoints": [...], "knowledge": [...], "preferences": [...], "learningNotes": { "topic": "...", "concepts": [...], "practices": [...] } }`
+
+  const tx = db.transaction(() => {
+    insertBuiltin.run(
+      'builtin-default',
+      '默认模板',
+      '通用的 AI 对话总结模板，提取摘要、关键要点、待办、知识与偏好',
+      defaultPrompt,
+      'json',
+      now,
+      now
+    )
+    insertBuiltin.run(
+      'builtin-technical-decision',
+      '技术决策模板',
+      '聚焦技术决策记录：背景、方案、决策与理由',
+      technicalDecisionPrompt,
+      'json',
+      now,
+      now
+    )
+    insertBuiltin.run(
+      'builtin-learning-notes',
+      '学习笔记模板',
+      '从对话中提取知识点并整理为学习笔记结构',
+      learningNotesPrompt,
+      'json',
+      now,
+      now
+    )
+  })
+  tx()
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */

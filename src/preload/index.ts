@@ -34,7 +34,9 @@ import type {
   TieredMemory,
   MemoryHealth,
   ProfileSummary,
-  AuditLog
+  AuditLog,
+  DistillationTemplate,
+  MMFImportResult
 } from '../shared/types'
 
 /**
@@ -244,8 +246,8 @@ const api = {
   // ===== AI（Phase 2） =====
   ai: {
     /** 生成（或重新生成）会话总结 */
-    generateSummary: (sessionId: string, config: AiConfig): Promise<SessionSummary> =>
-      ipcRenderer.invoke(IPC.AI_SUMMARY_GENERATE, sessionId, config),
+    generateSummary: (sessionId: string, config: AiConfig, templateId?: string): Promise<SessionSummary> =>
+      ipcRenderer.invoke(IPC.AI_SUMMARY_GENERATE, sessionId, config, templateId),
     /** 获取会话总结（不触发生成） */
     getSummary: (sessionId: string): Promise<SessionSummary | null> =>
       ipcRenderer.invoke(IPC.AI_SUMMARY_GET, sessionId),
@@ -340,7 +342,13 @@ const api = {
       sessionId: string,
       options?: { limit?: number; threshold?: number }
     ): Promise<RelatedSession[]> =>
-      ipcRenderer.invoke(IPC.AI_RELATED_SESSIONS, sessionId, options)
+      ipcRenderer.invoke(IPC.AI_RELATED_SESSIONS, sessionId, options),
+    /** 导出工作区记忆为 MMF（Memora Memory Format）JSON 字符串 */
+    exportMemory: (workspaceId: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.MEMORY_EXPORT_MMF, workspaceId),
+    /** 从 MMF JSON 字符串导入记忆到目标工作区 */
+    importMemory: (jsonString: string, targetWorkspaceId: string): Promise<MMFImportResult> =>
+      ipcRenderer.invoke(IPC.MEMORY_IMPORT_MMF, jsonString, targetWorkspaceId)
   },
   // ===== Dashboard 统计 =====
   stats: {
@@ -522,6 +530,28 @@ const api = {
     /** 执行一次记忆生命周期维护 */
     run: (workspaceId?: string): Promise<{ maintained: number; archived: number; promoted: number; demoted: number }> =>
       ipcRenderer.invoke(IPC.MEMORY_LIFECYCLE_RUN, workspaceId)
+  },
+
+  // ===== 蒸馏模板（v1.9 自定义蒸馏模板） =====
+  distillation: {
+    /** 列出全部模板（内置 + 自定义） */
+    list: (): Promise<DistillationTemplate[]> => ipcRenderer.invoke(IPC.DISTILL_LIST),
+    /** 获取单个模板 */
+    get: (id: string): Promise<DistillationTemplate | null> => ipcRenderer.invoke(IPC.DISTILL_GET, id),
+    /** 创建自定义模板 */
+    create: (input: {
+      name: string
+      description?: string
+      systemPrompt: string
+      outputFormat?: string
+    }): Promise<DistillationTemplate> => ipcRenderer.invoke(IPC.DISTILL_CREATE, input),
+    /** 更新模板（内置模板也可编辑内容，但不可删除） */
+    update: (
+      id: string,
+      patch: Partial<Pick<DistillationTemplate, 'name' | 'description' | 'systemPrompt' | 'outputFormat'>>
+    ): Promise<DistillationTemplate | null> => ipcRenderer.invoke(IPC.DISTILL_UPDATE, id, patch),
+    /** 删除模板（内置模板禁止删除） */
+    delete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.DISTILL_DELETE, id)
   }
 }
 

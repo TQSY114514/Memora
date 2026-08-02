@@ -29,11 +29,11 @@ function getRateLimitTier(channel: string): RateLimitTier {
     return 'sensitive'
   }
   // 写操作：创建/更新/删除/导入/导出/提取
-  if (/^(import:|scanner:scan|scanner:extract|folder:create|folder:update|folder:delete|session:update|session:delete|session:move|session:batch|tag:create|tag:delete|tag:attach|tag:detach|workspace:create|workspace:update|workspace:delete|knowledge:create|knowledge:update|knowledge:delete|knowledge:toggle|knowledge:relation|knowledge:extract|pref:create|pref:update|pref:delete|pref:archive|pref:decay|memory:lifecycle|share:export|import:bg-start|import:bg-stop|import:bg-run-once|import:bg-config-set)/.test(channel)) {
+  if (/^(import:|scanner:scan|scanner:extract|folder:create|folder:update|folder:delete|session:update|session:delete|session:move|session:batch|tag:create|tag:delete|tag:attach|tag:detach|workspace:create|workspace:update|workspace:delete|knowledge:create|knowledge:update|knowledge:delete|knowledge:toggle|knowledge:relation|knowledge:extract|pref:create|pref:update|pref:delete|pref:archive|pref:decay|memory:lifecycle|memory:import-mmf|share:export|import:bg-start|import:bg-stop|import:bg-run-once|import:bg-config-set|distill:create|distill:update|distill:delete)/.test(channel)) {
     return 'write'
   }
   // 读操作：列表/获取/搜索
-  if (/^(workspace:list|workspace:tree|folder:list|session:get|session:list|session:list-by-rule|tag:list|knowledge:list|knowledge:get|knowledge:search|knowledge:count|knowledge:related|knowledge:graph|pref:list|pref:get|pref:search|pref:count|pref:profile|pref:conflicts|memory:tiered|memory:health|memory:profile-summary|search:|scanner:get|scanner:detect|stats:get|backup:list|backup:config-get|log:|app:get|ai:embed:status|ai:embed:local|ai:summary:get|ai:related|ai:test|ai:config-file-load|ai:config-file-set-active|import:bg-status|import:bg-config-get|secret:encryption)/.test(channel)) {
+  if (/^(workspace:list|workspace:tree|folder:list|session:get|session:list|session:list-by-rule|tag:list|knowledge:list|knowledge:get|knowledge:search|knowledge:count|knowledge:related|knowledge:graph|pref:list|pref:get|pref:search|pref:count|pref:profile|pref:conflicts|memory:tiered|memory:health|memory:profile-summary|memory:export-mmf|search:|scanner:get|scanner:detect|stats:get|backup:list|backup:config-get|log:|app:get|ai:embed:status|ai:embed:local|ai:summary:get|ai:related|ai:test|ai:config-file-load|ai:config-file-set-active|import:bg-status|import:bg-config-get|secret:encryption|distill:list|distill:get)/.test(channel)) {
     return 'read'
   }
   return 'default'

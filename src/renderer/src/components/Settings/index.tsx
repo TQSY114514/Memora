@@ -4,6 +4,7 @@ import { useT, useI18nStore, LANGUAGES } from '../../i18n'
 import { useThemeStore } from '../../stores/themeStore'
 import { useBgImportStore } from '../../stores/backgroundImportStore'
 import type { Folder, Workspace } from '@shared/types'
+import { DistillationTemplates } from '../DistillationTemplates'
 
 interface SettingsProps {
   onClose: () => void
@@ -47,6 +48,7 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
   const [maintLoading, setMaintLoading] = useState(false)
   const [migrateLoading, setMigrateLoading] = useState(false)
   const [migrateMsg, setMigrateMsg] = useState<string | null>(null)
+  const [showDistillTemplates, setShowDistillTemplates] = useState(false)
 
   async function handleExportBackup() {
     setBackupLoading(true)
@@ -290,6 +292,22 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             </button>
           </div>
 
+          {/* 蒸馏模板 */}
+          <div>
+            <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+              蒸馏模板
+            </label>
+            <p className="text-[11px] text-fg-muted mb-2.5">
+              自定义记忆蒸馏的 System Prompt，内置「默认 / 技术决策 / 学习笔记」三种模板，也可新建专属模板。
+            </p>
+            <button
+              onClick={() => setShowDistillTemplates(true)}
+              className="Memora-btn Memora-btn-ghost text-xs"
+            >
+              📝 管理蒸馏模板
+            </button>
+          </div>
+
           {/* 数据备份与恢复 */}
           <div>
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
@@ -393,6 +411,11 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             {t('settings.done')}
           </button>
         </div>
+
+        {/* 蒸馏模板管理弹层 */}
+        {showDistillTemplates && (
+          <DistillationTemplates onClose={() => setShowDistillTemplates(false)} />
+        )}
       </div>
     </div>
   )

@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { PROVIDER_META } from '@shared/constants'
-import type { Provider, Message, SessionSummary, RelatedSession } from '@shared/types'
+import type { Provider, Message, SessionSummary, RelatedSession, DistillationTemplate } from '@shared/types'
 import { Dashboard } from '../Dashboard'
 import { ExportMenu } from './ExportMenu'
 
@@ -56,6 +56,10 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
   const [extractLoading, setExtractLoading] = useState(false)
   const [extractMsg, setExtractMsg] = useState<string | null>(null)
 
+  // 蒸馏模板选择（v1.9 自定义蒸馏模板）
+  const [distillTemplates, setDistillTemplates] = useState<DistillationTemplate[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+
   // 虚拟列表
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -87,6 +91,24 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅 session.id 变化时重新加载
   }, [session?.id])
 
+  // 加载蒸馏模板列表（仅一次，用于蒸馏前的模板选择）
+  useEffect(() => {
+    let cancelled = false
+    window.Memora.distillation
+      .list()
+      .then((list) => {
+        if (cancelled) return
+        setDistillTemplates(list)
+        // 默认选中内置默认模板
+        if (list.length > 0 && !selectedTemplateId) {
+          setSelectedTemplateId('builtin-default')
+        }
+      })
+      .catch((e) => console.warn('[ChatViewer] 加载蒸馏模板失败:', e))
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次挂载时加载
+  }, [])
+
   async function handleToggleFavorite() {
     if (!session) return
     await window.Memora.session.toggleFavorite(session.id)
@@ -103,7 +125,12 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     setSummaryLoading(true)
     setSummaryError(null)
     try {
-      const result = await window.Memora.ai.generateSummary(session.id, getActiveAiConfig())
+      // 选中内置默认模板时传 undefined，走 summarizer.ts 硬编码 SYSTEM_PROMPT（等价）
+      const tplId =
+        selectedTemplateId && selectedTemplateId !== 'builtin-default'
+          ? selectedTemplateId
+          : undefined
+      const result = await window.Memora.ai.generateSummary(session.id, getActiveAiConfig(), tplId)
       setSummary(result)
       setShowSummary(true)
     } catch (e) {
@@ -253,7 +280,23 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
         </div>
 
         {/* AI 工具栏 */}
-        <div className="flex items-center gap-1 mt-2 -mx-1">
+        <div className="flex items-center gap-1 mt-2 -mx-1 flex-wrap">
+          {/* 蒸馏模板选择器 */}
+          {distillTemplates.length > 0 && (
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              className="Memora-input text-xs py-0.5 max-w-[160px]"
+              title="选择蒸馏模板"
+              disabled={summaryLoading}
+            >
+              {distillTemplates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.isBuiltin ? '★ ' : ''}{tpl.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={handleGenerateSummary}
             disabled={summaryLoading}

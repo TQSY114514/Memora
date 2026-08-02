@@ -18,8 +18,8 @@ export function registerAiHandlers(): void {
   // ===== AI 总结（Phase 2） =====
   safeHandle(
     IPC.AI_SUMMARY_GENERATE,
-    async (_e, sessionId: string, config: AiConfig) => {
-      return generateSummary(sessionId, config)
+    async (_e, sessionId: string, config: AiConfig, templateId?: string) => {
+      return generateSummary(assertSafeId(sessionId, 'sessionId'), config, templateId)
     }
   )
 

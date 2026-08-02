@@ -220,4 +220,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_logs(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
+
+-- 蒸馏模板（v1.9 自定义蒸馏模板）
+-- 用户可自定义记忆蒸馏的 system prompt（替代 summarizer.ts 中硬编码的 SYSTEM_PROMPT）
+-- 内置模板 is_builtin=1，不可删除；用户模板 is_builtin=0
+CREATE TABLE IF NOT EXISTS distillation_templates (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  description   TEXT,
+  system_prompt TEXT NOT NULL,
+  output_format TEXT DEFAULT 'json',  -- 'json' | 'markdown' | 'text'
+  is_builtin    INTEGER DEFAULT 0,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_distill_builtin ON distillation_templates(is_builtin);
 `

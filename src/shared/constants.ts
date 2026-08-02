@@ -162,6 +162,13 @@ export const IPC = {
   // AI 连接测试
   TEST_AI_CONNECTION: 'ai:test-connection',
 
+  // 蒸馏模板（v1.9 自定义蒸馏模板）
+  DISTILL_LIST: 'distill:list',
+  DISTILL_GET: 'distill:get',
+  DISTILL_CREATE: 'distill:create',
+  DISTILL_UPDATE: 'distill:update',
+  DISTILL_DELETE: 'distill:delete',
+
   // AI 配置文件持久化（主进程 userData/ai-config.json，供 MCP 进程读取）
   AI_CONFIG_FILE_SAVE: 'ai:config-file-save',
   AI_CONFIG_FILE_LOAD: 'ai:config-file-load',
@@ -208,6 +215,10 @@ export const IPC = {
   MEMORY_HEALTH: 'memory:health',
   MEMORY_PROFILE_SUMMARY: 'memory:profile-summary',
   MEMORY_LIFECYCLE_RUN: 'memory:lifecycle-run',
+
+  // Memora Memory Format 导出/导入（v1.8 MMF）
+  MEMORY_EXPORT_MMF: 'memory:export-mmf',
+  MEMORY_IMPORT_MMF: 'memory:import-mmf',
 
   // 全量数据迁移（v1.7.1）—— 导出/导入整个工作区为归档文件
   SYSTEM_EXPORT_DATA: 'system:export-data',
