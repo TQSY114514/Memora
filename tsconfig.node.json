@@ -46,6 +46,8 @@
     "src/team/**/*",
     "src/templates/**/*",
     "src/migration/**/*",
+    "src/identity/**/*",
+    "src/security/**/*",
     "electron.vite.config.ts"
   ]
 }

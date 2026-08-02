@@ -50,6 +50,7 @@ import { handleSessionsTool } from './tools/sessions'
 import { handleKnowledgeTool } from './tools/knowledge'
 import { handleMemoryTool } from './tools/memory'
 import { handleWorkspaceTool } from './tools/workspace'
+import { handleAdvancedMCPTool } from './tools/advanced'
 import { validateToolArgs } from './validation'
 
 interface JsonRpcRequest {
@@ -162,6 +163,12 @@ export async function callTool(name: string, args: Record<string, unknown>, clie
     case 'create_folder':
     case 'list_folders':
       return handleWorkspaceTool(name, validatedArgs)
+
+    // advanced 域（v1.12）：memory_explain / memory_timeline / memory_diff
+    case 'memory_explain':
+    case 'memory_timeline':
+    case 'memory_diff':
+      return handleAdvancedMCPTool(name, validatedArgs)
 
     default:
       throw new Error(`未知工具: ${name}`)

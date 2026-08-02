@@ -16,6 +16,8 @@ const TimeCapsulePanel = lazy(() => import('./components/TimeCapsule').then(m =>
 const TeamWorkspacePanel = lazy(() => import('./components/TeamWorkspace').then(m => ({ default: m.TeamWorkspacePanel })))
 const TemplateMarketPanel = lazy(() => import('./components/TemplateMarket').then(m => ({ default: m.TemplateMarketPanel })))
 const MigrationWizardPanel = lazy(() => import('./components/MigrationWizard').then(m => ({ default: m.MigrationWizardPanel })))
+const IdentityProfilePanel = lazy(() => import('./components/IdentityProfile').then(m => ({ default: m.IdentityProfilePanel })))
+const SecurityCenterPanel = lazy(() => import('./components/SecurityCenter').then(m => ({ default: m.SecurityCenterPanel })))
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
@@ -50,6 +52,8 @@ export default function App() {
   const [showTeamWorkspace, setShowTeamWorkspace] = useState(false)
   const [showTemplateMarket, setShowTemplateMarket] = useState(false)
   const [showMigrationWizard, setShowMigrationWizard] = useState(false)
+  const [showIdentityProfile, setShowIdentityProfile] = useState(false)
+  const [showSecurityCenter, setShowSecurityCenter] = useState(false)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const ensured = useRef(false)
@@ -154,6 +158,8 @@ export default function App() {
         onOpenTeamWorkspace={() => setShowTeamWorkspace(true)}
         onOpenTemplateMarket={() => setShowTemplateMarket(true)}
         onOpenMigrationWizard={() => setShowMigrationWizard(true)}
+        onOpenIdentityProfile={() => setShowIdentityProfile(true)}
+        onOpenSecurityCenter={() => setShowSecurityCenter(true)}
       />
       {showMemoryPanel ? (
         <Suspense fallback={<PanelSkeleton />}>
@@ -194,6 +200,14 @@ export default function App() {
       ) : showMigrationWizard ? (
         <Suspense fallback={<PanelSkeleton />}>
           <MigrationWizardPanel onClose={() => setShowMigrationWizard(false)} />
+        </Suspense>
+      ) : showIdentityProfile ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <IdentityProfilePanel onClose={() => setShowIdentityProfile(false)} />
+        </Suspense>
+      ) : showSecurityCenter ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <SecurityCenterPanel onClose={() => setShowSecurityCenter(false)} />
         </Suspense>
       ) : (
         <>

@@ -8,8 +8,8 @@ import { TOOLS } from '../src/mcp/schemas'
  * 这些测试纯数据校验，不依赖 DB / electron，可在 vitest node 环境运行。
  */
 describe('MCP TOOLS schema', () => {
-  it('暴露恰好 27 个工具', () => {
-    expect(TOOLS).toHaveLength(27)
+  it('暴露恰好 30 个工具', () => {
+    expect(TOOLS).toHaveLength(30)
   })
 
   it('工具名唯一', () => {

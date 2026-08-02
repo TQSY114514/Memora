@@ -290,7 +290,13 @@ export const IPC = {
   MIGRATION_DEFAULT_CONFIG: 'migration:default-config',
   MIGRATION_STEP_LABEL: 'migration:step-label',
   MIGRATION_STEP_DESC: 'migration:step-desc',
-  MIGRATION_FORMAT_DURATION: 'migration:format-duration'
+  MIGRATION_FORMAT_DURATION: 'migration:format-duration',
+
+  // ===== AI 身份画像（v1.12） =====
+  IDENTITY_GENERATE: 'identity:generate',
+
+  // ===== 安全中心（v1.12） =====
+  SECURITY_REPORT: 'security:report'
 } as const
 
 /** Provider 显示元信息 */

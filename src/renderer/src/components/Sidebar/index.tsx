@@ -21,9 +21,14 @@ interface SidebarProps {
   onOpenTeamWorkspace: () => void
   onOpenTemplateMarket: () => void
   onOpenMigrationWizard: () => void
+  onOpenIdentityProfile: () => void
+  onOpenSecurityCenter: () => void
 }
 
-export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences, onOpenMcpPermissions, onOpenMemoryAgent, onOpenCloudSync, onOpenTimeCapsule, onOpenTeamWorkspace, onOpenTemplateMarket, onOpenMigrationWizard }: SidebarProps) {
+export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences, onOpenMcpPermissions, onOpenMemoryAgent, onOpenCloudSync, onOpenTimeCapsule, onOpenTeamWorkspace, onOpenTemplateMarket, onOpenMigrationWizard,
+  onOpenIdentityProfile,
+  onOpenSecurityCenter
+}: SidebarProps) {
   const {
     workspaces,
     activeWorkspaceId,
@@ -392,6 +397,20 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
           title="AI 迁移向导 - 从其他平台迁移"
         >
           迁移向导
+        </button>
+        <button
+          onClick={onOpenIdentityProfile}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="AI 身份画像 - 一键生成你的 AI 人格"
+        >
+          身份画像
+        </button>
+        <button
+          onClick={onOpenSecurityCenter}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="安全中心 - 加密状态 + 敏感信息扫描"
+        >
+          安全中心
         </button>
         <button
           onClick={onOpenImportCenter}

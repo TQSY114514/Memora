@@ -368,4 +368,41 @@ export const TOOLS: McpTool[] = [
         offset: { type: 'number', description: '偏移量，默认 0' }
       }
     }
+  },
+  {
+    name: 'memory_explain',
+    description:
+      '解释为什么返回了某条记忆：说明置信度、来源、首次记录时间、访问频率等。「AI 为什么推荐这个偏好？」「这条记忆可靠吗？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '要解释的记忆关键词' },
+        workspaceId: { type: 'string', description: '工作区 ID（可选，默认全库）' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'memory_timeline',
+    description:
+      '展示记忆演变时间线：返回用户的偏好/知识变更历史，按时间排序。「用户偏好如何随时间变化？」「最近记忆库发生了什么？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '工作区 ID（可选）' },
+        limit: { type: 'number', description: '返回数量上限，默认 50' }
+      }
+    }
+  },
+  {
+    name: 'memory_diff',
+    description:
+      '对比过去和现在的偏好变化：返回新增、移除、修改的偏好列表。「用户从上次以来改变了什么？」「有哪些新偏好？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '工作区 ID（可选）' },
+        since: { type: 'string', description: '对比起点 ISO 时间戳（可选，默认对比全部历史）' }
+      }
+    }
   }]

@@ -20,6 +20,8 @@ import { registerCapsuleHandlers } from './handlers/capsule.ipc'
 import { registerTeamHandlers } from './handlers/team.ipc'
 import { registerTemplateHandlers } from './handlers/templates.ipc'
 import { registerMigrationHandlers } from './handlers/migration.ipc'
+import { registerIdentityHandlers } from './handlers/identity.ipc'
+import { registerSecurityHandlers } from './handlers/security.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -44,4 +46,6 @@ export function registerIpcHandlers(): void {
   registerTeamHandlers()
   registerTemplateHandlers()
   registerMigrationHandlers()
+  registerIdentityHandlers()
+  registerSecurityHandlers()
 }

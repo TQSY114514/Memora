@@ -786,6 +786,57 @@ const api = {
       ipcRenderer.invoke(IPC.MIGRATION_STEP_DESC, step),
     formatDuration: (ms: number): Promise<string> =>
       ipcRenderer.invoke(IPC.MIGRATION_FORMAT_DURATION, ms)
+  },
+
+  // ===== AI 身份画像（v1.12） =====
+  identity: {
+    generate: (workspaceId?: string): Promise<{
+      generatedAt: string
+      basics: {
+        role: string[]; techStack: string[]; editors: string[]; languages: string[]
+      }
+      communication: {
+        style: string[]; format: string[]; avoid: string[]
+      }
+      projects: Array<{
+        name: string; description: string; techStack: string[]; status: string
+      }>
+      preferences: Array<{
+        subject: string; value: string; confidence: number
+      }>
+      knowledge: Array<{
+        title: string; type: string; snippet: string
+      }>
+      constitution: Array<{
+        subject: string; value: string
+      }>
+      stats: {
+        totalSessions: number; totalMessages: number
+        totalPreferences: number; totalKnowledge: number
+        activeSince: string | null; topProviders: string[]
+      }
+      promptText: string
+    }> => ipcRenderer.invoke(IPC.IDENTITY_GENERATE, workspaceId)
+  },
+
+  // ===== 安全中心（v1.12） =====
+  security: {
+    report: (): Promise<{
+      generatedAt: string
+      encryption: {
+        safeStorageAvailable: boolean; encryptedKeysCount: number
+        status: string; note: string
+      }
+      sensitiveInfo: {
+        total: number
+        byType: Array<{ type: string; count: number; lastDetectedAt: string }>
+        samples: Array<{ type: string; masked: string; source: string; detectedAt: string }>
+      }
+      dataSafety: {
+        dbPath: string; dbSizeMB: number; encrypted: boolean; backupCount: number
+      }
+      recommendations: string[]
+    }> => ipcRenderer.invoke(IPC.SECURITY_REPORT)
   }
 }
 
