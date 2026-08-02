@@ -119,3 +119,69 @@ export function listAuditLogs(options?: {
 
   return rows.map(rowToAuditLog)
 }
+
+/**
+ * 获取实体的版本历史（按时间倒序，最新在前）
+ * 返回该实体的所有审计日志，每条日志代表一个版本快照
+ */
+export function getVersionHistory(entityId: string, entityType: string): AuditLog[] {
+  const db = getDatabase()
+  const rows = db
+    .prepare(
+      `SELECT * FROM audit_logs
+       WHERE entity_id = ? AND entity_type = ?
+       ORDER BY created_at DESC`
+    )
+    .all(entityId, entityType) as AuditLogRow[]
+  return rows.map(rowToAuditLog)
+}
+
+/**
+ * 获取用于版本对比的两个版本差异
+ * 返回 before（旧版本）和 after（新版本）的键值对差异
+ */
+export function diffVersions(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null
+): { added: Record<string, unknown>; removed: Record<string, unknown>; changed: Record<string, { from: unknown; to: unknown }> } {
+  const result = { added: {} as Record<string, unknown>, removed: {} as Record<string, unknown>, changed: {} as Record<string, { from: unknown; to: unknown }> }
+
+  const beforeKeys = new Set(before ? Object.keys(before) : [])
+  const afterKeys = new Set(after ? Object.keys(after) : [])
+
+  for (const key of afterKeys) {
+    if (!beforeKeys.has(key)) {
+      result.added[key] = after![key]
+    } else if (JSON.stringify(before![key]) !== JSON.stringify(after![key])) {
+      result.changed[key] = { from: before![key], to: after![key] }
+    }
+  }
+  for (const key of beforeKeys) {
+    if (!afterKeys.has(key)) {
+      result.removed[key] = before![key]
+    }
+  }
+
+  return result
+}
+
+/**
+ * 合并两个版本的状态（用于回滚预览）
+ * 以 base 为基础，应用 diff 中的变更
+ */
+export function applyVersionDiff(
+  base: Record<string, unknown>,
+  diff: { added: Record<string, unknown>; removed: Record<string, unknown>; changed: Record<string, { from: unknown; to: unknown }> }
+): Record<string, unknown> {
+  const result = { ...base }
+  for (const key of Object.keys(diff.removed)) {
+    delete result[key]
+  }
+  for (const [key, value] of Object.entries(diff.added)) {
+    result[key] = value
+  }
+  for (const [key, { from }] of Object.entries(diff.changed)) {
+    result[key] = from
+  }
+  return result
+}

@@ -2,21 +2,18 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { KnowledgeEntry, KnowledgeGraphData } from '@shared/types'
 
 /**
- * 知识图谱可视化组件（纯 SVG，0 依赖）
+ * 交互式知识图谱可视化组件（纯 SVG + TypeScript 力导向算法，0 依赖）
  *
- * 布局：按 type 分三层同心圆环
- * - knowledge（紫）最外圈
- * - decision（橙）中圈
- * - task（绿）最内圈
+ * 功能：
+ * - 力导向布局：节点自动排布，避免重叠
+ * - 拖拽：可拖拽节点移动位置
+ * - 展开/折叠：点击节点展开关联邻居
+ * - 时间筛选：按时间段筛选显示的节点
+ * - 缩放 + 平移：滚轮缩放，拖拽背景平移
  *
  * 边：
  * - 实线 = 显式关系（knowledge_relations 表）
  * - 虚线 = 隐式关联（同 source_session_id）
- *
- * 交互：
- * - 点击节点：高亮该节点 + 关联边 + 邻居
- * - hover：tooltip
- * - 滚轮缩放 + 拖拽平移
  */
 
 const TYPE_COLORS: Record<string, string> = {
@@ -43,6 +40,9 @@ const RELATION_LABELS: Record<string, string> = {
 interface NodePosition {
   x: number
   y: number
+  vx: number
+  vy: number
+  fixed: boolean
 }
 
 interface KnowledgeGraphProps {
@@ -50,8 +50,8 @@ interface KnowledgeGraphProps {
   onEntryClick?: (entry: KnowledgeEntry) => void
 }
 
-const CANVAS_WIDTH = 800
-const CANVAS_HEIGHT = 600
+const CANVAS_WIDTH = 900
+const CANVAS_HEIGHT = 650
 
 export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProps) {
   const [data, setData] = useState<KnowledgeGraphData | null>(null)
@@ -59,11 +59,20 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [timeFilter, setTimeFilter] = useState<'all' | 'week' | 'month' | 'year'>(() => {
+    const saved = localStorage.getItem('memora-kg-timefilter')
+    return (saved as 'all' | 'week' | 'month' | 'year') || 'all'
+  })
+
   const svgRef = useRef<SVGSVGElement>(null)
   const isPanning = useRef(false)
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  const dragRef = useRef<{ nodeId: string; startX: number; startY: number } | null>(null)
+  const animFrameRef = useRef<number | null>(null)
+  const positionsRef = useRef<Map<string, NodePosition>>(new Map())
 
   useEffect(() => {
     setLoading(true)
@@ -76,11 +85,151 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
       .finally(() => setLoading(false))
   }, [workspaceId])
 
-  // 布局计算：按 type 分三层同心圆环
-  const positions = useMemo(() => {
-    if (!data) return new Map<string, NodePosition>()
-    return layoutNodes(data.nodes, CANVAS_WIDTH, CANVAS_HEIGHT)
-  }, [data])
+  // 时间筛选
+  useEffect(() => {
+    localStorage.setItem('memora-kg-timefilter', timeFilter)
+  }, [timeFilter])
+
+  // 过滤后的节点
+  const filteredNodes = useMemo(() => {
+    if (!data) return []
+    const now = new Date()
+    let cutoff: Date | null = null
+    switch (timeFilter) {
+      case 'week': cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break
+      case 'month': cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break
+      case 'year': cutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break
+      default: return data.nodes
+    }
+    return data.nodes.filter((n) => new Date(n.createdAt) >= cutoff!)
+  }, [data, timeFilter])
+
+  // 过滤后的边（只保留两端节点都在过滤结果中的边）
+  const filteredEdges = useMemo(() => {
+    if (!data) return []
+    const nodeIds = new Set(filteredNodes.map((n) => n.id))
+    return data.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to))
+  }, [data, filteredNodes])
+
+  // 力导向布局初始化
+  useEffect(() => {
+    if (filteredNodes.length === 0) {
+      positionsRef.current = new Map()
+      return
+    }
+
+    const positions = new Map<string, NodePosition>()
+    const centerX = CANVAS_WIDTH / 2
+    const centerY = CANVAS_HEIGHT / 2
+
+    // 初始化位置（随机分布，但按类型分组）
+    const typeGroups: Record<string, number[]> = { knowledge: [], decision: [], task: [] }
+    filteredNodes.forEach((n, i) => {
+      const angle = (i / filteredNodes.length) * 2 * Math.PI
+      const radius = 100 + Math.random() * 200
+      const x = centerX + radius * Math.cos(angle)
+      const y = centerY + radius * Math.sin(angle)
+      positions.set(n.id, { x, y, vx: 0, vy: 0, fixed: false })
+      typeGroups[n.type]?.push(i)
+    })
+
+    // 力导向模拟（简化版）
+    const alpha = { value: 1 }
+    const alphaDecay = 0.02
+    const repulsionStrength = 5000
+    const attractionStrength = 0.01
+    const centerStrength = 0.01
+    const maxIterations = 300
+
+    const nodeIds = Array.from(positions.keys())
+    const edgePairs = new Set<string>()
+
+    // 构建邻接关系
+    const adjacency = new Map<string, Set<string>>()
+    for (const nodeId of nodeIds) {
+      adjacency.set(nodeId, new Set())
+    }
+    for (const edge of filteredEdges) {
+      adjacency.get(edge.from)?.add(edge.to)
+      adjacency.get(edge.to)?.add(edge.from)
+      edgePairs.add(`${edge.from}|${edge.to}`)
+      edgePairs.add(`${edge.to}|${edge.from}`)
+    }
+
+    let iteration = 0
+    function simulate() {
+      if (alpha.value < 0.001 || iteration >= maxIterations) {
+        // 固定展开节点的位置
+        for (const [id, pos] of positions) {
+          if (expandedIds.has(id)) {
+            pos.fixed = true
+          }
+        }
+        positionsRef.current = positions
+        return
+      }
+
+      alpha.value *= (1 - alphaDecay)
+      iteration++
+
+      // 计算力
+      for (let i = 0; i < nodeIds.length; i++) {
+        const idA = nodeIds[i]
+        const posA = positions.get(idA)!
+        if (posA.fixed) continue
+
+        let fx = 0, fy = 0
+
+        // 排斥力（节点之间）
+        for (let j = 0; j < nodeIds.length; j++) {
+          if (i === j) continue
+          const idB = nodeIds[j]
+          const posB = positions.get(idB)!
+          const dx = posA.x - posB.x
+          const dy = posA.y - posB.y
+          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1)
+          const force = repulsionStrength / (dist * dist)
+          fx += (dx / dist) * force
+          fy += (dy / dist) * force
+        }
+
+        // 吸引力（边连接的节点）
+        const neighbors = adjacency.get(idA)!
+        for (const neighborId of neighbors) {
+          const posB = positions.get(neighborId)!
+          const dx = posB.x - posA.x
+          const dy = posB.y - posA.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          fx += dx * attractionStrength * dist
+          fy += dy * attractionStrength * dist
+        }
+
+        // 中心引力
+        fx += (centerX - posA.x) * centerStrength
+        fy += (centerY - posA.y) * centerStrength
+
+        // 应用速度
+        posA.vx = (posA.vx + fx) * 0.6
+        posA.vy = (posA.vy + fy) * 0.6
+        posA.x += posA.vx
+        posA.y += posA.vy
+
+        // 边界约束
+        posA.x = Math.max(30, Math.min(CANVAS_WIDTH - 30, posA.x))
+        posA.y = Math.max(30, Math.min(CANVAS_HEIGHT - 30, posA.y))
+      }
+
+      animFrameRef.current = requestAnimationFrame(simulate)
+    }
+
+    animFrameRef.current = requestAnimationFrame(simulate)
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current)
+      }
+    }
+  }, [filteredNodes, filteredEdges, expandedIds])
 
   // 选中节点的关联节点集合
   const highlightedIds = useMemo(() => {
@@ -101,7 +250,6 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      // 只在点击空白区域（svg 本身或背景 rect）时开始平移
       const target = e.target as Element
       if (target === svgRef.current || target.tagName === 'rect') {
         isPanning.current = true
@@ -112,15 +260,52 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
   )
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (dragRef.current) {
+      const pos = positionsRef.current.get(dragRef.current.nodeId)
+      if (pos) {
+        const dx = (e.clientX - dragRef.current.startX) / zoom
+        const dy = (e.clientY - dragRef.current.startY) / zoom
+        pos.x = Math.max(30, Math.min(CANVAS_WIDTH - 30, pos.x + dx))
+        pos.y = Math.max(30, Math.min(CANVAS_HEIGHT - 30, pos.y + dy))
+        dragRef.current.startX = e.clientX
+        dragRef.current.startY = e.clientY
+        setSelectedId((prev) => prev) // 强制重渲染
+      }
+      return
+    }
     if (!isPanning.current) return
     const dx = e.clientX - panStart.current.x
     const dy = e.clientY - panStart.current.y
     setPan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy })
-  }, [])
+  }, [zoom])
 
   const handleMouseUp = useCallback(() => {
     isPanning.current = false
+    dragRef.current = null
   }, [])
+
+  function handleNodeDragStart(e: React.MouseEvent, nodeId: string) {
+    e.stopPropagation()
+    dragRef.current = { nodeId, startX: e.clientX, startY: e.clientY }
+  }
+
+  function handleNodeClick(e: React.MouseEvent, nodeId: string, entry: KnowledgeEntry) {
+    e.stopPropagation()
+    if (dragRef.current) return
+    setSelectedId(selectedId === nodeId ? null : nodeId)
+    onEntryClick?.(entry)
+  }
+
+  function handleNodeDoubleClick(e: React.MouseEvent, nodeId: string) {
+    e.stopPropagation()
+    const next = new Set(expandedIds)
+    if (next.has(nodeId)) {
+      next.delete(nodeId)
+    } else {
+      next.add(nodeId)
+    }
+    setExpandedIds(next)
+  }
 
   if (loading) {
     return (
@@ -150,35 +335,62 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
     )
   }
 
+  const positions = positionsRef.current
+  const timeFilterOptions: Array<{ key: typeof timeFilter; label: string }> = [
+    { key: 'all', label: '全部' },
+    { key: 'week', label: '本周' },
+    { key: 'month', label: '本月' },
+    { key: 'year', label: '今年' }
+  ]
+
   return (
     <div className="flex-1 relative bg-bg-tertiary overflow-hidden">
-      {/* 缩放工具栏 */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-bg-primary/90 border border-border rounded-lg px-2 py-1">
-        <button
-          onClick={() => setZoom((z) => Math.max(0.3, z * 0.8))}
-          className="text-xs px-1.5 hover:bg-bg-hover rounded"
-          title="缩小"
-        >
-          −
-        </button>
-        <span className="text-xs text-fg-muted w-10 text-center">{Math.round(zoom * 100)}%</span>
-        <button
-          onClick={() => setZoom((z) => Math.min(3, z * 1.25))}
-          className="text-xs px-1.5 hover:bg-bg-hover rounded"
-          title="放大"
-        >
-          +
-        </button>
-        <button
-          onClick={() => {
-            setZoom(1)
-            setPan({ x: 0, y: 0 })
-          }}
-          className="text-xs px-1.5 hover:bg-bg-hover rounded"
-          title="重置视图"
-        >
-          ⟲
-        </button>
+      {/* 顶部工具栏 */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+        {/* 时间筛选 */}
+        <div className="flex items-center gap-0.5 bg-bg-primary/90 border border-border rounded-lg px-1 py-0.5">
+          {timeFilterOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setTimeFilter(opt.key)}
+              className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                timeFilter === opt.key
+                  ? 'bg-accent text-white'
+                  : 'text-fg-muted hover:bg-bg-hover'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {/* 缩放控制 */}
+        <div className="flex items-center gap-1 bg-bg-primary/90 border border-border rounded-lg px-2 py-1">
+          <button
+            onClick={() => setZoom((z) => Math.max(0.3, z * 0.8))}
+            className="text-xs px-1.5 hover:bg-bg-hover rounded"
+            title="缩小"
+          >
+            −
+          </button>
+          <span className="text-xs text-fg-muted w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <button
+            onClick={() => setZoom((z) => Math.min(3, z * 1.25))}
+            className="text-xs px-1.5 hover:bg-bg-hover rounded"
+            title="放大"
+          >
+            +
+          </button>
+          <button
+            onClick={() => {
+              setZoom(1)
+              setPan({ x: 0, y: 0 })
+            }}
+            className="text-xs px-1.5 hover:bg-bg-hover rounded"
+            title="重置视图"
+          >
+            ⟲
+          </button>
+        </div>
       </div>
 
       {/* 图例 */}
@@ -191,7 +403,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
             />
             <span className="text-fg-secondary">{TYPE_LABELS[type]}</span>
             <span className="text-fg-muted">
-              {data.nodes.filter((n) => n.type === type).length}
+              {filteredNodes.filter((n) => n.type === type).length}
             </span>
           </div>
         ))}
@@ -203,6 +415,21 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
             <span className="w-4 h-px border-t border-dashed border-fg-muted" /> 同源对话
           </div>
         </div>
+        {expandedIds.size > 0 && (
+          <div className="border-t border-border pt-1 mt-1">
+            <button
+              onClick={() => setExpandedIds(new Set())}
+              className="text-[10px] text-accent hover:underline"
+            >
+              收起全部 ({expandedIds.size})
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 提示信息 */}
+      <div className="absolute bottom-3 left-3 z-10 text-[10px] text-fg-muted bg-bg-primary/80 border border-border rounded px-2 py-1">
+        拖拽节点移动 · 双击展开关联 · 滚轮缩放 · 拖拽背景平移
       </div>
 
       <svg
@@ -215,19 +442,19 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
         onMouseLeave={handleMouseUp}
         style={{ cursor: isPanning.current ? 'grabbing' : 'default' }}
       >
-        {/* 透明背景 rect 用于捕获空白点击（触发平移） */}
         <rect x="0" y="0" width="100%" height="100%" fill="transparent" />
 
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
           {/* 边 */}
-          {data.edges.map((edge, idx) => {
+          {filteredEdges.map((edge, idx) => {
             const from = positions.get(edge.from)
             const to = positions.get(edge.to)
             if (!from || !to) return null
             const isHighlighted =
               highlightedIds && highlightedIds.has(edge.from) && highlightedIds.has(edge.to)
             const isDimmed = highlightedIds && !isHighlighted
-            const color = TYPE_COLORS[data.nodes.find((n) => n.id === edge.from)?.type || 'knowledge']
+            const fromNode = filteredNodes.find((n) => n.id === edge.from)
+            const color = TYPE_COLORS[fromNode?.type || 'knowledge']
             return (
               <line
                 key={idx}
@@ -244,31 +471,34 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
           })}
 
           {/* 节点 */}
-          {data.nodes.map((node) => {
+          {filteredNodes.map((node) => {
             const pos = positions.get(node.id)
             if (!pos) return null
             const color = TYPE_COLORS[node.type] || '#6b7280'
             const isSelected = selectedId === node.id
             const isHovered = hoveredId === node.id
             const isDimmed = highlightedIds && !highlightedIds.has(node.id)
+            const isExpanded = expandedIds.has(node.id)
             const isTaskDone = node.type === 'task' && node.status === 'done'
-            const radius = isSelected ? 10 : isHovered ? 9 : 7
+            const radius = isSelected ? 10 : isExpanded ? 9 : isHovered ? 8 : 7
 
             return (
               <g
                 key={node.id}
                 transform={`translate(${pos.x}, ${pos.y})`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setSelectedId(selectedId === node.id ? null : node.id)
-                  onEntryClick?.(node)
-                }}
+                onMouseDown={(e) => handleNodeDragStart(e, node.id)}
+                onClick={(e) => handleNodeClick(e, node.id, node)}
+                onDoubleClick={(e) => handleNodeDoubleClick(e, node.id)}
                 onMouseEnter={() => setHoveredId(node.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                style={{ cursor: 'pointer', opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.2s' }}
+                style={{ cursor: dragRef.current?.nodeId === node.id ? 'grabbing' : 'pointer', opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.2s' }}
               >
+                {/* 展开节点的光晕 */}
+                {isExpanded && (
+                  <circle r={radius + 8} fill={color} fillOpacity={0.08} />
+                )}
                 {/* 选中节点的光晕 */}
-                {isSelected && (
+                {isSelected && !isExpanded && (
                   <circle r={radius + 6} fill={color} fillOpacity={0.15} />
                 )}
                 <circle
@@ -306,7 +536,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
       {hoveredId &&
         data &&
         (() => {
-          const entry = data.nodes.find((n) => n.id === hoveredId)
+          const entry = filteredNodes.find((n) => n.id === hoveredId)
           if (!entry) return null
           const pos = positions.get(hoveredId)
           if (!pos) return null
@@ -337,13 +567,13 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
       {selectedId &&
         data &&
         (() => {
-          const entry = data.nodes.find((n) => n.id === selectedId)
+          const entry = filteredNodes.find((n) => n.id === selectedId)
           if (!entry) return null
           const relatedEdges = data.edges.filter(
             (e) => e.from === selectedId || e.to === selectedId
           )
           return (
-            <div className="absolute bottom-3 left-3 right-3 z-10 bg-bg-primary/95 border border-border rounded-lg p-3.5 max-w-md mx-auto shadow-lg">
+            <div className="absolute bottom-12 left-3 right-3 z-10 bg-bg-primary/95 border border-border rounded-lg p-3.5 max-w-md mx-auto shadow-lg">
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-2">
                   <span
@@ -361,6 +591,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
               </div>
               <p className="text-[10px] text-fg-muted mb-2">
                 {TYPE_LABELS[entry.type]} · {entry.source} · {relatedEdges.length} 个关联
+                {' · '}{new Date(entry.createdAt).toLocaleDateString('zh-CN')}
               </p>
               {entry.content && (
                 <p className="text-xs text-fg-secondary line-clamp-3 mb-2">{entry.content}</p>
@@ -395,58 +626,4 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
         })()}
     </div>
   )
-}
-
-/**
- * 布局算法：按 type 分三层同心圆环
- * - knowledge 最外圈（半径 R）
- * - decision 中圈（半径 R * 0.65）
- * - task 最内圈（半径 R * 0.35）
- *
- * 每种类型在自己的圆环上均匀分布，避免不同类型节点重叠
- */
-function layoutNodes(
-  nodes: KnowledgeEntry[],
-  width: number,
-  height: number
-): Map<string, NodePosition> {
-  const positions = new Map<string, NodePosition>()
-  const centerX = width / 2
-  const centerY = height / 2
-  const maxRadius = Math.min(width, height) * 0.4
-
-  const groups: Record<string, KnowledgeEntry[]> = {
-    knowledge: [],
-    decision: [],
-    task: []
-  }
-  nodes.forEach((n) => {
-    if (groups[n.type]) groups[n.type].push(n)
-    else groups.knowledge.push(n)
-  })
-
-  // 三层圆环配置：类型 -> { 半径比例, 起始角度偏移 }
-  const ringConfig: Record<string, { radiusRatio: number; startAngle: number }> = {
-    knowledge: { radiusRatio: 1.0, startAngle: -Math.PI / 2 },
-    decision: { radiusRatio: 0.65, startAngle: -Math.PI / 2 + Math.PI / 6 },
-    task: { radiusRatio: 0.35, startAngle: -Math.PI / 2 + Math.PI / 3 }
-  }
-
-  Object.entries(ringConfig).forEach(([type, { radiusRatio, startAngle }]) => {
-    const items = groups[type]
-    if (items.length === 0) return
-
-    const radius = maxRadius * radiusRatio
-    const angleStep = items.length > 1 ? (2 * Math.PI) / items.length : 0
-
-    items.forEach((entry, idx) => {
-      const angle = startAngle + idx * angleStep
-      positions.set(entry.id, {
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
-      })
-    })
-  })
-
-  return positions
 }

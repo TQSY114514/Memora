@@ -12,6 +12,9 @@ import { registerMemoryLifecycleHandlers } from './handlers/memoryLifecycle.ipc'
 import { registerDataMigrationHandlers } from './handlers/dataMigration.ipc'
 import { registerMemoryIOHandlers } from './handlers/memoryIO.ipc'
 import { registerDistillationHandlers } from './handlers/distillation.ipc'
+import { registerAuditHandlers } from './handlers/audit.ipc'
+import { registerMcpPermissionsHandlers } from './handlers/mcpPermissions.ipc'
+import { registerMemoryAgentHandlers } from './handlers/memoryAgent.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -28,4 +31,7 @@ export function registerIpcHandlers(): void {
   registerDataMigrationHandlers()
   registerMemoryIOHandlers()
   registerDistillationHandlers()
+  registerAuditHandlers()
+  registerMcpPermissionsHandlers()
+  registerMemoryAgentHandlers()
 }

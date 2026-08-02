@@ -14,9 +14,11 @@ interface SidebarProps {
   onOpenSettings: () => void
   onOpenKnowledge: () => void
   onOpenPreferences: () => void
+  onOpenMcpPermissions: () => void
+  onOpenMemoryAgent: () => void
 }
 
-export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences }: SidebarProps) {
+export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences, onOpenMcpPermissions, onOpenMemoryAgent }: SidebarProps) {
   const {
     workspaces,
     activeWorkspaceId,
@@ -336,6 +338,20 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
           title={t('sidebar.preferencesTip')}
         >
           {t('sidebar.preferences')}
+        </button>
+        <button
+          onClick={onOpenMcpPermissions}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="MCP 工具权限管理"
+        >
+          MCP 权限
+        </button>
+        <button
+          onClick={onOpenMemoryAgent}
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          title="记忆智能体 - 知识缺口扫描 & 复习提醒"
+        >
+          记忆智能体
         </button>
         <button
           onClick={onOpenImportCenter}

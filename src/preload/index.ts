@@ -552,6 +552,70 @@ const api = {
     ): Promise<DistillationTemplate | null> => ipcRenderer.invoke(IPC.DISTILL_UPDATE, id, patch),
     /** 删除模板（内置模板禁止删除） */
     delete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.DISTILL_DELETE, id)
+  },
+
+  // ===== 记忆版本控制（v1.10） =====
+  audit: {
+    /** 获取实体的版本历史 */
+    versionHistory: (entityId: string, entityType: string): Promise<AuditLog[]> =>
+      ipcRenderer.invoke(IPC.AUDIT_VERSION_HISTORY, entityId, entityType),
+    /** 回滚实体到指定版本 */
+    rollback: (entityType: string, auditLogId: string): Promise<{ success: boolean; entityId: string; message: string }> =>
+      ipcRenderer.invoke(IPC.AUDIT_ROLLBACK, entityType, auditLogId)
+  },
+
+  // ===== MCP 工具权限系统（v1.10） =====
+  mcpPermissions: {
+    /** 列出所有客户端权限 */
+    list: (): Promise<Array<{
+      id: string; clientId: string; clientName: string
+      level: string; allowedTools: string | null; enabled: boolean
+      createdAt: string; updatedAt: string
+    }>> => ipcRenderer.invoke(IPC.MCP_PERMISSIONS_LIST),
+    /** 保存/更新客户端权限 */
+    save: (input: {
+      clientId: string; clientName: string
+      level?: string; allowedTools?: string | null; enabled?: boolean
+    }): Promise<{
+      id: string; clientId: string; clientName: string
+      level: string; allowedTools: string | null; enabled: boolean
+      createdAt: string; updatedAt: string
+    }> => ipcRenderer.invoke(IPC.MCP_PERMISSIONS_SAVE, input),
+    /** 删除客户端权限 */
+    delete: (clientId: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.MCP_PERMISSIONS_DELETE, clientId)
+  },
+
+  // ===== 记忆智能体（v1.10） =====
+  memoryAgent: {
+    /** 扫描知识缺口 */
+    scan: (workspaceId?: string): Promise<Array<{
+      entryId: string; entryTitle: string; gapType: string
+      description: string; severity: string; suggestion: string
+    }>> => ipcRenderer.invoke(IPC.MEMORY_AGENT_SCAN, workspaceId),
+    /** 获取待复习队列 */
+    reviewQueue: (workspaceId?: string): Promise<Array<{
+      entryId: string; entryTitle: string; entryType: string
+      daysSinceLastReview: number; priority: string; reason: string
+    }>> => ipcRenderer.invoke(IPC.MEMORY_AGENT_REVIEW_QUEUE, workspaceId),
+    /** 获取智能体状态 */
+    status: (): Promise<{
+      running: boolean; intervalMinutes: number
+      lastScanAt: string | null; nextScanAt: string | null
+      gapsFound: number; reviewItems: number
+    }> => ipcRenderer.invoke(IPC.MEMORY_AGENT_STATUS),
+    /** 启动定期扫描 */
+    start: (intervalMinutes?: number): Promise<{
+      running: boolean; intervalMinutes: number
+      lastScanAt: string | null; nextScanAt: string | null
+      gapsFound: number; reviewItems: number
+    }> => ipcRenderer.invoke(IPC.MEMORY_AGENT_START, intervalMinutes),
+    /** 停止定期扫描 */
+    stop: (): Promise<{
+      running: boolean; intervalMinutes: number
+      lastScanAt: string | null; nextScanAt: string | null
+      gapsFound: number; reviewItems: number
+    }> => ipcRenderer.invoke(IPC.MEMORY_AGENT_STOP)
   }
 }
 

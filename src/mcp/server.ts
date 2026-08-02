@@ -43,7 +43,8 @@ import {
   DESTRUCTIVE_TOOLS,
   auditToolCall,
   isToolAllowed,
-  ALLOWED_TOOLS
+  ALLOWED_TOOLS,
+  checkClientPermission
 } from './accessControl'
 import { handleSessionsTool } from './tools/sessions'
 import { handleKnowledgeTool } from './tools/knowledge'
@@ -68,15 +69,32 @@ interface JsonRpcResponse {
 /**
  * 调用工具（导出供单测：路由 + 访问控制集成验证）
  * @internal 仅供 server.ts 与测试使用，外部不应直接调用
+ *
+ * @param name - 工具名称
+ * @param args - 工具参数
+ * @param clientId - 可选，MCP 客户端标识（用于数据库权限检查）
  */
-export async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-  // 工具白名单检查（管理员可通过 MEMORA_ALLOWED_TOOLS 限制可用工具）
-  if (!isToolAllowed(name)) {
-    auditToolCall(name, args, false, 'tool not in whitelist')
-    throw new Error(
-      `[WHITELIST] 工具 ${name} 不在允许列表中。` +
-      '管理员已通过 MEMORA_ALLOWED_TOOLS 环境变量限制了可用工具。'
-    )
+export async function callTool(name: string, args: Record<string, unknown>, clientId?: string): Promise<unknown> {
+  // 数据库权限检查（v1.10）：如果提供了 clientId，优先使用数据库模式
+  if (clientId) {
+    const perm = checkClientPermission(clientId, name)
+    if (!perm.allowed) {
+      auditToolCall(name, args, false, `client ${clientId}: ${perm.reason}`)
+      throw new Error(
+        `[PERMISSION] 客户端 "${clientId}" 无权访问工具 ${name}。` +
+        `原因: ${perm.reason}。请在 Memora GUI 中配置 MCP 权限。`
+      )
+    }
+  } else {
+    // 回退到环境变量模式（向后兼容）
+    // 工具白名单检查（管理员可通过 MEMORA_ALLOWED_TOOLS 限制可用工具）
+    if (!isToolAllowed(name)) {
+      auditToolCall(name, args, false, 'tool not in whitelist')
+      throw new Error(
+        `[WHITELIST] 工具 ${name} 不在允许列表中。` +
+        '管理员已通过 MEMORA_ALLOWED_TOOLS 环境变量限制了可用工具。'
+      )
+    }
   }
 
   // 参数校验（Zod schema 校验，防止恶意/畸形数据注入）
@@ -84,7 +102,7 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
 
   // 破坏性工具检查（最高优先级，默认拒绝）
   if (DESTRUCTIVE_TOOLS.has(name)) {
-    if (!isDestructiveEnabled) {
+    if (!isDestructiveEnabled && !clientId) {
       auditToolCall(name, validatedArgs, false, 'destructive not enabled')
       throw new Error(
         '[DESTRUCTIVE] 破坏性操作（delete/forget）默认禁止。' +
@@ -95,7 +113,7 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     auditToolCall(name, validatedArgs, true, 'destructive')
   } else if (WRITE_TOOLS.has(name)) {
     // 普通写工具检查（默认只读，需 opt-in）
-    if (!isWriteEnabled) {
+    if (!isWriteEnabled && !clientId) {
       auditToolCall(name, validatedArgs, false, 'write not enabled')
       throw new Error(
         '[READONLY] MCP 默认只读，不允许执行写入操作。' +
@@ -164,6 +182,7 @@ export async function startMcpServer(): Promise<void> {
   })
 
   const rl = createInterface({ input: process.stdin, terminal: false })
+  let clientId: string | undefined
 
   const send = (response: JsonRpcResponse) => {
     process.stdout.write(JSON.stringify(response) + '\n')
@@ -184,7 +203,13 @@ export async function startMcpServer(): Promise<void> {
 
     try {
       switch (method) {
-        case 'initialize':
+        case 'initialize': {
+          // 提取客户端信息用于权限检查
+          const clientInfo = params?.clientInfo as { name?: string; version?: string } | undefined
+          if (clientInfo?.name) {
+            clientId = clientInfo.name.toLowerCase().replace(/\s+/g, '-')
+            logger.info(`[MCP] client connected: ${clientId}`, clientInfo)
+          }
           send({
             jsonrpc: '2.0',
             id,
@@ -198,6 +223,7 @@ export async function startMcpServer(): Promise<void> {
             }
           })
           break
+        }
 
         case 'initialized':
           // 通知，无需响应
@@ -224,7 +250,7 @@ export async function startMcpServer(): Promise<void> {
         case 'tools/call': {
           const toolName = String(params?.name ?? '')
           const toolArgs = (params?.arguments ?? {}) as Record<string, unknown>
-          callTool(toolName, toolArgs)
+          callTool(toolName, toolArgs, clientId)
             .then((result) => {
               send({
                 jsonrpc: '2.0',

@@ -222,7 +222,25 @@ export const IPC = {
 
   // 全量数据迁移（v1.7.1）—— 导出/导入整个工作区为归档文件
   SYSTEM_EXPORT_DATA: 'system:export-data',
-  SYSTEM_IMPORT_DATA: 'system:import-data'
+  SYSTEM_IMPORT_DATA: 'system:import-data',
+
+  // 记忆版本控制（v1.10）—— 版本历史浏览 + 回滚
+  AUDIT_VERSION_HISTORY: 'audit:version-history',
+  AUDIT_ROLLBACK: 'audit:rollback',
+
+  // MCP 工具权限系统（v1.10）—— 按客户端粒度授权
+  MCP_PERMISSIONS_LIST: 'mcp:permissions:list',
+  MCP_PERMISSIONS_SAVE: 'mcp:permissions:save',
+  MCP_PERMISSIONS_DELETE: 'mcp:permissions:delete',
+  MCP_PERMISSIONS_CHECK: 'mcp:permissions:check',
+
+  // 记忆智能体（v1.10）—— 定期扫描 + 知识缺口检测 + 间隔重复
+  MEMORY_AGENT_SCAN: 'memory-agent:scan',
+  MEMORY_AGENT_STATUS: 'memory-agent:status',
+  MEMORY_AGENT_START: 'memory-agent:start',
+  MEMORY_AGENT_STOP: 'memory-agent:stop',
+  MEMORY_AGENT_GAPS: 'memory-agent:gaps',
+  MEMORY_AGENT_REVIEW_QUEUE: 'memory-agent:review-queue'
 } as const
 
 /** Provider 显示元信息 */

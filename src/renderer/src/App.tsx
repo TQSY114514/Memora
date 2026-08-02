@@ -9,6 +9,8 @@ const Settings = lazy(() => import('./components/Settings').then(m => ({ default
 const ProjectMemoryPanel = lazy(() => import('./components/ProjectMemory').then(m => ({ default: m.ProjectMemoryPanel })))
 const KnowledgePanel = lazy(() => import('./components/Knowledge').then(m => ({ default: m.KnowledgePanel })))
 const PreferenceExplorer = lazy(() => import('./components/PreferenceExplorer').then(m => ({ default: m.PreferenceExplorer })))
+const McpPermissionsPanel = lazy(() => import('./components/McpPermissions').then(m => ({ default: m.McpPermissionsPanel })))
+const MemoryAgentPanel = lazy(() => import('./components/MemoryAgent').then(m => ({ default: m.MemoryAgentPanel })))
 import { useStore } from './stores/appStore'
 import { useImportStore } from './stores/importStore'
 import { useThemeStore } from './stores/themeStore'
@@ -36,6 +38,8 @@ export default function App() {
   const [showPreferencePanel, setShowPreferencePanel] = useState(false)
   const [showImportCenter, setShowImportCenter] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMcpPermissions, setShowMcpPermissions] = useState(false)
+  const [showMemoryAgent, setShowMemoryAgent] = useState(false)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const ensured = useRef(false)
@@ -133,6 +137,8 @@ export default function App() {
         onOpenPreferences={() => setShowPreferencePanel(true)}
         onOpenImportCenter={() => setShowImportCenter(true)}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenMcpPermissions={() => setShowMcpPermissions(true)}
+        onOpenMemoryAgent={() => setShowMemoryAgent(true)}
       />
       {showMemoryPanel ? (
         <Suspense fallback={<PanelSkeleton />}>
@@ -145,6 +151,14 @@ export default function App() {
       ) : showPreferencePanel ? (
         <Suspense fallback={<PanelSkeleton />}>
           <PreferenceExplorer onClose={() => setShowPreferencePanel(false)} />
+        </Suspense>
+      ) : showMcpPermissions ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <McpPermissionsPanel onClose={() => setShowMcpPermissions(false)} />
+        </Suspense>
+      ) : showMemoryAgent ? (
+        <Suspense fallback={<PanelSkeleton />}>
+          <MemoryAgentPanel onClose={() => setShowMemoryAgent(false)} />
         </Suspense>
       ) : (
         <>

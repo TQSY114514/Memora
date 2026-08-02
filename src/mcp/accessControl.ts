@@ -1,11 +1,18 @@
 /**
- * MCP 访问控制（v1.8）
+ * MCP 访问控制（v1.8 → v1.10）
  *
- * 安全默认：默认只读。需显式 opt-in 才能写入或执行破坏性操作。
+ * 两级权限控制：
+ * 1. 环境变量模式（默认）：通过 MEMORA_WRITE / MEMORA_DESTRUCTIVE 控制
+ * 2. 数据库模式（v1.10）：通过 mcp_client_permissions 表按客户端粒度控制
+ *
+ * 当数据库中配置了客户端权限时，优先使用数据库模式。
+ * 否则回退到环境变量模式（向后兼容）。
+ *
  * handler 逻辑见 server.ts 的 callTool。
  */
 
 import { logger } from '../main/logger'
+import { checkMcpPermission } from '../database/repositories/mcpPermissionsRepo'
 
 // ===== MCP 访问控制（v1.8） =====
 // 安全默认：默认只读。需显式 opt-in 才能写入或执行破坏性操作。
@@ -56,6 +63,35 @@ export const ALLOWED_TOOLS: Set<string> | null = allowedToolsEnv
 export function isToolAllowed(name: string): boolean {
   if (ALLOWED_TOOLS === null) return true  // 未设置白名单，允许全部
   return ALLOWED_TOOLS.has(name)
+}
+
+/**
+ * 检查客户端是否有权限执行指定工具（v1.10 数据库模式）。
+ *
+ * 优先使用数据库中的客户端权限配置，
+ * 如果数据库中没有配置任何客户端权限，则回退到环境变量模式。
+ *
+ * @param clientId - MCP 客户端标识（如 'claude-desktop'）
+ * @param toolName - 工具名称
+ * @returns 权限检查结果
+ */
+export function checkClientPermission(clientId: string, toolName: string): {
+  allowed: boolean
+  reason: string
+  level: string
+  useDatabase: boolean
+} {
+  try {
+    const result = checkMcpPermission(clientId, toolName)
+    if (result.level === 'inherit') {
+      // 数据库中没有配置，回退到环境变量
+      return { allowed: result.allowed, reason: result.reason, level: 'env', useDatabase: false }
+    }
+    return { ...result, useDatabase: true }
+  } catch {
+    // 数据库检查失败，回退到环境变量
+    return { allowed: true, reason: 'database check failed, falling back to env', level: 'env', useDatabase: false }
+  }
 }
 
 /** 审计日志：记录写/破坏性工具的调用，便于追溯 */

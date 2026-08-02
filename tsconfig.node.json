@@ -39,6 +39,7 @@
     "src/sharing/**/*",
     "src/ai/**/*",
     "src/mcp/**/*",
+    "src/memoryAgent/**/*",
     "electron.vite.config.ts"
   ]
 }
