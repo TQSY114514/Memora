@@ -203,6 +203,8 @@ export interface ImportResult {
   errors: string[]
   /** 导入的对话 ID 列表 */
   sessionIds: string[]
+  /** 检测到的 PII 命中数（仅告警，不自动脱敏用户数据） */
+  piiWarnings?: number
 }
 
 /** 检测到的 AI 应用（仅检测安装状态，不读取内容） */

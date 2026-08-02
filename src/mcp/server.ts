@@ -41,7 +41,9 @@ import {
   isDestructiveEnabled,
   WRITE_TOOLS,
   DESTRUCTIVE_TOOLS,
-  auditToolCall
+  auditToolCall,
+  isToolAllowed,
+  ALLOWED_TOOLS
 } from './accessControl'
 import { handleSessionsTool } from './tools/sessions'
 import { handleKnowledgeTool } from './tools/knowledge'
@@ -68,6 +70,15 @@ interface JsonRpcResponse {
  * @internal 仅供 server.ts 与测试使用，外部不应直接调用
  */
 export async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  // 工具白名单检查（管理员可通过 MEMORA_ALLOWED_TOOLS 限制可用工具）
+  if (!isToolAllowed(name)) {
+    auditToolCall(name, args, false, 'tool not in whitelist')
+    throw new Error(
+      `[WHITELIST] 工具 ${name} 不在允许列表中。` +
+      '管理员已通过 MEMORA_ALLOWED_TOOLS 环境变量限制了可用工具。'
+    )
+  }
+
   // 参数校验（Zod schema 校验，防止恶意/畸形数据注入）
   const validatedArgs = validateToolArgs(name, args)
 
@@ -146,7 +157,8 @@ export async function startMcpServer(): Promise<void> {
   logger.info('MCP server starting', {
     readOnly: isReadOnly,
     writeEnabled: isWriteEnabled,
-    destructiveEnabled: isDestructiveEnabled
+    destructiveEnabled: isDestructiveEnabled,
+    whitelist: ALLOWED_TOOLS ? `${ALLOWED_TOOLS.size} tools` : 'all tools'
   })
 
   const rl = createInterface({ input: process.stdin, terminal: false })
@@ -189,18 +201,23 @@ export async function startMcpServer(): Promise<void> {
           // 通知，无需响应
           break
 
-        case 'tools/list':
+        case 'tools/list': {
+          const whitelist = ALLOWED_TOOLS
+          const visibleTools = whitelist
+            ? TOOLS.filter((t) => whitelist.has(t.name))
+            : TOOLS
           send({
             jsonrpc: '2.0',
             id,
             result: {
-              tools: TOOLS,
+              tools: visibleTools,
               _note: isReadOnly
                 ? '当前为只读模式，写入类工具（add_session, add_message, memory_write 等）不可用。'
                 : undefined
             }
           })
           break
+        }
 
         case 'tools/call': {
           const toolName = String(params?.name ?? '')

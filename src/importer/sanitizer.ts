@@ -10,6 +10,8 @@
  * - 零副作用：纯字符串处理，不依赖外部服务
  */
 
+import { detectPii, sanitizePii, type PiiMatch } from './piiDetector'
+
 interface SanitizePattern {
   /** 正则（必须带 g 标志） */
   re: RegExp
@@ -62,13 +64,40 @@ export interface SanitizeStats {
   patterns: Record<string, number>
 }
 
+/** 清洗选项 */
+export interface SanitizeOptions {
+  /**
+   * 是否同时脱敏 PII（邮箱/电话/身份证/信用卡/JWT/私钥）。
+   * 默认 false：仅检测计数，保留原文（保护用户数据，仅用于告警）。
+   */
+  sanitizePii?: boolean
+}
+
+/** 清洗单条文本的返回结果 */
+export interface SanitizeResult {
+  text: string
+  /** 凭证脱敏次数（API Key / Token / 密码，已自动替换） */
+  count: number
+  /** 检测到的 PII 数量（无论是否脱敏） */
+  piiCount: number
+  /** 命中的 PII 明细（用于上层告警） */
+  piiMatches: PiiMatch[]
+}
+
 /**
  * 清洗单条文本内容中的敏感信息
- * 返回 { text: 脱敏后的文本, count: 替换次数 }
+ *
+ * 两趟处理：
+ * 1. 凭证脱敏（自动）：API Key / Token / 密码等高置信度凭证，原地替换为 [REDACTED:类型]
+ * 2. PII 检测（附加）：调用 detectPii 覆盖更广的 PII 类型（邮箱/电话/身份证/信用卡/JWT/私钥）。
+ *    默认仅检测计数（piiCount）并保留原文——保护用户数据；传入 { sanitizePii: true } 时同步脱敏。
  */
-export function sanitizeContent(text: string): { text: string; count: number } {
-  if (!text || typeof text !== 'string') return { text, count: 0 }
+export function sanitizeContent(text: string, options?: SanitizeOptions): SanitizeResult {
+  if (!text || typeof text !== 'string') {
+    return { text, count: 0, piiCount: 0, piiMatches: [] }
+  }
 
+  // Pass 1: 既有凭证脱敏（自动）
   let result = text
   let count = 0
 
@@ -89,24 +118,40 @@ export function sanitizeContent(text: string): { text: string; count: number } {
     }
   }
 
-  return { text: result, count }
+  // Pass 2: PII 检测（附加）——默认仅检测，不修改原文；sanitizePii=true 时同步脱敏
+  const pii = detectPii(result)
+  if (options?.sanitizePii) {
+    result = sanitizePii(result)
+  }
+
+  return { text: result, count, piiCount: pii.matches.length, piiMatches: pii.matches }
 }
 
 /**
  * 批量清洗消息内容
- * 在 persistSessions 之前调用，对每条消息的 content 做脱敏
- * 返回总替换次数（仅用于日志，不阻塞导入流程）
+ * 在 persistSessions 之前调用，对每条消息的 content 做凭证脱敏 + PII 检测。
+ * - 凭证（API Key/Token/密码）始终自动脱敏
+ * - PII（邮箱/电话/身份证等）默认仅检测计数（保护用户数据），传入 { sanitizePii: true } 时同步脱敏
+ * 返回 { sanitized: 凭证脱敏次数, piiCount: PII 命中数, piiMatches: PII 明细 }，仅用于日志/告警，不阻塞导入流程。
  */
 export function sanitizeMessages(
-  messages: Array<{ content: string; role?: string; model?: string; order: number; createdAt: string }>
-): number {
+  messages: Array<{ content: string; role?: string; model?: string; order: number; createdAt: string }>,
+  options?: SanitizeOptions
+): { sanitized: number; piiCount: number; piiMatches: PiiMatch[] } {
   let totalCount = 0
+  let totalPii = 0
+  const allPii: PiiMatch[] = []
+
   for (const msg of messages) {
-    const { text, count } = sanitizeContent(msg.content)
-    if (count > 0) {
-      msg.content = text
-      totalCount += count
+    const r = sanitizeContent(msg.content, options)
+    // 文本被改动（凭证脱敏 或 PII 脱敏）时回写
+    if (r.count > 0 || (options?.sanitizePii && r.piiCount > 0)) {
+      msg.content = r.text
     }
+    totalCount += r.count
+    totalPii += r.piiCount
+    if (r.piiMatches.length > 0) allPii.push(...r.piiMatches)
   }
-  return totalCount
+
+  return { sanitized: totalCount, piiCount: totalPii, piiMatches: allPii }
 }

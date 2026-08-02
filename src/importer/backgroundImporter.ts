@@ -12,7 +12,8 @@
  * 目标文件夹必须选择，否则不执行（避免导入到「全部聊天」）
  */
 import { app, BrowserWindow } from 'electron'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { writeFileSync, existsSync } from 'fs'
+import { safeReadFileSync, safeJsonParse } from './safeRead'
 import { join } from 'path'
 import { detectInstalledApps } from './appDetector'
 import { extractLocal } from './localExtractor'
@@ -76,7 +77,7 @@ class BackgroundImporter {
     try {
       const p = join(app.getPath('userData'), 'bg-import-config.json')
       if (existsSync(p)) {
-        const raw = JSON.parse(readFileSync(p, 'utf-8'))
+        const raw = safeJsonParse<Partial<BackgroundImportConfig>>(safeReadFileSync(p))
         this.config = { ...DEFAULT_CONFIG, ...raw }
       }
     } catch {

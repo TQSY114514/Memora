@@ -1,60 +1,66 @@
-# Security Policy
+# 安全策略
 
-## Supported Versions
+## 报告漏洞
 
-Memora 采用本地优先架构，所有用户数据（AI 对话、偏好、知识库）均存储在用户本机的 SQLite 数据库中，不上传到任何服务器。我们仅对以下版本提供安全更新：
+如果您发现了安全漏洞，请**不要**在 GitHub Issues 中公开报告。
 
-| Version | Supported          | Notes |
-| ------- | ------------------ | ----- |
-| 1.7.x   | :white_check_mark: | 当前稳定线 |
-| 1.6.x   | :white_check_mark: | 维护中（仅安全修复） |
-| < 1.6   | :x:                | 已停止维护，请升级 |
+请通过以下方式私密报告：
+1. 在 GitHub 上创建 [Security Advisory](https://github.com/TQSY114514/Memora/security/advisories/new)
+2. 或发送邮件至仓库所有者
 
-## Reporting a Vulnerability
+我们承诺：
+- 在 **48 小时内**确认收到报告
+- 在 **7 天内**提供初步评估
+- 在修复发布后公开致谢（如果您同意）
 
-我们非常重视 Memora 的安全问题——本项目存储用户敏感的 AI 对话历史，安全是我们的核心承诺。
+## 安全架构
 
-### 上报渠道（按优先级）
+### 数据存储
+- **本地优先**：所有数据存储在用户本地 SQLite 数据库，不上传任何服务器
+- **文件权限**：数据库文件以 `0600` 权限创建（仅当前用户可读写）
+- **API Key 加密**：使用 Electron `safeStorage` 加密存储 API Key
+- **零遥测**：不收集任何遥测数据，不训练模型
 
-1. **GitHub Security Advisory（推荐）**：前往 https://github.com/TQSY114514/Memora/security/advisories/new 提交私密漏洞报告。此渠道端到端加密，仅仓库维护者可见。
-2. **邮箱**：发送至 `tqishengyan@gmail.com`，主题请加 `[SECURITY]` 前缀。
+### 进程隔离
+- **渲染进程沙箱**：`sandbox: true`，禁用 `nodeIntegration`
+- **Context Isolation**：`contextIsolation: true`，preload 通过 `contextBridge` 暴露最小 API
+- **CSP**：严格 Content-Security-Policy，限制资源加载为同源
+- **自定义协议**：使用 `app://` 协议替代 `file://`，防止动态 import 路径问题
 
-### 请勿公开
+### IPC 安全
+- **路径白名单**：所有文件操作验证路径在允许的根目录内（userData/Downloads/Documents/Desktop）
+- **ID 校验**：所有 IPC handler 使用 `assertSafeId` 校验 ID 格式（`/^[A-Za-z0-9_-]{1,64}$/`）
+- **频率限制**：IPC 通道分级限流（读 120/写 30/敏感 10 次每 10 秒）
+- **原子文件操作**：备份/恢复使用 `tmp + rename` 原子操作
 
-在漏洞修复并发布之前，**请勿在 GitHub Issue、PR 或任何公开渠道披露漏洞细节**，以免被恶意利用。
+### MCP Server 安全
+- **默认只读**：MCP Server 默认拒绝所有写/删除操作
+- **三级访问控制**：只读 → 写入（`--write`）→ 破坏性（`--destructive`）
+- **Zod Schema 校验**：全部 25 个工具入参经 Zod 运行时校验
+- **审计日志**：所有写/破坏性操作记录审计日志
+- **工具白名单**：支持 `MEMORA_ALLOWED_TOOLS` 环境变量限制可用工具
 
-### 响应时效
+### 导入安全
+- **只读模式**：导入器以只读方式读取 AI 应用数据，不修改原始文件
+- **符号链接检查**：拒绝读取符号链接文件，防止 symlink 攻击
+- **文件大小限制**：单文件上限 100MB，防止 OOM
+- **JSON 深度限制**：JSON 解析最大嵌套深度 100，防止深度嵌套攻击
+- **PII 检测**：导入时自动检测 API Key/邮箱/电话/身份证等敏感信息
+- **凭证自动脱敏**：API Key/Token/密码等凭证在导入时自动脱敏
 
-| 阶段 | 承诺 |
-| --- | --- |
-| 确认收到 | 48 小时内 |
-| 初步评估 | 5 个工作日内 |
-| 修复发布 | 严重漏洞 14 天内；其他视复杂度而定 |
-| 公开披露 | 修复发布后 90 天，或与上报者协商的时间 |
+### SQL 安全
+- **预编译语句**：所有数据库查询使用 `better-sqlite3` 参数化查询
+- **动态列名白名单**：`buildUpdateSets` 使用 `columnMap` 白名单 + 正则校验
+- **FTS5 查询转义**：全文搜索输入按 FTS5 规范转义双引号，参数化传递
 
-### 报告内容
+## 已知限制
 
-为加快处理，请尽量包含：
-- 受影响的版本号与平台（Windows / macOS / Linux）
-- 复现步骤（最小化样例最佳）
-- 影响评估（如可导致数据泄露、任意代码执行等）
-- 建议的修复方向（可选）
+- 本项目 90%+ 代码由 AI 生成，未经专业安全审计
+- SQLite 数据库文件未加密（攻击者获取文件后可直接读取），建议未来支持 SQLCipher
+- 导出的 HTML 分享包包含明文对话内容，请注意分享范围
 
-## Security Measures
+## 依赖安全
 
-Memora 已内置以下安全机制：
-
-- **API Key 加密存储**：使用 Electron `safeStorage`（macOS Keychain / Windows DPAPI / Linux libsecret）加密，渲染进程永不接触明文存储
-- **CSP 内容安全策略**：禁止内联脚本与动态脚本执行，限制资源加载来源
-- **沙箱 + contextIsolation**：渲染进程无法直接访问 Node API
-- **MCP 只读模式**：可通过 `MEMORA_READONLY=true` 或 `--readonly` 启用只读模式，限制写操作
-- **自动热备份**：支持 AES-256-GCM 加密备份
-- **全局结构化日志**：敏感字段自动脱敏
-
-## Scope
-
-以下情况**不在**安全政策范围内：
-
-- 用户自行修改源码引入的问题
-- 用户在无加密环境的系统（如无 libsecret 的 Linux）上运行，且已知会降级存储 API Key 的情况
-- 第三方依赖的已知漏洞（请通过 `npm audit` 自行排查，我们会跟进修复）
+- CI 集成 `npm audit --audit-level=high` 门禁
+- 核心依赖（Electron、better-sqlite3、React）定期更新
+- 使用 `package-lock.json` 锁定依赖版本

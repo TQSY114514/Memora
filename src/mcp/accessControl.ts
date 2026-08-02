@@ -43,6 +43,21 @@ export const DESTRUCTIVE_TOOLS = new Set([
   'memory_forget'
 ])
 
+// ===== 工具白名单模式 =====
+// 管理员可通过 MEMORA_ALLOWED_TOOLS 环境变量限制 MCP 可用的工具子集。
+// 格式：逗号分隔的工具名列表，如 "search_sessions,get_session,memory_recall"
+// 未设置时允许所有工具（向后兼容）。
+const allowedToolsEnv = process.env['MEMORA_ALLOWED_TOOLS']?.trim()
+export const ALLOWED_TOOLS: Set<string> | null = allowedToolsEnv
+  ? new Set(allowedToolsEnv.split(',').map((t) => t.trim()).filter(Boolean))
+  : null
+
+/** 检查工具是否在白名单中允许 */
+export function isToolAllowed(name: string): boolean {
+  if (ALLOWED_TOOLS === null) return true  // 未设置白名单，允许全部
+  return ALLOWED_TOOLS.has(name)
+}
+
 /** 审计日志：记录写/破坏性工具的调用，便于追溯 */
 export function auditToolCall(name: string, args: Record<string, unknown>, allowed: boolean, reason?: string): void {
   logger.info('[MCP audit] tool call', {

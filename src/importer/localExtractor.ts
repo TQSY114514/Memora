@@ -10,7 +10,8 @@
  * - 仅读取对话相关数据，不读取配置/密钥/凭据
  * - 扒取结果暂存内存，用户确认后才导入
  */
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
+import { readdirSync, statSync, existsSync } from 'fs'
+import { safeReadFileSync, safeJsonParse } from './safeRead'
 import { join } from 'path'
 import type { Provider, ExtractedSession } from '@shared/types'
 import type { ParsedMessage } from './types'
@@ -43,7 +44,7 @@ function tmpId(): string {
 /** 安全 JSON parse */
 function tryParse<T>(s: string): T | null {
   try {
-    return JSON.parse(s) as T
+    return safeJsonParse<T>(s)
   } catch {
     return null
   }
@@ -255,7 +256,11 @@ function extractClaudeCode(dir: string): ExtractedSession[] {
   for (const proj of projects) {
     const projDir = join(dir, proj)
     if (!isDir(projDir)) continue
-    const files = safeReaddir(projDir).filter((f) => f.endsWith('.jsonl'))
+    let files = safeReaddir(projDir).filter((f) => f.endsWith('.jsonl'))
+    if (files.length > 5000) {
+      console.warn(`[安全] ClaudeCode 项目 ${proj} 文件数过多 (${files.length})，截断到 5000`)
+      files = files.slice(0, 5000)
+    }
     for (const file of files) {
       const filePath = join(projDir, file)
       const session = parseClaudeCodeJsonl(filePath, proj)
@@ -269,7 +274,7 @@ function extractClaudeCode(dir: string): ExtractedSession[] {
 function parseClaudeCodeJsonl(filePath: string, projectName: string): ExtractedSession | null {
   let content: string
   try {
-    content = readFileSync(filePath, 'utf-8')
+    content = safeReadFileSync(filePath)
   } catch {
     return null
   }
@@ -386,7 +391,7 @@ function extractOpenCode(dir: string): ExtractedSession[] {
 function parseOpenCodeJson(filePath: string): ExtractedSession | null {
   let content: string
   try {
-    content = readFileSync(filePath, 'utf-8')
+    content = safeReadFileSync(filePath)
   } catch {
     return null
   }

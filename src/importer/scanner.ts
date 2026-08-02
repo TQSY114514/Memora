@@ -9,7 +9,8 @@
  *
  * 不扫描：浏览器 Cookie、密码、系统配置、隐藏目录、node_modules
  */
-import { readdirSync, statSync, readFileSync, openSync, readSync, closeSync, existsSync } from 'fs'
+import { readdirSync, statSync, openSync, readSync, closeSync, existsSync } from 'fs'
+import { safeReadFileSync } from './safeRead'
 import { basename, extname, join } from 'path'
 import { registerBuiltins, detectImporter } from './index'
 import type { Provider, ScanPreview, ScanResult } from '@shared/types'
@@ -92,7 +93,7 @@ export function previewFile(filePath: string): ScanPreview {
     let content: string
     if (stat.size <= PREVIEW_PARSE_LIMIT) {
       // 小文件：读全部，detect + parse 预估
-      content = readFileSync(filePath, 'utf-8')
+      content = safeReadFileSync(filePath)
     } else {
       // 大文件：只读头部做 detect，不 parse（保护隐私 + 性能）
       const fd = openSync(filePath, 'r')
@@ -157,6 +158,8 @@ export function scanDirectory(root: string, opts?: ScanOptions): ScanResult {
 
     for (const entry of entries) {
       if (files.length >= maxFiles) break
+      // 跳过符号链接（防止遍历中的 symlink 攻击）
+      if (entry.isSymbolicLink()) continue
       // 跳过隐藏文件/目录和敏感目录
       if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue
 

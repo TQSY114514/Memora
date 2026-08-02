@@ -1,4 +1,5 @@
-import { readFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'fs'
+import { readdirSync, statSync, openSync, readSync, closeSync } from 'fs'
+import { safeReadFileSync } from './safeRead'
 import { StringDecoder } from 'string_decoder'
 import { basename, extname, join } from 'path'
 import { registerBuiltins, detectImporter, getImporter } from '../importer'
@@ -64,7 +65,7 @@ export function importFile(
   // 全量路径（小文件或流式回退）
   let content: string
   try {
-    content = readFileSync(filePath, 'utf-8')
+    content = safeReadFileSync(filePath)
   } catch (e) {
     return {
       imported: 0,
@@ -136,6 +137,7 @@ function importLargeJsonFile(
       result.skipped += r.skipped
       result.failed += r.failed
       result.sessionIds.push(...r.sessionIds)
+      result.piiWarnings = (result.piiWarnings ?? 0) + (r.piiWarnings ?? 0)
       if (r.errors.length) result.errors.push(...r.errors)
     } catch (e) {
       result.failed++
@@ -312,6 +314,7 @@ export function importDirectory(
     aggregated.skipped += r.skipped
     aggregated.failed += r.failed
     aggregated.sessionIds.push(...r.sessionIds)
+    aggregated.piiWarnings = (aggregated.piiWarnings ?? 0) + (r.piiWarnings ?? 0)
     if (r.errors.length > 0) {
       aggregated.errors.push(`${file}: ${r.errors.join('; ')}`)
     }
@@ -330,7 +333,8 @@ export function persistSessions(
     skipped: 0,
     failed: 0,
     errors: [],
-    sessionIds: []
+    sessionIds: [],
+    piiWarnings: 0
   }
 
   // 平台统计
@@ -369,10 +373,14 @@ export function persistSessions(
         createdAt: m.createdAt
       }))
 
-      // 导入前脱敏：检测并移除 API Key / Token / 密码等敏感信息，防止凭证入库
-      const sanitizedCount = sanitizeMessages(messages)
+      // 导入前脱敏：检测并移除 API Key / Token / 密码等凭证，防止凭证入库
+      // PII（邮箱/电话/身份证/信用卡/JWT/私钥）仅检测计数（piiCount），不自动脱敏——保留用户数据，仅告警
+      const { sanitized: sanitizedCount, piiCount } = sanitizeMessages(messages)
       if (sanitizedCount > 0) {
         result.errors.push(`「${parsed.title}」: 已脱敏 ${sanitizedCount} 处敏感信息`)
+      }
+      if (piiCount > 0) {
+        result.piiWarnings = (result.piiWarnings ?? 0) + piiCount
       }
 
       const created = createSession(sessionInput as never, messages)

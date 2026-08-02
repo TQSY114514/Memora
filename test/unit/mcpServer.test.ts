@@ -30,6 +30,8 @@ vi.mock('../../src/mcp/accessControl', () => ({
   DESTRUCTIVE_TOOLS: new Set([
     'delete_session', 'knowledge_entry_delete', 'memory_forget'
   ]),
+  ALLOWED_TOOLS: null,
+  isToolAllowed: () => true,
   auditToolCall: vi.fn()
 }))
 
