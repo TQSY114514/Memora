@@ -1,35 +1,32 @@
 /**
- * Memory Security Center —— 安全中心
+ * Memory Security Center —— 安全中心 v2.0
  *
- * 聚合展示加密状态、敏感信息检测、脱敏建议等安全信息。
+ * 聚合展示加密状态、敏感信息检测、Prompt Injection 风险、脱敏建议等安全信息。
+ *
+ * v2.0: 新增 Prompt Injection 风险扫描
  */
 
 import { getDatabase } from '../database/connection'
 import { safeStorage } from 'electron'
 import { detectPii } from '../importer/piiDetector'
+import { detectPromptInjection } from '../importer/promptInjectionDetector'
+
 
 export interface SecurityCenterReport {
   generatedAt: string
   encryption: {
-    /** 主进程 safeStorage 是否可用 */
     safeStorageAvailable: boolean
-    /** 已加密存储的 API Key 数量 */
     encryptedKeysCount: number
-    /** 加密状态评估 */
     status: 'secure' | 'partial' | 'insecure'
-    /** 说明 */
     note: string
   }
   sensitiveInfo: {
-    /** 检测到的敏感信息总数 */
     total: number
-    /** 按类型分组 */
     byType: Array<{
       type: string
       count: number
       lastDetectedAt: string
     }>
-    /** 最近的敏感信息样本（脱敏后） */
     samples: Array<{
       type: string
       masked: string
@@ -37,14 +34,21 @@ export interface SecurityCenterReport {
       detectedAt: string
     }>
   }
+  /** v2.0: Prompt Injection 风险 */
+  injectionRisk: {
+    scanned: number
+    risky: number
+    riskLevel: string
+    samples: Array<{
+      source: string
+      riskLevel: string
+      summary: string
+    }>
+  }
   dataSafety: {
-    /** 数据库路径 */
     dbPath: string
-    /** 数据库大小 (MB) */
     dbSizeMB: number
-    /** 是否加密 */
     encrypted: boolean
-    /** 备份数量 */
     backupCount: number
   }
   recommendations: string[]
@@ -88,7 +92,6 @@ export function generateSecurityReport(): SecurityCenterReport {
   const samples: SecurityCenterReport['sensitiveInfo']['samples'] = []
 
   try {
-    // 扫描消息中的敏感信息
     const msgRows = db
       .prepare(
         `SELECT m.id, m.content, s.title as source, m.createdAt
@@ -113,7 +116,6 @@ export function generateSecurityReport(): SecurityCenterReport {
         }
 
         if (samples.length < 10) {
-          // 脱敏：只显示前 2 后 2 字符
           const masked = d.value.length > 8
             ? `${d.value.slice(0, 2)}${'*'.repeat(Math.min(d.value.length - 4, 8))}${d.value.slice(-2)}`
             : '***'
@@ -136,6 +138,53 @@ export function generateSecurityReport(): SecurityCenterReport {
     count: info.count,
     lastDetectedAt: info.lastDetectedAt
   }))
+
+  // v2.0: Prompt Injection 风险扫描
+  const injectionSamples: SecurityCenterReport['injectionRisk']['samples'] = []
+  let injectionScanned = 0
+  let injectionRisky = 0
+  let maxInjectionRisk = 'low'
+
+  try {
+    const msgRows = db
+      .prepare(
+        `SELECT m.content, s.title as source
+         FROM messages m
+         JOIN chat_sessions s ON m.sessionId = s.id
+         ORDER BY m.createdAt DESC
+         LIMIT 200`
+      )
+      .all() as Array<{ content: string; source: string }>
+
+    for (const row of msgRows) {
+      injectionScanned++
+      const result = detectPromptInjection(row.content)
+      if (result.hasInjection) {
+        injectionRisky++
+        if (injectionSamples.length < 10) {
+          injectionSamples.push({
+            source: row.source,
+            riskLevel: result.riskLevel,
+            summary: result.summary
+          })
+        }
+        // 更新最高风险等级
+        const riskOrder = ['low', 'medium', 'high', 'critical']
+        if (riskOrder.indexOf(result.riskLevel) > riskOrder.indexOf(maxInjectionRisk)) {
+          maxInjectionRisk = result.riskLevel
+        }
+      }
+    }
+  } catch {
+    // 扫描失败不影响
+  }
+
+  const injectionRisk = {
+    scanned: injectionScanned,
+    risky: injectionRisky,
+    riskLevel: maxInjectionRisk,
+    samples: injectionSamples
+  }
 
   // 数据安全
   let dbPath = ''
@@ -189,6 +238,10 @@ export function generateSecurityReport(): SecurityCenterReport {
       recommendations.push('发现手机号或邮箱，建议在分享导出前手动脱敏')
     }
   }
+  // v2.0: Prompt Injection 建议
+  if (injectionRisky > 0) {
+    recommendations.push(`检测到 ${injectionRisky} 处潜在 Prompt Injection 风险（${maxInjectionRisk} 级），建议审查相关对话内容`)
+  }
   if (backupCount === 0) {
     recommendations.push('尚未创建备份，建议定期备份数据以防丢失')
   }
@@ -207,6 +260,7 @@ export function generateSecurityReport(): SecurityCenterReport {
       byType,
       samples
     },
+    injectionRisk,
     dataSafety,
     recommendations
   }

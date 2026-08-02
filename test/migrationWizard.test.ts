@@ -9,9 +9,9 @@ import {
 
 describe('migrationWizard', () => {
   describe('getSupportedPlatforms', () => {
-    it('returns 7 platforms each with required fields', () => {
+    it('returns 11 platforms each with required fields', () => {
       const platforms = getSupportedPlatforms()
-      expect(platforms).toHaveLength(7)
+      expect(platforms).toHaveLength(11)
       for (const p of platforms) {
         expect(typeof p.id).toBe('string')
         expect(p.id.length).toBeGreaterThan(0)
@@ -21,6 +21,8 @@ describe('migrationWizard', () => {
         expect(p.icon.length).toBeGreaterThan(0)
         expect(Array.isArray(p.formats)).toBe(true)
         expect(typeof p.supportsSync).toBe('boolean')
+        expect(typeof p.installed).toBe('boolean')
+        expect(typeof p.dataPath).toBe('string')
       }
     })
   })

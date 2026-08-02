@@ -9,7 +9,7 @@ import { TOOLS } from '../src/mcp/schemas'
  */
 describe('MCP TOOLS schema', () => {
   it('暴露恰好 30 个工具', () => {
-    expect(TOOLS).toHaveLength(30)
+    expect(TOOLS).toHaveLength(31)
   })
 
   it('工具名唯一', () => {

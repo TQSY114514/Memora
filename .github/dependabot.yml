@@ -1,12 +1,21 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directory: "/"
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
+    versioning-strategy: increase
+    labels:
+      - "dependencies"
+    ignore:
+      - dependency-name: "electron"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
-    directory: /
+    directory: "/"
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 2

@@ -1,11 +1,16 @@
 /**
- * AI Identity Profile —— 一键生成用户身份画像
+ * AI Identity Profile 2.0 —— 一键生成用户身份画像
  *
  * 从偏好、知识库、对话历史中聚合出完整的用户画像，
- * 可用于导出为 prompt 或直接喂给新 AI，实现"换 AI，不换人设"。
+ * 包含决策模式、沟通风格推断，输出为可粘贴到新 AI 对话的 prompt 文本。
+ * 实现"换 AI，不换人设"。
+ *
+ * v2.0: 新增决策模式分析、沟通风格推断、演化时间线
  */
 
 import { getDatabase } from '../database/connection'
+import { inferDecisionPattern, type DecisionPattern } from './decisionPattern'
+import { inferCommunicationStyle, type CommunicationStyle } from './communicationStyle'
 
 export interface IdentityProfile {
   generatedAt: string
@@ -20,6 +25,8 @@ export interface IdentityProfile {
     format: string[]
     avoid: string[]
   }
+  /** v2.0: 推断的沟通风格 */
+  communicationStyle: CommunicationStyle
   projects: Array<{
     name: string
     description: string
@@ -40,6 +47,8 @@ export interface IdentityProfile {
     subject: string
     value: string
   }>
+  /** v2.0: 推断的决策模式 */
+  decisionPattern: DecisionPattern
   stats: {
     totalSessions: number
     totalMessages: number
@@ -180,6 +189,10 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
       .all() as SessionRow[]
   }
 
+  // v2.0: 推断决策模式和沟通风格
+  const decisionPattern = inferDecisionPattern(workspaceId)
+  const communicationStyle = inferCommunicationStyle(workspaceId)
+
   // 分类偏好
   const roleKeywords = ['职业', '角色', '岗位', '工作', '职位', 'role', 'job', '我是', '身份']
   const techKeywords = ['技术栈', '语言', '框架', '编程', '开发', '技术', 'tech', 'stack', 'language', 'framework']
@@ -246,17 +259,19 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
     topProviders: providerRows.map((r) => r.provider)
   }
 
-  // 生成 prompt 文本
-  const promptText = buildPromptText(basics, communication, projects, constitution, preferences)
+  // 生成 prompt 文本（v2.0 增强：包含决策模式和沟通风格）
+  const promptText = buildPromptText(basics, communication, communicationStyle, decisionPattern, projects, constitution, preferences)
 
   return {
     generatedAt: new Date().toISOString(),
     basics,
     communication,
+    communicationStyle,
     projects,
     preferences,
     knowledge,
     constitution,
+    decisionPattern,
     stats,
     promptText
   }
@@ -278,6 +293,8 @@ function extractTechStack(content: string): string[] {
 function buildPromptText(
   basics: IdentityProfile['basics'],
   communication: IdentityProfile['communication'],
+  communicationStyle: CommunicationStyle,
+  decisionPattern: DecisionPattern,
   projects: IdentityProfile['projects'],
   constitution: IdentityProfile['constitution'],
   preferences: IdentityProfile['preferences']
@@ -304,6 +321,34 @@ function buildPromptText(
   if (basics.editors.length > 0) {
     lines.push('## Tools')
     for (const e of basics.editors) lines.push(`- ${e}`)
+    lines.push('')
+  }
+
+  // v2.0: 决策模式
+  lines.push('## Decision Patterns')
+  lines.push(`- Open Source Preference: ${(decisionPattern.prefers_open_source * 100).toFixed(0)}%`)
+  if (decisionPattern.cost_sensitive > 0.5) {
+    lines.push(`- Cost Sensitive: ${(decisionPattern.cost_sensitive * 100).toFixed(0)}%`)
+  }
+  if (decisionPattern.likes_new_tech > 0.5) {
+    lines.push(`- Early Adopter: ${(decisionPattern.likes_new_tech * 100).toFixed(0)}%`)
+  }
+  if (decisionPattern.values_privacy > 0.5) {
+    lines.push(`- Privacy Conscious: ${(decisionPattern.values_privacy * 100).toFixed(0)}%`)
+  }
+  if (decisionPattern.prefers_simplicity > 0.5) {
+    lines.push(`- Prefers Simplicity: ${(decisionPattern.prefers_simplicity * 100).toFixed(0)}%`)
+  }
+  lines.push('')
+
+  // v2.0: 沟通风格
+  if (communicationStyle.evidence.length > 0) {
+    lines.push('## Communication Style')
+    lines.push(`- Formality: ${communicationStyle.formality}`)
+    lines.push(`- Detail Level: ${communicationStyle.detail_level}`)
+    if (communicationStyle.prefers.short_answer) lines.push('- Prefers: Short answers')
+    if (communicationStyle.prefers.code_first) lines.push('- Prefers: Code-first responses')
+    if (communicationStyle.prefers.markdown) lines.push('- Prefers: Markdown format')
     lines.push('')
   }
 

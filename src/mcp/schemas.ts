@@ -405,4 +405,16 @@ export const TOOLS: McpTool[] = [
         since: { type: 'string', description: '对比起点 ISO 时间戳（可选，默认对比全部历史）' }
       }
     }
+  },
+  {
+    name: 'memory_consolidate',
+    description:
+      '扫描并合并重复/相似的偏好记忆。自动检测同主题重复、语义相似等冗余，合并后保留置信度最高的条目。默认预览模式，设置 dry_run=false 执行实际合并。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '工作区 ID（可选，预览可不传）' },
+        dry_run: { type: 'boolean', description: '是否仅预览（默认 true，不执行实际合并）' }
+      }
+    }
   }]

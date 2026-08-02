@@ -10,9 +10,9 @@ import {
 
 describe('templateMarket', () => {
   describe('listTemplates', () => {
-    it('returns 3 builtin templates', () => {
+    it('returns 8 builtin templates', () => {
       const list = listTemplates()
-      expect(list).toHaveLength(3)
+      expect(list).toHaveLength(8)
     })
 
     it('developer template has correct fields', () => {
@@ -114,14 +114,15 @@ describe('templateMarket', () => {
     it('filters templates by category', () => {
       const list = listTemplates()
       const filtered = filterByCategory(list, '开发')
-      expect(filtered).toHaveLength(1)
-      expect(filtered[0].id).toBe('builtin_developer')
+      expect(filtered).toHaveLength(2)
+      expect(filtered.some((t) => t.id === 'builtin_developer')).toBe(true)
+      expect(filtered.some((t) => t.id === 'builtin_ai_engineer')).toBe(true)
     })
 
     it('returns all templates when category is empty', () => {
       const list = listTemplates()
       const filtered = filterByCategory(list, '')
-      expect(filtered).toHaveLength(3)
+      expect(filtered).toHaveLength(8)
     })
   })
 
@@ -150,7 +151,7 @@ describe('templateMarket', () => {
     it('returns all templates when query is empty', () => {
       const list = listTemplates()
       const results = searchTemplates(list, '')
-      expect(results).toHaveLength(3)
+      expect(results).toHaveLength(8)
     })
   })
 })

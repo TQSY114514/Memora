@@ -1,0 +1,38 @@
+name: Bug Report
+description: 报告一个 bug
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述
+      description: 发生了什么？预期是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 Memora
+        2. 点击 ...
+        3. 看到错误
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      placeholder: v1.9.1
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - Windows
+        - macOS
+        - Linux
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / 截图
+      description: 如果有错误日志或截图，请附上

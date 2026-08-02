@@ -164,10 +164,11 @@ export async function callTool(name: string, args: Record<string, unknown>, clie
     case 'list_folders':
       return handleWorkspaceTool(name, validatedArgs)
 
-    // advanced 域（v1.12）：memory_explain / memory_timeline / memory_diff
+    // advanced 域（v2.0）：memory_explain / memory_timeline / memory_diff / memory_consolidate
     case 'memory_explain':
     case 'memory_timeline':
     case 'memory_diff':
+    case 'memory_consolidate':
       return handleAdvancedMCPTool(name, validatedArgs)
 
     default:

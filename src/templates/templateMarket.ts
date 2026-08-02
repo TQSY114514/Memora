@@ -176,6 +176,181 @@ const BUILTIN_TEMPLATES: MemoryTemplate[] = [
         placeholders: ['style', 'detail']
       }
     ]
+  },
+  {
+    id: 'builtin_designer',
+    name: '设计师知识包',
+    description: '适合 UI/UX 设计师的知识管理模板，包含设计决策、设计系统、用户研究等',
+    author: 'Memora',
+    version: '1.0.0',
+    category: '设计',
+    tags: ['设计', 'UI', 'UX', '用户体验'],
+    createdAt: '2025-06-01T00:00:00.000Z',
+    updatedAt: '2025-06-01T00:00:00.000Z',
+    knowledgeTemplates: [
+      {
+        type: 'knowledge',
+        title: '设计决策：{component}',
+        content: '## 问题\n{problem}\n\n## 方案探索\n{exploration}\n\n## 最终方案\n{final}\n\n## 设计原则\n{principles}',
+        placeholders: ['component', 'problem', 'exploration', 'final', 'principles']
+      },
+      {
+        type: 'task',
+        title: '用户研究：{study}',
+        content: '## 目标\n{goal}\n\n## 方法\n{method}\n\n## 关键发现\n{findings}\n\n## 行动建议\n{recommendations}',
+        placeholders: ['study', 'goal', 'method', 'findings', 'recommendations']
+      }
+    ],
+    preferenceTemplates: [
+      {
+        subject: '设计风格',
+        value: '偏好 {style} 设计风格，{detail}',
+        source: 'manual',
+        placeholders: ['style', 'detail']
+      }
+    ]
+  },
+  {
+    id: 'builtin_writer',
+    name: '写作者知识包',
+    description: '适合内容创作者的知识管理模板，包含文章构思、素材收集、写作技巧等',
+    author: 'Memora',
+    version: '1.0.0',
+    category: '创作',
+    tags: ['写作', '内容', '创作', '文案'],
+    createdAt: '2025-06-01T00:00:00.000Z',
+    updatedAt: '2025-06-01T00:00:00.000Z',
+    knowledgeTemplates: [
+      {
+        type: 'knowledge',
+        title: '文章构思：{topic}',
+        content: '## 核心观点\n{thesis}\n\n## 大纲\n{outline}\n\n## 素材引用\n{references}\n\n## 目标读者\n{audience}',
+        placeholders: ['topic', 'thesis', 'outline', 'references', 'audience']
+      },
+      {
+        type: 'task',
+        title: '写作计划：{project}',
+        content: '## 目标\n{goal}\n\n## 进度\n{progress}\n\n## 截止日期\n{deadline}\n\n## 备注\n{notes}',
+        placeholders: ['project', 'goal', 'progress', 'deadline', 'notes']
+      }
+    ],
+    preferenceTemplates: [
+      {
+        subject: '写作风格',
+        value: '偏好 {style} 写作风格，目标读者 {audience}',
+        source: 'manual',
+        placeholders: ['style', 'audience']
+      }
+    ]
+  },
+  {
+    id: 'builtin_learner',
+    name: '学习者知识包',
+    description: '适合自学者的知识管理模板，包含学习路径、笔记系统、复习计划等',
+    author: 'Memora',
+    version: '1.0.0',
+    category: '学习',
+    tags: ['学习', '笔记', '自学', '成长'],
+    createdAt: '2025-06-01T00:00:00.000Z',
+    updatedAt: '2025-06-01T00:00:00.000Z',
+    knowledgeTemplates: [
+      {
+        type: 'knowledge',
+        title: '学习笔记：{topic}',
+        content: '## 核心概念\n{concepts}\n\n## 理解\n{understanding}\n\n## 疑问\n{questions}\n\n## 关联知识\n{connections}',
+        placeholders: ['topic', 'concepts', 'understanding', 'questions', 'connections']
+      },
+      {
+        type: 'task',
+        title: '学习计划：{subject}',
+        content: '## 目标水平\n{target}\n\n## 学习资源\n{resources}\n\n## 里程碑\n{milestones}\n\n## 每日投入\n{commitment}',
+        placeholders: ['subject', 'target', 'resources', 'milestones', 'commitment']
+      }
+    ],
+    preferenceTemplates: [
+      {
+        subject: '学习方式',
+        value: '偏好 {method} 学习方式，{detail}',
+        source: 'manual',
+        placeholders: ['method', 'detail']
+      }
+    ]
+  },
+  {
+    id: 'builtin_ai_engineer',
+    name: 'AI 工程师知识包',
+    description: '适合 AI/ML 工程师的知识管理模板，包含模型实验、Prompt 工程、数据管道等',
+    author: 'Memora',
+    version: '1.0.0',
+    category: '开发',
+    tags: ['AI', 'ML', 'LLM', 'Prompt'],
+    createdAt: '2025-06-01T00:00:00.000Z',
+    updatedAt: '2025-06-01T00:00:00.000Z',
+    distillationStrategy: {
+      systemPrompt: '你是一个 AI 工程助手。请从对话中提取技术决策、模型配置和实验结论。',
+      outputFormat: '## 决策\n{decision}\n\n## 配置\n{config}\n\n## 结论\n{conclusion}'
+    },
+    knowledgeTemplates: [
+      {
+        type: 'knowledge',
+        title: '模型实验：{model}',
+        content: '## 模型\n{model}\n\n## 配置\n{config}\n\n## 结果\n{results}\n\n## 分析\n{analysis}',
+        placeholders: ['model', 'config', 'results', 'analysis']
+      },
+      {
+        type: 'knowledge',
+        title: 'Prompt 模板：{useCase}',
+        content: '## 场景\n{useCase}\n\n## Prompt\n```\n{prompt}\n```\n\n## 效果\n{effectiveness}\n\n## 改进方向\n{improvements}',
+        placeholders: ['useCase', 'prompt', 'effectiveness', 'improvements']
+      }
+    ],
+    preferenceTemplates: [
+      {
+        subject: '模型偏好',
+        value: '首选 {model}，{reason}',
+        source: 'manual',
+        placeholders: ['model', 'reason']
+      },
+      {
+        subject: 'Prompt 风格',
+        value: '偏好 {style} 风格 prompt，{detail}',
+        source: 'manual',
+        placeholders: ['style', 'detail']
+      }
+    ]
+  },
+  {
+    id: 'builtin_startup',
+    name: '创业者知识包',
+    description: '适合创业者的知识管理模板，包含商业决策、竞品分析、融资记录等',
+    author: 'Memora',
+    version: '1.0.0',
+    category: '商业',
+    tags: ['创业', '商业', '融资', '策略'],
+    createdAt: '2025-06-01T00:00:00.000Z',
+    updatedAt: '2025-06-01T00:00:00.000Z',
+    knowledgeTemplates: [
+      {
+        type: 'knowledge',
+        title: '商业决策：{topic}',
+        content: '## 背景\n{background}\n\n## 选项\n{options}\n\n## 决策\n{decision}\n\n## 预期影响\n{impact}',
+        placeholders: ['topic', 'background', 'options', 'decision', 'impact']
+      },
+      {
+        type: 'decision',
+        title: '竞品分析：{competitor}',
+        content: '## 公司\n{competitor}\n\n## 优势\n{strengths}\n\n## 劣势\n{weaknesses}\n\n## 我们的对策\n{response}',
+        placeholders: ['competitor', 'strengths', 'weaknesses', 'response']
+      }
+    ],
+    preferenceTemplates: [
+      {
+        subject: '决策风格',
+        value: '偏好 {style} 决策方式，{detail}',
+        source: 'manual',
+        placeholders: ['style', 'detail']
+      }
+    ]
   }
 ]
 

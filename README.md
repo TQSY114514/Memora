@@ -10,14 +10,14 @@
 
 <!-- Badges -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.12-6366f1?style=flat-square" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.13-6366f1?style=flat-square" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-39-47848F?style=flat-square" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/SQLite-FTS5-003B57?style=flat-square" alt="SQLite"/>
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License"/>
   <img src="https://img.shields.io/badge/Local_First-%E2%9C%93-6366f1?style=flat-square" alt="Local First"/>
-  <img src="https://img.shields.io/badge/MCP-30_tools-6366f1?style=flat-square" alt="MCP Tools"/>
+  <img src="https://img.shields.io/badge/MCP-31_tools-6366f1?style=flat-square" alt="MCP Tools"/>
 </p>
 
 <!-- Language Switcher -->
@@ -28,8 +28,10 @@
 <!-- Quick Nav -->
 <p>
   <a href="#the-problem">Problem</a> ·
+  <a href="#demo">Demo</a> ·
   <a href="#killer-features">Features</a> ·
   <a href="#why-memora">Why Memora</a> ·
+  <a href="#comparison">Comparison</a> ·
   <a href="#core-features">Core Features</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#architecture">Architecture</a>
@@ -68,11 +70,76 @@ Before:                               After Memora:
 
 ---
 
+## Demo
+
+### MCP: AI instantly knows your preferences
+
+```bash
+# 1. Start Memora with MCP server
+$ node out/main/index.js --mcp
+
+# 2. In Claude Code / Cursor / OpenCode, AI calls memory_recall:
+
+> memory_recall({ query: "user tech stack preferences" })
+
+{
+  "preferences": [
+    {
+      "subject": "技术栈偏好",
+      "value": "首选 Electron + React + TypeScript，偏好本地优先架构",
+      "confidence": 0.92,
+      "reasons": ["高置信度（多次确认）", "频繁访问（23 次）"],
+      "sourceSession": {
+        "title": "Memora 架构设计讨论",
+        "provider": "Claude Code",
+        "createdAt": "2026-07-21"
+      }
+    }
+  ],
+  "explanation": "Why this memory? Confidence 92%, confirmed 7 times across 3 conversations"
+}
+```
+
+### AI Identity Profile: One-click portable persona
+
+```bash
+# Generate identity profile in Memora UI → Copy to clipboard
+
+# My AI Identity Profile
+## About Me
+- Full-stack developer
+- Prefers TypeScript and Rust
+
+## Decision Patterns
+- Open Source Preference: 85%
+- Early Adopter: 72%
+- Prefers Simplicity: 90%
+
+## Communication Style
+- Formality: casual
+- Detail Level: brief
+- Prefers: Short answers, Code-first responses, Markdown format
+
+# Paste into any new AI conversation → AI instantly knows you
+```
+
+### Memory Timeline: Watch your knowledge evolve
+
+```
+2026-01 ━━━ Python 80%  →  "主要用 Python 做后端"
+2026-05 ━━━ Rust 65%    →  "开始学习 Rust，感觉有意思"
+2026-08 ━━━ TypeScript 92% → "全栈开发主语言，Electron 项目"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Trend: 技术栈从 Python 后端 → TypeScript 全栈，新语言探索活跃
+```
+
+---
+
 ## Killer Features
 
-### 1. One-Click AI Identity Profile
+### 1. One-Click AI Identity Profile 2.0
 
-Automatically generates a **complete AI persona profile** from your preferences, knowledge base, and conversation history:
+Automatically generates a **complete AI persona profile** from your preferences, knowledge base, and conversation history — now with **decision pattern analysis** and **communication style inference**:
 
 ```markdown
 # My AI Identity Profile
@@ -84,10 +151,17 @@ Automatically generates a **complete AI persona profile** from your preferences,
 ## Tech Stack
 - Electron, React, SQLite, Tailwind
 
-## Communication Preferences
-- Concise, direct answers
-- Markdown format
-- No over-explanation
+## Decision Patterns (v2.0)
+- Open Source Preference: 85%
+- Cost Sensitive: 70%
+- Early Adopter: 72%
+- Privacy Conscious: 90%
+- Prefers Simplicity: 88%
+
+## Communication Style (v2.0)
+- Formality: casual
+- Detail Level: brief
+- Prefers: Short answers, Code-first, Markdown
 
 ## Projects
 - Memora — Personal AI Memory System
@@ -96,7 +170,7 @@ Automatically generates a **complete AI persona profile** from your preferences,
 
 **Copy once, paste into any new AI conversation — switch AI, keep your identity.**
 
-### 2. 30 MCP Tools — The iCloud for AI
+### 2. 31 MCP Tools — The iCloud for AI
 
 Not just read/write, but **understanding-based memory**:
 
@@ -105,9 +179,10 @@ Not just read/write, but **understanding-based memory**:
 | Recall | `memory_recall` | Semantic search across history |
 | Write | `memory_write` | Distill knowledge into the knowledge base |
 | Profile | `memory_profile` | Get complete user preferences |
-| **Explain** | `memory_explain` | **Why this memory? Confidence, source, frequency** |
-| **Timeline** | `memory_timeline` | **How preferences evolved over time** |
+| **Explain** | `memory_explain` | **Why this memory? Confidence, source, frequency, related memories** |
+| **Timeline** | `memory_timeline` | **How preferences evolved over time (monthly groups + trend analysis)** |
 | **Diff** | `memory_diff` | **What changed between then and now?** |
+| **Consolidate** | `memory_consolidate` | **Merge duplicate/similar memories automatically** |
 
 Plug into Claude Code / Cursor / OpenCode / AstrBot — AI instantly has your full memory.
 
@@ -120,6 +195,9 @@ Encryption       safeStorage available
 Sensitive Info   12 items detected
                  3 API Keys · 2 phone numbers · 7 emails
 
+Prompt Injection 200 messages scanned
+                 2 potential risks detected (medium)
+
 Recommendations  Enable auto-redaction on import
                  Back up database regularly
 ```
@@ -129,6 +207,7 @@ Recommendations  Enable auto-redaction on import
 ```
 Preference Tracking:   Python ━━━━ 80%  →  Rust ━━━━ 75%
 Conflict Detection:    New vs old auto-detected → old marked superseded → new marked active
+Consolidation:         3 "Python" preferences → 1 merged entry (confidence 92%)
 Confidence Decay:      30 days unaccessed → confidence -0.1 → below 0.05 auto-archived
 ```
 
@@ -136,26 +215,31 @@ Confidence Decay:      30 days unaccessed → confidence -0.1 → below 0.05 aut
 
 ## Why Memora?
 
-| | ChatGPT Memory | Mem0 | Memora |
-|---|:---:|:---:|:---:|
-| Local Data Storage | No | No | **Yes** |
-| Cross-Platform Memory | ChatGPT only | API integration | **11+ platforms** |
-| Preference Lifecycle | None | None | **Create → Conflict → Decay → Forget** |
-| AI Identity Profile | None | None | **One-click + portable** |
-| Explainable Memory | None | None | **memory_explain** |
-| MCP Ecosystem | None | None | **30 tools** |
-| E2E Encryption | — | — | **AES-256-GCM** |
-| Open Source | No | No | **MIT** |
+| | ChatGPT Memory | Claude | Mem0 | Memora |
+|---|:---:|:---:|:---:|:---:|
+| Local Data Storage | No | No | No | **Yes** |
+| Cross-Platform Memory | ChatGPT only | Claude only | API integration | **11+ platforms** |
+| Preference Lifecycle | None | None | None | **Create → Conflict → Consolidate → Decay → Forget** |
+| AI Identity Profile | None | None | None | **One-click + portable + decision patterns** |
+| **Explainable Memory** | None | None | None | **memory_explain (source, confidence, frequency)** |
+| **Memory Timeline** | None | None | None | **Evolution tracking + trend analysis** |
+| **Memory Consolidation** | None | None | None | **Auto merge duplicates** |
+| **Hybrid Retrieval** | Basic | Basic | Vector only | **FTS5 + Vector + Time Decay + Graph Boost** |
+| MCP Ecosystem | None | None | None | **31 tools + field-level permissions** |
+| **Field-Level Permissions** | None | None | None | **Per-client category control** |
+| **Prompt Injection Detection** | None | None | None | **Import-time scanning** |
+| E2E Encryption | — | — | — | **AES-256-GCM** |
+| Open Source | No | No | No | **MIT** |
 
 ---
 
 ## Core Features
 
 ### Smart Import Center
-Auto-detects local AI apps, one-click extraction: Cursor, Claude Code, OpenCode, Windsurf, Cline + 11 format imports.
+Auto-detects local AI apps, one-click extraction: Cursor, Claude Code, OpenCode, Windsurf, Cline + 11 format imports. Built-in prompt injection detection.
 
-### Full-Text + Semantic Search
-SQLite FTS5 keyword search + vector semantic retrieval, sub-millisecond response.
+### Hybrid Retrieval (v2.0)
+FTS5 keyword search + vector semantic retrieval + time decay + graph boost, sub-millisecond response with comprehensive score breakdown.
 
 ### Knowledge Base
 Distill conversations into structured knowledge/decisions/tasks — searchable, linkable, reusable.
@@ -164,23 +248,25 @@ Distill conversations into structured knowledge/decisions/tasks — searchable, 
 Git for Memory — every change generates commit + diff, with blame tracing and version rollback.
 
 ### Custom Distillation Templates
-Define your own distillation format (Background → Options → Decision → Rationale), per-project strategies.
+Define your own distillation format (Background → Options → Decision → Rationale), per-project strategies. 8 built-in templates covering developer, researcher, PM, designer, writer, learner, AI engineer, and startup founder personas.
 
 ### Export Formats
-MMF (Memora Memory Format) — full preferences + knowledge + conversations, importable to other instances.
+MMF (Memora Memory Format) — full preferences + knowledge + conversations, importable to other instances. Also supports JSON (OpenAI-compatible), Markdown, HTML, Claude Code .jsonl.
 
 ### Memory Agent
 Periodically scans your memory library, proactively finds knowledge gaps, reminds you to summarize, spaced repetition.
 
+### AI Migration Wizard (v2.0)
+Auto-detects installed AI tools on your machine (Cursor, Claude Code, OpenCode, Windsurf), 3-step guided migration with platform-specific extraction.
+
 ### E2E Encrypted Cloud Sync
-AES-256-GCM encryption, zero-knowledge sync, cross-device usage.
+AES-256-GCM encryption, zero-knowledge sync, WebDAV/S3 compatible, cross-device usage.
 
 ### More
 - Team Memory Sharing (collaborative workspace + visibility control + comments)
 - Memory Time Capsule (seal memories, unlock in the future with comparison report)
-- Memory Template Market (community "expert memory packs")
-- AI Migration Wizard (3-step migration + multi-platform sync)
-- MCP Permission System (per-client granularity authorization)
+- Memory Template Market (8 built-in "expert memory packs" + community import/export)
+- MCP Permission System (per-client granularity authorization + field-level category control)
 
 ---
 
@@ -214,6 +300,13 @@ npm run dev
 }
 ```
 
+#### Field-Level Permissions (v2.0)
+
+```bash
+# Restrict Claude to tech + project only, Cursor to tech + communication + project
+export MEMORA_FIELD_RESTRICTIONS="claude:tech,project;cursor:tech,communication,project"
+```
+
 ---
 
 ## Architecture
@@ -229,6 +322,7 @@ npm run dev
 │  Main Process                                       │
 │  importer · database · search · ai · mcp            │
 │  identity · security · sync · capsule · team        │
+│  migration · templates · memoryAgent                │
 │  └── SQLite (FTS5 + vectors)                        │
 └─────────────────────────────────────────────────────┘
 ```
@@ -239,8 +333,10 @@ npm run dev
 | Desktop | Electron 39 |
 | Build | Vite + electron-vite |
 | Storage | SQLite (better-sqlite3) + FTS5 |
+| Search | Hybrid: FTS5 + Vector + Time Decay + Graph |
 | State | Zustand |
 | Styling | Tailwind CSS |
+| Encryption | AES-256-GCM + PBKDF2 (600K iterations) |
 
 ---
 
