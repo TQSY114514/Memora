@@ -7,7 +7,7 @@
  * - tools/list 列出可用工具
  * - tools/call 调用工具
  *
- * 暴露 25 个工具（v1.8），按域：
+ * 暴露 30 个工具（v1.12），按域：
  *   会话: search_sessions / get_session / list_sessions / add_session / add_message / update_session / delete_session
  *   工作区/文件夹/标签: list_workspaces / list_folders / create_folder / list_tags
  *   知识库: knowledge_search / knowledge_list / knowledge_entry_create / knowledge_entry_update / knowledge_entry_delete

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense, type LazyExoticComponent, type ComponentType } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
@@ -25,6 +25,22 @@ import { useAiConfigStore } from './stores/aiConfigStore'
 import { BackgroundImportIndicator } from './components/BackgroundImportIndicator'
 import { StartupImportHint } from './components/StartupImportHint'
 
+/** 全屏面板注册表：所有仅需 onClose 的面板 */
+const FULL_PANELS: Record<string, LazyExoticComponent<ComponentType<{ onClose: () => void }>>> = {
+  memory: ProjectMemoryPanel,
+  knowledge: KnowledgePanel,
+  preferences: PreferenceExplorer,
+  mcpPermissions: McpPermissionsPanel,
+  memoryAgent: MemoryAgentPanel,
+  cloudSync: CloudSyncPanel,
+  timeCapsule: TimeCapsulePanel,
+  teamWorkspace: TeamWorkspacePanel,
+  templateMarket: TemplateMarketPanel,
+  migrationWizard: MigrationWizardPanel,
+  identityProfile: IdentityProfilePanel,
+  securityCenter: SecurityCenterPanel,
+}
+
 /** lazy 组件加载中的 fallback */
 function PanelSkeleton() {
   return (
@@ -39,21 +55,11 @@ export default function App() {
   const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
   const { backgroundImage, blur, opacity } = useThemeStore()
   const { loadApiKeys } = useAiConfigStore()
-  const [showAiSettings, setShowAiSettings] = useState(false)
-  const [showMemoryPanel, setShowMemoryPanel] = useState(false)
-  const [showKnowledgePanel, setShowKnowledgePanel] = useState(false)
-  const [showPreferencePanel, setShowPreferencePanel] = useState(false)
-  const [showImportCenter, setShowImportCenter] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
-  const [showMcpPermissions, setShowMcpPermissions] = useState(false)
-  const [showMemoryAgent, setShowMemoryAgent] = useState(false)
-  const [showCloudSync, setShowCloudSync] = useState(false)
-  const [showTimeCapsule, setShowTimeCapsule] = useState(false)
-  const [showTeamWorkspace, setShowTeamWorkspace] = useState(false)
-  const [showTemplateMarket, setShowTemplateMarket] = useState(false)
-  const [showMigrationWizard, setShowMigrationWizard] = useState(false)
-  const [showIdentityProfile, setShowIdentityProfile] = useState(false)
-  const [showSecurityCenter, setShowSecurityCenter] = useState(false)
+
+  // 全屏面板：与 ChatList+ChatViewer 互斥
+  const [activePanel, setActivePanel] = useState<string | null>(null)
+  // 浮层面板：叠加在所有内容之上
+  const [overlayPanel, setOverlayPanel] = useState<string | null>(null)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const ensured = useRef(false)
@@ -129,6 +135,9 @@ export default function App() {
     )
   }
 
+  // 渲染当前激活的全屏面板
+  const ActivePanel = activePanel ? FULL_PANELS[activePanel] : null
+
   return (
     <div className={`flex h-full w-full bg-bg-primary relative ${backgroundImage ? 'has-bg-image' : ''}`}>
       {/* 背景图片层 */}
@@ -145,74 +154,30 @@ export default function App() {
       <div className={`relative ${backgroundImage ? 'z-10' : ''} flex h-full w-full`}>
       <Sidebar
         searchInputRef={searchInputRef}
-        onOpenAiSettings={() => setShowAiSettings(true)}
-        onOpenMemory={() => setShowMemoryPanel(true)}
-        onOpenKnowledge={() => setShowKnowledgePanel(true)}
-        onOpenPreferences={() => setShowPreferencePanel(true)}
-        onOpenImportCenter={() => setShowImportCenter(true)}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenMcpPermissions={() => setShowMcpPermissions(true)}
-        onOpenMemoryAgent={() => setShowMemoryAgent(true)}
-        onOpenCloudSync={() => setShowCloudSync(true)}
-        onOpenTimeCapsule={() => setShowTimeCapsule(true)}
-        onOpenTeamWorkspace={() => setShowTeamWorkspace(true)}
-        onOpenTemplateMarket={() => setShowTemplateMarket(true)}
-        onOpenMigrationWizard={() => setShowMigrationWizard(true)}
-        onOpenIdentityProfile={() => setShowIdentityProfile(true)}
-        onOpenSecurityCenter={() => setShowSecurityCenter(true)}
+        onOpenAiSettings={() => setOverlayPanel('aiSettings')}
+        onOpenMemory={() => setActivePanel('memory')}
+        onOpenKnowledge={() => setActivePanel('knowledge')}
+        onOpenPreferences={() => setActivePanel('preferences')}
+        onOpenImportCenter={() => setOverlayPanel('importCenter')}
+        onOpenSettings={() => setOverlayPanel('settings')}
+        onOpenMcpPermissions={() => setActivePanel('mcpPermissions')}
+        onOpenMemoryAgent={() => setActivePanel('memoryAgent')}
+        onOpenCloudSync={() => setActivePanel('cloudSync')}
+        onOpenTimeCapsule={() => setActivePanel('timeCapsule')}
+        onOpenTeamWorkspace={() => setActivePanel('teamWorkspace')}
+        onOpenTemplateMarket={() => setActivePanel('templateMarket')}
+        onOpenMigrationWizard={() => setActivePanel('migrationWizard')}
+        onOpenIdentityProfile={() => setActivePanel('identityProfile')}
+        onOpenSecurityCenter={() => setActivePanel('securityCenter')}
       />
-      {showMemoryPanel ? (
+      {ActivePanel ? (
         <Suspense fallback={<PanelSkeleton />}>
-          <ProjectMemoryPanel onClose={() => setShowMemoryPanel(false)} />
-        </Suspense>
-      ) : showKnowledgePanel ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <KnowledgePanel onClose={() => setShowKnowledgePanel(false)} />
-        </Suspense>
-      ) : showPreferencePanel ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <PreferenceExplorer onClose={() => setShowPreferencePanel(false)} />
-        </Suspense>
-      ) : showMcpPermissions ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <McpPermissionsPanel onClose={() => setShowMcpPermissions(false)} />
-        </Suspense>
-      ) : showMemoryAgent ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <MemoryAgentPanel onClose={() => setShowMemoryAgent(false)} />
-        </Suspense>
-      ) : showCloudSync ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <CloudSyncPanel onClose={() => setShowCloudSync(false)} />
-        </Suspense>
-      ) : showTimeCapsule ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <TimeCapsulePanel onClose={() => setShowTimeCapsule(false)} />
-        </Suspense>
-      ) : showTeamWorkspace ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <TeamWorkspacePanel onClose={() => setShowTeamWorkspace(false)} />
-        </Suspense>
-      ) : showTemplateMarket ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <TemplateMarketPanel onClose={() => setShowTemplateMarket(false)} />
-        </Suspense>
-      ) : showMigrationWizard ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <MigrationWizardPanel onClose={() => setShowMigrationWizard(false)} />
-        </Suspense>
-      ) : showIdentityProfile ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <IdentityProfilePanel onClose={() => setShowIdentityProfile(false)} />
-        </Suspense>
-      ) : showSecurityCenter ? (
-        <Suspense fallback={<PanelSkeleton />}>
-          <SecurityCenterPanel onClose={() => setShowSecurityCenter(false)} />
+          <ActivePanel onClose={() => setActivePanel(null)} />
         </Suspense>
       ) : (
         <>
           <ChatList />
-          <ChatViewer onOpenAiSettings={() => setShowAiSettings(true)} onOpenImportCenter={() => setShowImportCenter(true)} />
+          <ChatViewer onOpenAiSettings={() => setOverlayPanel('aiSettings')} onOpenImportCenter={() => setOverlayPanel('importCenter')} />
         </>
       )}
 
@@ -230,28 +195,25 @@ export default function App() {
 
       <BackgroundImportIndicator />
 
-      <StartupImportHint onOpenImportCenter={() => setShowImportCenter(true)} />
+      <StartupImportHint onOpenImportCenter={() => setOverlayPanel('importCenter')} />
 
-      {showImportCenter && (
+      {overlayPanel === 'importCenter' && (
         <Suspense fallback={<PanelSkeleton />}>
-          <ImportCenter onClose={() => setShowImportCenter(false)} />
+          <ImportCenter onClose={() => setOverlayPanel(null)} />
         </Suspense>
       )}
 
-      {showAiSettings && (
+      {overlayPanel === 'aiSettings' && (
         <Suspense fallback={<PanelSkeleton />}>
-          <AiSettings onClose={() => setShowAiSettings(false)} />
+          <AiSettings onClose={() => setOverlayPanel(null)} />
         </Suspense>
       )}
 
-      {showSettings && (
+      {overlayPanel === 'settings' && (
         <Suspense fallback={<PanelSkeleton />}>
           <Settings
-            onClose={() => setShowSettings(false)}
-            onOpenAiSettings={() => {
-              setShowSettings(false)
-              setShowAiSettings(true)
-            }}
+            onClose={() => setOverlayPanel(null)}
+            onOpenAiSettings={() => setOverlayPanel('aiSettings')}
           />
         </Suspense>
       )}

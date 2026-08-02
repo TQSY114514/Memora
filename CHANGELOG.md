@@ -22,6 +22,137 @@
 - `package.json`：`overrides` 强制升级 sharp 修复 audit 漏洞，`asarUnpack` 包含 onnxruntime/sharp 原生模块
 - 退出时 best-effort 释放本地嵌入模型资源
 
+## [1.12.0] - 2026-08-02
+
+### 定位升级
+
+从「功能堆叠」转向「核心故事」：强化 Killer Features，打磨 README 叙事，回答「为什么不用 ChatGPT Memory / Mem0」。
+
+### Added
+
+#### AI 身份画像（AI Identity Profile）
+- **`src/identity/identityProfile.ts`**：一键生成完整 AI 人格画像，聚合偏好、知识、项目上下文
+- **`IdentityProfile` UI 面板**：分类标签展示（编程/工具/沟通/项目/禁忌）、可复制 prompt 文本
+- 传播卖点：「换 AI，不换人设」——一键导入 Claude Code / OpenCode / Cursor / AstrBot
+
+#### MCP 高级工具（+3 个，共 30 个）
+- `memory_explain`：解释为何返回某条记忆（置信度/来源/访问频率）
+- `memory_timeline`：用户偏好演变时间线（含历史趋势）
+- `memory_diff`：对比过去与现在的偏好变化（added/removed/modified）
+
+#### 记忆安全中心（Memory Security Center）
+- **`src/security/securityCenter.ts`**：加密状态检查、敏感信息扫描（API Key / Token / 邮箱 / 手机号）
+- **`SecurityCenter` UI 面板**：安全评分、加密状态、敏感信息统计（脱敏展示）、智能建议
+
+#### README 重写
+- 从「我有什么功能」→「我解决什么痛苦」
+- 新增 ChatGPT Memory / Mem0 / Memora 三方对比表
+- 强化核心叙事：Your AI remembers you forever. Switch models, keep yourself.
+
+### Changed
+- 版本号 1.9.0 → 1.12.0
+- MCP server 注释统一为 30 个工具（v1.12）
+
+## [1.11.0] - 2026-08-02
+
+### Added
+
+#### 端到端加密云端同步（#11）
+- **`src/crypto/e2e.ts`**：AES-256-GCM 加密 + PBKDF2 密钥派生，零知识加密
+- **`src/sync/cloudSync.ts`**：WebDAV / S3 双协议支持，数据本地加密后上传
+- **`CloudSync` UI 面板**：配置同步参数、测试连接、一键同步
+
+#### 团队记忆共享（#12）
+- **`src/team/teamWorkspace.ts`**：协作工作区、邀请码、记忆可见性控制（private / shared_read / shared_write / shared_admin）
+- **`TeamWorkspace` UI 面板**：创建/加入工作区、评论系统（支持回复 + 解决）
+
+#### 记忆时间胶囊（#13）
+- **`src/capsule/timeCapsule.ts`**：封存知识 + 偏好，设定未来解锁时间，解锁时生成对比报告
+- **`TimeCapsule` UI 面板**：创建胶囊、列表管理、密码解锁
+
+#### 记忆模板市场（#14）
+- **`src/templates/templateMarket.ts`**：内置开发者/学生/研究者/创作者 4 套专家记忆包
+- **`TemplateMarket` UI 面板**：浏览模板、分类筛选、搜索、导入/导出
+
+#### AI 迁移向导（#15）
+- **`src/migration/migrationWizard.ts`**：平台检测、三步迁移流程（检测→选择→迁移）
+- **`MigrationWizard` UI 面板**：可视化迁移进度、支持多平台同时迁移
+
+#### OpenCode 导入支持
+- `localExtractor.ts`：递归扫描 `~/.opencode/` JSON 文件，处理多种格式
+
+#### 通用 JSON 导出格式
+- **`src/sharing/jsonExporter.ts`**：OpenAI Chat Completions 兼容格式，可导入 OpenCode 等工具
+
+### Fixed
+- 导入完成后不再弹出红色错误通知（跳过对话时静默退出）
+- 导入窗口完成后自动关闭
+
+## [1.10.0] - 2026-08-02
+
+### Added
+
+#### 记忆版本控制 — Git for Memory（#7）
+- **`src/database/repositories/auditRepo.ts`**：基于审计日志的版本历史检索 + diff 计算
+- **`src/database/repositories/rollbackRepo.ts`**：实体回滚功能
+- **`VersionHistory` UI 面板**：浏览实体变更历史、查看 diff、一键回滚
+
+#### MCP 工具权限系统（#8）
+- **`src/database/repositories/mcpPermissionsRepo.ts`**：客户端粒度的数据库权限存储
+- **`src/mcp/accessControl.ts`**：数据库权限优先 + 环境变量回退
+- **`McpPermissions` UI 面板**：按客户端管理读写/破坏性权限
+
+#### 记忆智能体 — Memory Agent（#9）
+- **`src/memoryAgent/index.ts`**：定期扫描记忆库、知识缺口检测、间隔重复复习提醒
+- **`MemoryAgent` UI 面板**：监控智能体状态、查看知识缺口、管理复习队列
+
+#### 交互式知识图谱（#10）
+- **`KnowledgeGraph.tsx`** 升级：力导向布局、节点拖拽、展开/折叠、时间范围筛选
+- 纯 SVG + TypeScript 实现，零新增依赖
+
+### Changed
+- MCP 工具数从 25 个扩展到 27 个
+- 测试数从 274 增至 281
+
+## [1.9.0] - 2026-08-02
+
+### Added
+
+#### 记忆审计日志（#1）
+- 每次记忆变更（创建/更新/删除/冲突）记录审计日志，含变更前后值、来源对话、时间戳
+- `audit_logs` 表 + `auditRepo.ts` 数据访问层
+
+#### 冲突解决人机协同（#2）
+- 检测到偏好冲突时弹窗提示，让用户选择保留新/旧/合并，而非自动标记
+
+#### AI 宪法 — Personal Constitution（#3）
+- 新增"宪法"级别偏好/知识，所有 AI 通过 MCP 优先读取
+- `memory_get_constitution` MCP 工具
+
+#### 记忆健康仪表盘增强（#4）
+- 展示总量/活跃/归档/冲突数、衰减趋势图、记忆体检报告（建议合并/清理）
+
+#### 可定制蒸馏模板（#5）
+- 用户自定义蒸馏格式（背景→方案→决策→理由），按项目设定不同策略
+- `distillation_templates` 表 + UI 管理
+
+#### MMF 导出格式（#6）
+- 导出为 Memora Memory Format（MMF），包含偏好+知识+对话，可导入其他实例
+- **`src/sharing/mmfExporter.ts`** + **`src/sharing/mmfImporter.ts`**
+
+### Changed
+- MCP 工具数从 17 扩展到 25（+8 个新工具）
+- `audit_logs` 表新增 `memory_audit_log` MCP 工具
+
+### Fixed
+- `preferencesRepo.ts` createPreference 事务退出导致 null assertion 错误（高严重性）
+- `localEmbedder.ts` worker 引用在错误后未置空（中严重性）
+- `localEmbedder.ts` waitForWorkerReady 监听器泄漏（中严重性）
+
+### Engineering
+- 从 `schema.ts` 移除 `idx_pref_workspace_subject_context` 索引（引用 v9 迁移才添加的 context 列）
+- 修复 better-sqlite3 二进制下载（SSL 证书 + Electron 版本匹配）
+
 ## [1.7.1] - 2026-08-01
 
 ### Added
