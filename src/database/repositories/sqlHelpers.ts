@@ -38,20 +38,3 @@ export function buildUpdateSets(
 
   return { sets, params }
 }
-
-/**
- * 允许操作的表名白名单（用于 INSERT 等动态表名场景）
- */
-export const ALLOWED_TABLES = new Set([
-  'workspaces',
-  'folders',
-  'tags',
-  'chat_sessions',
-  'messages',
-  'session_tags',
-  'session_summaries',
-  'knowledge_entries',
-  'knowledge_relations',
-  'preferences',
-  'message_embeddings'
-])

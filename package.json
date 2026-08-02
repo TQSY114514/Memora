@@ -68,6 +68,7 @@
     "rehype-highlight": "^7.0.1",
     "remark-gfm": "^4.0.0",
     "uuid": "^11.0.3",
+    "zod": "^4.4.3",
     "zustand": "^5.0.2"
   },
   "overrides": {

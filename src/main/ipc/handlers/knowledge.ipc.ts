@@ -39,7 +39,7 @@ export function registerKnowledgeHandlers(): void {
   })
 
   safeHandle(IPC.KNOWLEDGE_GET, (_e, id: string) => {
-    return getEntry(id)
+    return getEntry(assertSafeId(id))
   })
 
   safeHandle(IPC.KNOWLEDGE_CREATE, (_e, input: Parameters<typeof createEntry>[0]) => {
@@ -47,7 +47,7 @@ export function registerKnowledgeHandlers(): void {
   })
 
   safeHandle(IPC.KNOWLEDGE_UPDATE, (_e, id: string, patch: Parameters<typeof updateEntry>[1]) => {
-    return updateEntry(id, patch)
+    return updateEntry(assertSafeId(id), patch)
   })
 
   safeHandle(IPC.KNOWLEDGE_DELETE, (_e, id: string) => {
@@ -55,7 +55,7 @@ export function registerKnowledgeHandlers(): void {
   })
 
   safeHandle(IPC.KNOWLEDGE_TOGGLE_TASK, (_e, id: string) => {
-    return toggleTask(id)
+    return toggleTask(assertSafeId(id))
   })
 
   safeHandle(IPC.KNOWLEDGE_SEARCH, (_e, query: string, options?: Parameters<typeof searchEntries>[1]) => {
@@ -67,7 +67,7 @@ export function registerKnowledgeHandlers(): void {
   })
 
   safeHandle(IPC.KNOWLEDGE_RELATED, (_e, entryId: string) => {
-    return findRelatedEntries(entryId)
+    return findRelatedEntries(assertSafeId(entryId, 'entryId'))
   })
 
   /**
@@ -78,6 +78,7 @@ export function registerKnowledgeHandlers(): void {
    * 幂等：同 session + title + type 不重复插入
    */
   safeHandle(IPC.KNOWLEDGE_EXTRACT_FROM_SESSION, (_e, sessionId: string) => {
+    assertSafeId(sessionId, 'sessionId')
     const workspaceId = getWorkspaceIdBySession(sessionId)
     if (!workspaceId) {
       throw new Error('该对话未归属任何工作区文件夹，无法提炼知识条目')
@@ -133,19 +134,19 @@ export function registerKnowledgeHandlers(): void {
   safeHandle(
     IPC.KNOWLEDGE_RELATION_ADD,
     (_e, fromId: string, toId: string, relation: KnowledgeRelation) => {
-      addRelation(fromId, toId, relation)
+      addRelation(assertSafeId(fromId, 'fromId'), assertSafeId(toId, 'toId'), relation)
     }
   )
 
   safeHandle(
     IPC.KNOWLEDGE_RELATION_REMOVE,
     (_e, fromId: string, toId: string, relation: KnowledgeRelation) => {
-      removeRelation(fromId, toId, relation)
+      removeRelation(assertSafeId(fromId, 'fromId'), assertSafeId(toId, 'toId'), relation)
     }
   )
 
   safeHandle(IPC.KNOWLEDGE_RELATION_LIST, (_e, entryId: string) => {
-    return listRelations(entryId)
+    return listRelations(assertSafeId(entryId, 'entryId'))
   })
 
   // ===== 知识图谱（Memory Graph 可视化数据） =====

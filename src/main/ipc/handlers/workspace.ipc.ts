@@ -21,9 +21,9 @@ export function registerWorkspaceHandlers(): void {
     createWorkspace(input)
   )
   safeHandle(IPC.WORKSPACE_UPDATE, (_e, id: string, patch: Parameters<typeof updateWorkspace>[1]) =>
-    updateWorkspace(id, patch)
+    updateWorkspace(assertSafeId(id), patch)
   )
-  safeHandle(IPC.WORKSPACE_DELETE, (_e, id: string) => deleteWorkspace(id))
+  safeHandle(IPC.WORKSPACE_DELETE, (_e, id: string) => deleteWorkspace(assertSafeId(id)))
   safeHandle(IPC.WORKSPACE_TREE, (_e, workspaceId: string) => {
     const workspace = getWorkspace(workspaceId)
     if (!workspace) return null
@@ -38,7 +38,7 @@ export function registerWorkspaceHandlers(): void {
     createFolder(input)
   )
   safeHandle(IPC.FOLDER_UPDATE, (_e, id: string, patch: Parameters<typeof updateFolder>[1]) =>
-    updateFolder(id, patch)
+    updateFolder(assertSafeId(id), patch)
   )
   safeHandle(IPC.FOLDER_DELETE, (_e, id: string) => deleteFolder(assertSafeId(id)))
 }

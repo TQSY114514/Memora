@@ -24,7 +24,7 @@ export function registerAiHandlers(): void {
   )
 
   safeHandle(IPC.AI_SUMMARY_GET, (_e, sessionId: string) => {
-    return getSessionSummary(sessionId)
+    return getSessionSummary(assertSafeId(sessionId, 'sessionId'))
   })
 
   safeHandle(IPC.AI_SUMMARY_DELETE, (_e, sessionId: string) => {
@@ -34,24 +34,24 @@ export function registerAiHandlers(): void {
   safeHandle(
     IPC.AI_SUMMARY_UPDATE,
     (_e, sessionId: string, data: { summary: string; keyPoints: string[]; todos: string[] }) => {
-      return upsertSummary(sessionId, data)
+      return upsertSummary(assertSafeId(sessionId, 'sessionId'), data)
     }
   )
 
   safeHandle(IPC.AI_KNOWLEDGE_GENERATE, (_e, sessionId: string) => {
-    return generateKnowledgeMd(sessionId)
+    return generateKnowledgeMd(assertSafeId(sessionId, 'sessionId'))
   })
 
   // ===== 向量嵌入（Phase 2） =====
   safeHandle(
     IPC.AI_EMBED_SESSION,
     async (_e, sessionId: string, config: AiConfig) => {
-      return embedSession(sessionId, config)
+      return embedSession(assertSafeId(sessionId, 'sessionId'), config)
     }
   )
 
   safeHandle(IPC.AI_EMBED_STATUS, (_e, sessionId: string) => {
-    return getEmbedStatus(sessionId)
+    return getEmbedStatus(assertSafeId(sessionId, 'sessionId'))
   })
 
   // ===== 本地嵌入模型（v1.8 #15） =====
@@ -79,7 +79,7 @@ export function registerAiHandlers(): void {
   safeHandle(
     IPC.AI_RELATED_SESSIONS,
     (_e, sessionId: string, options?: { limit?: number; threshold?: number }) => {
-      return findRelatedSessions(sessionId, options)
+      return findRelatedSessions(assertSafeId(sessionId, 'sessionId'), options)
     }
   )
 

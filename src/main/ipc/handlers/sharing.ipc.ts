@@ -1,4 +1,4 @@
-import { safeHandle } from '../safeHandle'
+import { safeHandle, assertSafeId } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { getSession } from '@db/repositories'
 import { renderSessionToHtml, renderSessionToMd, renderSessionToClaudeCode, renderSessionToJson } from '@sharing'
@@ -9,7 +9,7 @@ export function registerSharingHandlers(): void {
   safeHandle(
     IPC.SHARE_EXPORT_HTML,
     (_e, sessionId: string, options?: { customTitle?: string; customDescription?: string }) => {
-      const session = getSession(sessionId, true) as ChatSession | null
+      const session = getSession(assertSafeId(sessionId, 'sessionId'), true) as ChatSession | null
       if (!session) return null
       return renderSessionToHtml(session, options)
     }
@@ -19,7 +19,7 @@ export function registerSharingHandlers(): void {
   safeHandle(
     IPC.SHARE_EXPORT_MD,
     (_e, sessionId: string, options?: { customTitle?: string; customDescription?: string }) => {
-      const session = getSession(sessionId, true) as ChatSession | null
+      const session = getSession(assertSafeId(sessionId, 'sessionId'), true) as ChatSession | null
       if (!session) return null
       return renderSessionToMd(session, options)
     }
@@ -29,7 +29,7 @@ export function registerSharingHandlers(): void {
   safeHandle(
     IPC.SHARE_EXPORT_CLAUDE_CODE,
     (_e, sessionId: string, options?: { customTitle?: string; customDescription?: string }) => {
-      const session = getSession(sessionId, true) as ChatSession | null
+      const session = getSession(assertSafeId(sessionId, 'sessionId'), true) as ChatSession | null
       if (!session) return null
       return renderSessionToClaudeCode(session, options)
     }
@@ -39,7 +39,7 @@ export function registerSharingHandlers(): void {
   safeHandle(
     IPC.SHARE_EXPORT_JSON,
     (_e, sessionId: string, options?: { customTitle?: string; customDescription?: string }) => {
-      const session = getSession(sessionId, true) as ChatSession | null
+      const session = getSession(assertSafeId(sessionId, 'sessionId'), true) as ChatSession | null
       if (!session) return null
       return renderSessionToJson(session, options)
     }

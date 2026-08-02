@@ -47,6 +47,7 @@ import { handleSessionsTool } from './tools/sessions'
 import { handleKnowledgeTool } from './tools/knowledge'
 import { handleMemoryTool } from './tools/memory'
 import { handleWorkspaceTool } from './tools/workspace'
+import { validateToolArgs } from './validation'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -67,27 +68,30 @@ interface JsonRpcResponse {
  * @internal 仅供 server.ts 与测试使用，外部不应直接调用
  */
 export async function callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  // 参数校验（Zod schema 校验，防止恶意/畸形数据注入）
+  const validatedArgs = validateToolArgs(name, args)
+
   // 破坏性工具检查（最高优先级，默认拒绝）
   if (DESTRUCTIVE_TOOLS.has(name)) {
     if (!isDestructiveEnabled) {
-      auditToolCall(name, args, false, 'destructive not enabled')
+      auditToolCall(name, validatedArgs, false, 'destructive not enabled')
       throw new Error(
         '[DESTRUCTIVE] 破坏性操作（delete/forget）默认禁止。' +
         '如需启用，请设置 MEMORA_DESTRUCTIVE=true 或传入 --destructive 参数（同时需 --write）。' +
         '建议优先在 Memora GUI 中执行删除以便回收站找回。'
       )
     }
-    auditToolCall(name, args, true, 'destructive')
+    auditToolCall(name, validatedArgs, true, 'destructive')
   } else if (WRITE_TOOLS.has(name)) {
     // 普通写工具检查（默认只读，需 opt-in）
     if (!isWriteEnabled) {
-      auditToolCall(name, args, false, 'write not enabled')
+      auditToolCall(name, validatedArgs, false, 'write not enabled')
       throw new Error(
         '[READONLY] MCP 默认只读，不允许执行写入操作。' +
         '如需写入，请设置 MEMORA_WRITE=true 或传入 --write 参数。'
       )
     }
-    auditToolCall(name, args, true, 'write')
+    auditToolCall(name, validatedArgs, true, 'write')
   }
 
   switch (name) {
@@ -102,7 +106,7 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     case 'delete_session':
     case 'export_session':
     case 'summarize_session':
-      return handleSessionsTool(name, args)
+      return handleSessionsTool(name, validatedArgs)
 
     // knowledge 域
     case 'knowledge_search':
@@ -110,7 +114,7 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     case 'project_context':
     case 'knowledge_entry_update':
     case 'knowledge_entry_delete':
-      return handleKnowledgeTool(name, args)
+      return handleKnowledgeTool(name, validatedArgs)
 
     // memory 域
     case 'memory_recall':
@@ -119,14 +123,14 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     case 'memory_profile':
     case 'memory_forget':
     case 'preference_search':
-      return handleMemoryTool(name, args)
+      return handleMemoryTool(name, validatedArgs)
 
     // workspace 域
     case 'list_workspaces':
     case 'list_tags':
     case 'create_folder':
     case 'list_folders':
-      return handleWorkspaceTool(name, args)
+      return handleWorkspaceTool(name, validatedArgs)
 
     default:
       throw new Error(`未知工具: ${name}`)

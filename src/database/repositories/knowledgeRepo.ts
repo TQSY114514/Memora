@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
 import { buildUpdateSets } from './sqlHelpers'
 import { segment } from '@search/segmenter'
+import { buildFtsQuery } from '../../search/query'
 import type {
   KnowledgeEntry,
   KnowledgeType,
@@ -241,13 +242,8 @@ export function searchEntries(
   options?: { workspaceId?: string; type?: KnowledgeType; limit?: number }
 ): KnowledgeEntry[] {
   const db = getDatabase()
-  // 复用 chat_fts 的查询构造：分词 + 引号包裹 + 前缀通配
-  const terms = segment(query)
-    .split(/\s+/)
-    .filter(Boolean)
-  if (terms.length === 0) return []
-
-  const ftsQuery = terms.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' OR ')
+  const ftsQuery = buildFtsQuery(query, 'OR')
+  if (!ftsQuery) return []
   const limit = options?.limit ?? 50
 
   let sql = `
@@ -277,13 +273,8 @@ export function findRelatedEntries(entryId: string, limit = 5): KnowledgeEntry[]
   if (!entry) return []
 
   const db = getDatabase()
-  // 用 title 关键词搜同工作区同类条目
-  const terms = segment(entry.title)
-    .split(/\s+/)
-    .filter(Boolean)
-  if (terms.length === 0) return []
-
-  const ftsQuery = terms.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' OR ')
+  const ftsQuery = buildFtsQuery(entry.title, 'OR')
+  if (!ftsQuery) return []
   const rows = db
     .prepare(
       `SELECT ke.* FROM knowledge_entries ke

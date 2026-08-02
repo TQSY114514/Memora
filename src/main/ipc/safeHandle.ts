@@ -4,7 +4,30 @@ import { resolve, normalize } from 'path'
 import { logger } from '../logger'
 
 /**
- * 共享 IPC 处理器包装：统一 try/catch + 日志
+ * IPC 频率限制器（防滥用/暴力调用）
+ *
+ * 每个通道维护一个滑动窗口，限制单位时间内的最大调用次数。
+ * 超限时抛出错误，阻止执行。
+ */
+const RATE_LIMIT_WINDOW_MS = 10_000  // 10 秒窗口
+const RATE_LIMIT_MAX_CALLS = 60      // 每窗口最大调用次数
+
+const rateLimitMap = new Map<string, number[]>()
+
+function checkRateLimit(channel: string): void {
+  const now = Date.now()
+  const timestamps = rateLimitMap.get(channel) ?? []
+  // 清除窗口外的记录
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  if (recent.length >= RATE_LIMIT_MAX_CALLS) {
+    throw new Error(`[IPC] ${channel} 调用频率超限（${RATE_LIMIT_MAX_CALLS}次/${RATE_LIMIT_WINDOW_MS / 1000}秒）`)
+  }
+  recent.push(now)
+  rateLimitMap.set(channel, recent)
+}
+
+/**
+ * 共享 IPC 处理器包装：统一 try/catch + 日志 + 频率限制
  *
  * 所有 ipcMain.handle 调用都应通过此函数注册，
  * 确保异常被捕获并记录，未处理异常不会导致进程崩溃。
@@ -15,6 +38,7 @@ export function safeHandle(
 ): void {
   ipcMain.handle(channel, async (event, ...args) => {
     try {
+      checkRateLimit(channel)
       return await handler(event, ...args)
     } catch (err) {
       logger.error(`[IPC] ${channel} failed`, { error: String(err) })

@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { getDatabase } from '../connection'
 import { buildUpdateSets } from './sqlHelpers'
 import { segment } from '@search/segmenter'
+import { buildFtsQuery } from '../../search/query'
 import type { Preference, PreferenceStatus, PreferenceSource, UserProfile, ConflictReport } from '@shared/types'
 
 interface PreferenceRow {
@@ -316,10 +317,8 @@ export function searchPreferences(
   options?: { workspaceId?: string; limit?: number }
 ): Preference[] {
   const db = getDatabase()
-  const terms = segment(query).split(/\s+/).filter(Boolean)
-  if (terms.length === 0) return []
-
-  const ftsQuery = terms.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' OR ')
+  const ftsQuery = buildFtsQuery(query, 'OR')
+  if (!ftsQuery) return []
   const limit = options?.limit ?? 50
 
   let sql = `
@@ -390,7 +389,7 @@ export function countPreferences(workspaceId: string): {
  */
 export function detectConflicts(workspaceId?: string): ConflictReport[] {
   const db = getDatabase()
-  const wsFilter = workspaceId ? 'WHERE workspace_id = ?' : ''
+  const wsFilter = Boolean(workspaceId)
   const params = workspaceId ? [workspaceId] : []
 
   // 查找同 subject 下有多个不同 value 的 active 偏好

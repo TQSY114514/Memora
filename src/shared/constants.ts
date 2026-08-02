@@ -40,11 +40,6 @@ export const API_STYLE_META: Record<
 
 /** IPC 通道命名空间 */
 export const IPC = {
-  // 数据库
-  DB_INIT: 'db:init',
-  DB_QUERY: 'db:query',
-  DB_EXECUTE: 'db:execute',
-
   // Workspace
   WORKSPACE_LIST: 'workspace:list',
   WORKSPACE_CREATE: 'workspace:create',
@@ -107,7 +102,6 @@ export const IPC = {
 
   // Sharing
   SHARE_EXPORT_HTML: 'share:export-html',
-  SHARE_EXPORT_HTML_BATCH: 'share:export-html-batch',
   SHARE_EXPORT_MD: 'share:export-md',
   SHARE_EXPORT_CLAUDE_CODE: 'share:export-claude-code',
   SHARE_EXPORT_JSON: 'share:export-json',

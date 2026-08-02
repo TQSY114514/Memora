@@ -20,7 +20,7 @@ export function registerPreferenceHandlers(): void {
   })
 
   safeHandle(IPC.PREF_GET, (_e, id: string) => {
-    return getPreference(id)
+    return getPreference(assertSafeId(id))
   })
 
   safeHandle(IPC.PREF_CREATE, (_e, input: Parameters<typeof createPreference>[0]) => {
@@ -28,7 +28,7 @@ export function registerPreferenceHandlers(): void {
   })
 
   safeHandle(IPC.PREF_UPDATE, (_e, id: string, patch: Parameters<typeof updatePreference>[1]) => {
-    return updatePreference(id, patch)
+    return updatePreference(assertSafeId(id), patch)
   })
 
   safeHandle(IPC.PREF_DELETE, (_e, id: string) => {
@@ -36,7 +36,7 @@ export function registerPreferenceHandlers(): void {
   })
 
   safeHandle(IPC.PREF_ARCHIVE, (_e, id: string) => {
-    return archivePreference(id)
+    return archivePreference(assertSafeId(id))
   })
 
   safeHandle(IPC.PREF_SEARCH, (_e, query: string, options?: Parameters<typeof searchPreferences>[1]) => {

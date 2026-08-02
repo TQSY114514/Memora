@@ -18,14 +18,14 @@ import {
 export function registerSessionHandlers(): void {
   // ===== Session =====
   safeHandle(IPC.SESSION_GET, (_e, id: string, withMessages = true) =>
-    getSession(id, withMessages)
+    getSession(assertSafeId(id), withMessages)
   )
   safeHandle(
     IPC.SESSION_LIST,
     (_e, options?: Parameters<typeof listSessions>[0]) => listSessions(options)
   )
   safeHandle(IPC.SESSION_UPDATE, (_e, id: string, patch: Parameters<typeof updateSession>[1]) =>
-    updateSession(id, patch)
+    updateSession(assertSafeId(id), patch)
   )
   safeHandle(IPC.SESSION_DELETE, (_e, id: string) => deleteSession(assertSafeId(id)))
   safeHandle(IPC.SESSION_MOVE, (_e, id: string, folderId: string | null) =>
