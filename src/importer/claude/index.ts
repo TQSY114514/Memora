@@ -1,6 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
-import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
+import { safeParseJson, normalizeRole, fallbackTitle, buildSessions } from '../common'
 
 /**
  * Claude 导入器
@@ -118,26 +118,17 @@ export const claudeImporter: Importer = {
   parse(content: string): ParsedSession[] {
     const data = safeParse(content)
     if (!data) return []
-
-    const sessions: ParsedSession[] = []
-    for (const conv of data) {
-      try {
-        const messages = extractMessages(conv)
-        if (messages.length === 0) continue
-
-        const title = conv.name || conv.title || fallbackTitle(messages)
-        sessions.push({
+    return buildSessions(data, {
+      provider: 'Claude' as Provider,
+      extractMessages,
+      toSession(conv, messages) {
+        return {
           sourceId: conv.uuid,
-          provider: 'Claude' as Provider,
-          title,
+          title: conv.name || conv.title || fallbackTitle(messages),
           createdAt: conv.created_at || messages[0]?.createdAt || new Date().toISOString(),
-          updatedAt: conv.updated_at || conv.created_at || new Date().toISOString(),
-          messages
-        })
-      } catch {
-        // 单条失败不阻断
+          updatedAt: conv.updated_at || conv.created_at || new Date().toISOString()
+        }
       }
-    }
-    return sessions
+    })
   }
 }

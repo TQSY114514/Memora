@@ -1,6 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
-import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, extractTextParts } from '../common'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, extractTextParts, buildSessions } from '../common'
 
 /**
  * Gemini 导入器
@@ -220,32 +220,22 @@ export const geminiImporter: Importer = {
   parse(content: string): ParsedSession[] {
     const data = safeParse(content)
     if (!data) return []
-
-    const sessions: ParsedSession[] = []
-    for (const conv of data) {
-      try {
-        const messages = extractMessages(conv)
-        if (messages.length === 0) continue
-
+    return buildSessions(data, {
+      provider: 'Gemini' as Provider,
+      extractMessages,
+      toSession(conv, messages) {
         const rawTitle = (conv.title || conv.name || '').trim()
         const title = rawTitle ? rawTitle : fallbackTitle(messages)
         const now = new Date().toISOString()
         const createdAt = conv.createdAt || conv.created_at || messages[0]?.createdAt || now
-        const updatedAt = conv.updatedAt || conv.updated_at || createdAt
-
-        sessions.push({
+        return {
           sourceId: conv.id || conv.sourceId,
-          provider: 'Gemini' as Provider,
           model: conv.model,
           title,
           createdAt,
-          updatedAt,
-          messages
-        })
-      } catch {
-        // 单条解析失败不阻断
+          updatedAt: conv.updatedAt || conv.updated_at || createdAt
+        }
       }
-    }
-    return sessions
+    })
   }
 }

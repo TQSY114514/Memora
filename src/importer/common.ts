@@ -1,5 +1,5 @@
-import type { MessageRole } from '@shared/types'
-import type { ParsedMessage } from './types'
+import type { MessageRole, Provider } from '@shared/types'
+import type { ParsedMessage, ParsedSession } from './types'
 
 /** 未命名对话的默认标题 */
 export const UNTITLED_TITLE = '未命名对话'
@@ -72,4 +72,36 @@ export function extractTextParts(parts: unknown[] | undefined): string {
     })
     .filter(Boolean)
     .join('\n')
+}
+
+/**
+ * 通用会话构建器：消除各导入器 parse() 中重复的
+ * 「遍历 → 提取消息 → 跳过空 → 组装 ParsedSession → 单条失败不阻断」逻辑。
+ *
+ * 各导入器只需提供：
+ * - extractMessages：从单个会话对象提取消息
+ * - toSession：从单条会话 + 消息提取非公共字段（标题/时间/来源等）
+ */
+export interface SessionBuilderOptions<T> {
+  provider: Provider
+  extractMessages: (item: T) => ParsedMessage[]
+  toSession: (item: T, messages: ParsedMessage[]) => Omit<ParsedSession, 'provider' | 'messages'>
+}
+
+export function buildSessions<T>(
+  items: T[] | null | undefined,
+  opts: SessionBuilderOptions<T>
+): ParsedSession[] {
+  if (!Array.isArray(items)) return []
+  const sessions: ParsedSession[] = []
+  for (const item of items) {
+    try {
+      const messages = opts.extractMessages(item)
+      if (messages.length === 0) continue
+      sessions.push({ ...opts.toSession(item, messages), provider: opts.provider, messages })
+    } catch {
+      // 单条解析失败不阻断整批导入
+    }
+  }
+  return sessions
 }

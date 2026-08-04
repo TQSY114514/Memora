@@ -1,6 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
-import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle } from '../common'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, buildSessions } from '../common'
 
 /**
  * Grok 导入器
@@ -115,33 +115,24 @@ export const grokImporter: Importer = {
   parse(content: string): ParsedSession[] {
     const data = safeParse(content)
     if (!data) return []
-
-    const sessions: ParsedSession[] = []
     const now = new Date().toISOString()
-    for (const conv of data) {
-      try {
-        const messages = extractMessages(conv)
-        if (messages.length === 0) continue
-
+    return buildSessions(data, {
+      provider: 'Grok' as Provider,
+      extractMessages,
+      toSession(conv, messages) {
         const rawTitle = (conv.title || conv.name || '').trim()
-        const title = rawTitle || fallbackTitle(messages)
-
-        sessions.push({
+        const title = rawTitle ? rawTitle : fallbackTitle(messages)
+        return {
           sourceId: conv.id || conv.conversation_id,
-          provider: 'Grok' as Provider,
           model: conv.model,
           title,
           createdAt: toIsoTimestamp(conv.created_at || conv.createdAt) || messages[0]?.createdAt || now,
           updatedAt:
             toIsoTimestamp(conv.updated_at || conv.updatedAt) ||
             toIsoTimestamp(conv.created_at || conv.createdAt) ||
-            now,
-          messages
-        })
-      } catch {
-        // 单条对话解析失败不阻断
+            now
+        }
       }
-    }
-    return sessions
+    })
   }
 }

@@ -1,6 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
-import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, extractTextParts } from '../common'
+import { safeParseJson, normalizeRole, toIsoTimestamp, fallbackTitle, extractTextParts, buildSessions } from '../common'
 
 /**
  * ChatGPT 导入器
@@ -60,7 +60,7 @@ function safeParse(json: string): ChatGPTConversation[] | null {
 }
 
 /** 从 mapping 中按拓扑顺序提取消息（ChatGPT 用树结构，取主路径） */
-function extractMessages(
+function extractFromMapping(
   mapping: Record<string, ChatGPTMappingNode>
 ): ParsedMessage[] {
   // 找根节点（parent 为空或 undefined）
@@ -121,30 +121,19 @@ export const chatgptImporter: Importer = {
   parse(content: string): ParsedSession[] {
     const data = safeParse(content)
     if (!data) return []
-
-    const sessions: ParsedSession[] = []
-    for (const conv of data) {
-      try {
-        if (!conv.mapping) continue
-        const messages = extractMessages(conv.mapping)
-        if (messages.length === 0) continue
-
+    return buildSessions(data, {
+      provider: 'ChatGPT' as Provider,
+      extractMessages: (conv) => (conv.mapping ? extractFromMapping(conv.mapping) : []),
+      toSession(conv, messages) {
         const title = conv.title && conv.title.trim() ? conv.title.trim() : fallbackTitle(messages)
         const createdAt = toIsoTimestamp(conv.create_time) ?? new Date().toISOString()
-        const updatedAt = toIsoTimestamp(conv.update_time ?? conv.create_time) ?? createdAt
-
-        sessions.push({
+        return {
           sourceId: conv.id,
-          provider: 'ChatGPT' as Provider,
           title,
           createdAt,
-          updatedAt,
-          messages
-        })
-      } catch {
-        // 单条解析失败不阻断
+          updatedAt: toIsoTimestamp(conv.update_time ?? conv.create_time) ?? createdAt
+        }
       }
-    }
-    return sessions
+    })
   }
 }

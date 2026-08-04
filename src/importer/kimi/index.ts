@@ -1,6 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
-import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
+import { safeParseJson, normalizeRole, fallbackTitle, buildSessions } from '../common'
 
 /**
  * Kimi 导入器
@@ -169,24 +169,17 @@ export const kimiImporter: Importer = {
     // 回退到普通 JSON
     const data = safeParse(content)
     if (!data) return []
-
-    const sessions: ParsedSession[] = []
-    for (const conv of data) {
-      try {
-        const messages = extractMessages(conv)
-        if (messages.length === 0) continue
-        sessions.push({
+    return buildSessions(data, {
+      provider: 'Kimi' as Provider,
+      extractMessages,
+      toSession(conv, messages) {
+        return {
           sourceId: conv.objectId || conv.id,
-          provider: 'Kimi' as Provider,
           title: conv.title || conv.name || fallbackTitle(messages),
           createdAt: conv.createdAt || conv.created_at || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages
-        })
-      } catch {
-        // 单条失败不阻断
+          updatedAt: new Date().toISOString()
+        }
       }
-    }
-    return sessions
+    })
   }
 }

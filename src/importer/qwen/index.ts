@@ -1,6 +1,6 @@
 import type { Importer, ParsedSession, ParsedMessage } from '../types'
 import type { Provider } from '@shared/types'
-import { safeParseJson, normalizeRole, fallbackTitle } from '../common'
+import { safeParseJson, normalizeRole, fallbackTitle, buildSessions } from '../common'
 
 /**
  * 通义千问 (Qwen) 导入器
@@ -105,24 +105,17 @@ export const qwenImporter: Importer = {
   parse(content: string): ParsedSession[] {
     const data = safeParse(content)
     if (!data) return []
-
-    const sessions: ParsedSession[] = []
-    for (const chat of data) {
-      try {
-        const messages = extractMessages(chat)
-        if (messages.length === 0) continue
-        sessions.push({
+    return buildSessions(data, {
+      provider: 'Qwen' as Provider,
+      extractMessages,
+      toSession(chat, messages) {
+        return {
           sourceId: chat.id || chat.chat_id,
-          provider: 'Qwen' as Provider,
           title: chat.title || chat.name || fallbackTitle(messages),
           createdAt: chat.created_at || chat.createdAt || new Date().toISOString(),
-          updatedAt: chat.updated_at || chat.created_at || new Date().toISOString(),
-          messages
-        })
-      } catch {
-        // 单条失败不阻断
+          updatedAt: chat.updated_at || chat.created_at || new Date().toISOString()
+        }
       }
-    }
-    return sessions
+    })
   }
 }
