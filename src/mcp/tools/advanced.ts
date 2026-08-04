@@ -347,7 +347,7 @@ export async function handleAdvancedMCPTool(
       const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
       const dryRun = args.dry_run !== false // 默认预览模式
 
-      const candidates = scanConsolidationCandidates(workspaceId)
+      const candidates = await scanConsolidationCandidates(workspaceId)
 
       if (dryRun) {
         return {

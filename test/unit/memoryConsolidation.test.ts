@@ -32,7 +32,7 @@ function makeMockDb(rows: any[] = []) {
 }
 
 describe('scanConsolidationCandidates', () => {
-  it('同主题多条 active 偏好会被合并为一组', () => {
+  it('同主题多条 active 偏好会被合并为一组', async () => {
     const rows = [
       { id: 'a', subject: '技术栈', value: 'TypeScript', confidence: 0.9, status: 'active' },
       { id: 'b', subject: '技术栈', value: 'React', confidence: 0.7, status: 'active' },
@@ -41,7 +41,7 @@ describe('scanConsolidationCandidates', () => {
     const mockDb = makeMockDb(rows)
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
-    const result = scanConsolidationCandidates()
+    const result = await scanConsolidationCandidates()
     // 同主题 "技术栈" 有 2 条 → 1 组可合并候选
     expect(result.candidates.length).toBeGreaterThanOrEqual(1)
     const tech = result.candidates.find((c) => c.subject === '技术栈')
@@ -50,16 +50,16 @@ describe('scanConsolidationCandidates', () => {
     expect(result.totalMerged).toBeGreaterThanOrEqual(1)
   })
 
-  it('无偏好时返回空结果', () => {
+  it('无偏好时返回空结果', async () => {
     const mockDb = makeMockDb([])
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
-    const result = scanConsolidationCandidates()
+    const result = await scanConsolidationCandidates()
     expect(result.candidates).toHaveLength(0)
     expect(result.totalMerged).toBe(0)
   })
 
-  it('跨主题语义相似（值含相同 token）也会被合并', () => {
+  it('跨主题语义相似（值含相同 token）也会被合并', async () => {
     const rows = [
       { id: 'a', subject: '技术栈', value: 'Python 是主要开发语言', confidence: 0.9, status: 'active' },
       { id: 'b', subject: '编程语言', value: 'Python 是主要语言', confidence: 0.8, status: 'active' }
@@ -67,8 +67,24 @@ describe('scanConsolidationCandidates', () => {
     const mockDb = makeMockDb(rows)
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
-    const result = scanConsolidationCandidates()
+    const result = await scanConsolidationCandidates()
     // subject+value 拼接后 token 相似度高（python/是/主要/语言 等），应产生跨主题合并候选
+    expect(result.candidates.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('未启用 useEmbedding 时不会触发向量合并', async () => {
+    const rows = [
+      { id: 'a', subject: '技术栈', value: 'TypeScript', confidence: 0.9, status: 'active' },
+      { id: 'b', subject: '技术栈', value: 'React', confidence: 0.7, status: 'active' }
+    ]
+    const mockDb = makeMockDb(rows)
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    const result = await scanConsolidationCandidates('ws-1', {
+      useEmbedding: true,
+      config: { provider: 'openai', model: 'gpt', embeddingModel: 'ada', apiKey: 'x' } as any
+    })
+    // 未达到语义最小条目数（默认 100），不应走向量路径
     expect(result.candidates.length).toBeGreaterThanOrEqual(1)
   })
 })

@@ -6,6 +6,19 @@
 
 ### Added
 
+#### 混合检索精排（Hybrid Retrieval + Reranker）
+- **`src/search/hybridSearch.ts`**：将 FTS 关键词召回与向量语义召回真正融合，按加权公式（FTS 0.4 + Vector 0.3 + 时间衰减 0.15 + 图谱 boost + 收藏加成）综合排序
+- **`src/search/reranker.ts`**：新增交叉编码器精排阶段，对融合后的 top-k 结果按 query 相似度重排，`rerank` 选项默认关闭，用户配置 embedding 后启用
+- **`src/search/hybridSearch.ts`**：`computeGraphBoost` 改为基于真实表 `knowledge_entries` / `knowledge_relations` 计算图谱关联得分
+
+#### 记忆合并语义增强（Memory Consolidation）
+- **`src/memoryAgent/consolidation.ts`**：改进文本相似度算法（Jaccard + Overlap 加权），覆盖所有主题而非仅技术栈
+- **`src/memoryAgent/consolidation.ts`**：新增可选向量语义相似合并路径（`useEmbedding`），仅当 active 条目数 > 100 时启用，避免隐式 API 成本
+- 修复 SQL 列名 bug：`updatedAt` → `updated_at`、`workspaceId` → `workspace_id`
+
+#### 身份画像 SQL 修复
+- **`src/identity/*`**：修正宪法偏好查询条件（`status='constitution'` → `source='constitution' AND status='active'`），统一 `workspaceId` → `workspace_id` 列名
+
 #### 本地 ONNX 嵌入模型（#15）
 - 新增 `src/ai/localEmbedder.ts`：集成 `@huggingface/transformers`，支持在本地运行 ONNX 格式 embedding 模型，无需外部 API
 - 三种预设模型：`all-MiniLM-L6-v2`（23MB/384维）、`multilingual-e5-small`（120MB/384维）、`bge-small-zh-v1.5`（50MB/512维）

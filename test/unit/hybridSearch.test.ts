@@ -22,7 +22,7 @@ vi.mock('../../src/database/connection', () => ({
 }))
 
 import { getDatabase } from '../../src/database/connection'
-import { hybridSearch } from '../../src/search/hybridSearch'
+import { hybridSearch, computeGraphBoost } from '../../src/search/hybridSearch'
 
 const config = {
   provider: 'openai',
@@ -104,5 +104,50 @@ describe('hybridSearch', () => {
     expect(bd.ftsScore).toBeGreaterThan(0)
     // 融合后 total = fts*0.4 + vector*0.3 + timeDecay*0.15 + graph + favorite
     expect(bd.total).toBeCloseTo(bd.ftsScore * 0.4 + bd.vectorScore * 0.3 + bd.timeDecay * 0.15, 5)
+  })
+})
+
+describe('computeGraphBoost', () => {
+  it('无图数据时返回 0', () => {
+    const mockDb = makeFtsDb([])
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+    // get 返回 undefined → entryCount/relCount 均为 0
+    expect(computeGraphBoost('s1')).toBe(0)
+  })
+
+  it('会话关联的知识条目与关系越多，boost 越高（最多 0.1）', () => {
+    // prepare 根据 SQL 返回对应计数：知识条目 10，关系 5 → (10+5)/20*0.1 = 0.075
+    const stmt = {
+      all: vi.fn(() => []),
+      get: vi.fn(() => undefined)
+    }
+    const mockDb = {
+      prepare: vi.fn((sql: string) => {
+        if (sql.includes('knowledge_relations')) stmt.get = vi.fn(() => ({ cnt: 5 }))
+        else if (sql.includes('knowledge_entries')) stmt.get = vi.fn(() => ({ cnt: 10 }))
+        else stmt.get = vi.fn(() => undefined)
+        return stmt
+      })
+    }
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    const boost = computeGraphBoost('s1')
+    expect(boost).toBeCloseTo(0.075, 5)
+  })
+
+  it('boost 上限为 0.1', () => {
+    const stmt = {
+      all: vi.fn(() => []),
+      get: vi.fn(() => undefined)
+    }
+    const mockDb = {
+      prepare: vi.fn((sql: string) => {
+        stmt.get = vi.fn(() => ({ cnt: 100 }))
+        return stmt
+      })
+    }
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    expect(computeGraphBoost('s1')).toBeCloseTo(0.1, 5)
   })
 })

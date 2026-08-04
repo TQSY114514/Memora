@@ -14,6 +14,7 @@ import { getDatabase } from '../database/connection'
 import { getSessionsByIds } from '../database/repositories/sessionRepo'
 import { segmentQuery } from './segmenter'
 import { semanticSearch } from './semantic'
+import { rerank, type RerankOptions } from './reranker'
 import type { AiConfig, SearchResult } from '@shared/types'
 
 export interface HybridSearchOptions {
@@ -27,6 +28,10 @@ export interface HybridSearchOptions {
   semantic?: boolean
   /** 语义搜索的最低相似度阈值 */
   semanticThreshold?: number
+  /** 是否启用精排（对 top-k 融合结果做向量精排） */
+  rerank?: boolean
+  /** 精排配置（embed 函数 + 权重 + topK） */
+  rerankConfig?: RerankOptions
 }
 
 export interface ScoreBreakdown {
@@ -97,18 +102,29 @@ function normalizeFtsScore(rank: number): number {
   return 1 / (1 + rank)
 }
 
-/** 计算图谱 boost（有更多关联关系的会话得分更高） */
-function computeGraphBoost(sessionId: string): number {
+/** 计算图谱 boost（会话关联的知识条目与关系越多得分越高，最多 +0.1） */
+export function computeGraphBoost(sessionId: string): number {
   try {
     const db = getDatabase()
-    const row = db
+    // 该会话关联的知识条目数
+    const entryRow = db
       .prepare(
-        `SELECT COUNT(*) as cnt FROM knowledge_graph_edges
-         WHERE source_id = ? OR target_id = ?`
+        `SELECT COUNT(*) as cnt FROM knowledge_entries WHERE session_id = ?`
+      )
+      .get(sessionId) as { cnt: number } | undefined
+    const entryCount = entryRow?.cnt ?? 0
+    // 这些知识条目之间的关联关系数（1 跳图连接）
+    const relRow = db
+      .prepare(
+        `SELECT COUNT(*) as cnt FROM knowledge_relations r
+         JOIN knowledge_entries e1 ON r.from_id = e1.id
+         JOIN knowledge_entries e2 ON r.to_id = e2.id
+         WHERE e1.session_id = ? OR e2.session_id = ?`
       )
       .get(sessionId, sessionId) as { cnt: number } | undefined
-    const edgeCount = row?.cnt ?? 0
-    return Math.min(edgeCount / 10, 1) * 0.1 // 最多 +0.1
+    const relCount = relRow?.cnt ?? 0
+    // 知识条目 + 关系共同构成图谱连接度，最多 +0.1
+    return Math.min((entryCount + relCount) / 20, 1) * 0.1
   } catch {
     return 0
   }
@@ -267,7 +283,21 @@ export async function hybridSearch(
 
   const results = Array.from(resultMap.values())
 
-  // 4. 排序
+  // 4. 精排（可选）：对 top-k 融合结果做向量精排
+  if (options?.rerank && options.rerankConfig?.embed) {
+    const docs = results.map((r) => ({
+      sessionId: r.session.id,
+      title: r.session.title,
+      content: r.snippets[0]?.snippet ?? '',
+      fusionScore: r.score
+    }))
+    const reranked = await rerank(query, docs, options.rerankConfig)
+    const order = new Map(reranked.map((d, i) => [d.sessionId, i]))
+    results.sort((a, b) => (order.get(a.session.id) ?? 0) - (order.get(b.session.id) ?? 0))
+    return results.slice(0, limit)
+  }
+
+  // 5. 排序
   if (options?.sortBy === 'date') {
     results.sort((a, b) => new Date(b.session.updatedAt).getTime() - new Date(a.session.updatedAt).getTime())
   } else if (options?.sortBy === 'title') {

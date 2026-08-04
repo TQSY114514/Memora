@@ -7,6 +7,20 @@
 
 import { getDatabase } from '../database/connection'
 import { logger } from '../main/logger'
+import { embedBatch } from '../ai/apiClient'
+import { cosineSimilarity } from '@shared/math'
+import type { AiConfig } from '@shared/types'
+
+export interface ConsolidationOptions {
+  /** 是否启用向量语义合并（需配置 embedding 模型） */
+  useEmbedding?: boolean
+  /** AI 配置（用于 embedding） */
+  config?: AiConfig
+  /** 向量语义相似度阈值，默认 0.85 */
+  semanticThreshold?: number
+  /** 启用向量合并的最小条目数（性能保护），默认 100 */
+  semanticMinEntries?: number
+}
 
 export interface ConsolidationCandidate {
   /** 合并后的主题 */
@@ -35,7 +49,10 @@ export interface ConsolidationResult {
  * 2. 语义相似的 subject（如 "喜欢 Python" 和 "Python 是主要语言"）→ 合并
  * 3. 同 value 不同 subject 的条目 → 合并 subject
  */
-export function scanConsolidationCandidates(workspaceId?: string): ConsolidationResult {
+export async function scanConsolidationCandidates(
+  workspaceId?: string,
+  options?: ConsolidationOptions
+): Promise<ConsolidationResult> {
   const db = getDatabase()
   const candidates: ConsolidationCandidate[] = []
 
@@ -112,6 +129,40 @@ export function scanConsolidationCandidates(workspaceId?: string): Consolidation
         mergedIds: rest.map((r) => r.id),
         reason: `语义相似: "${group.map((r) => r.subject).join('", "')}" 表达同一含义，合并为 "${top.subject}"`
       })
+    }
+
+    // 策略 3：向量语义相似（可选，需配置 embedding 模型）
+    // 性能保护：仅当 active 条目数达到阈值时才启用，且只对未被合并的条目做向量比对
+    if (
+      options?.useEmbedding &&
+      options.config &&
+      rows.length >= (options.semanticMinEntries ?? 100)
+    ) {
+      const alreadyMerged = new Set<string>()
+      for (const c of candidates) {
+        for (const id of c.mergedIds) alreadyMerged.add(id)
+      }
+      const candidateRows = rows.filter((r) => !alreadyMerged.has(r.id))
+      const semanticGroups = await findSemanticSimilarSubjects(
+        candidateRows,
+        options.config,
+        options.semanticThreshold ?? 0.85
+      )
+      for (const group of semanticGroups) {
+        if (group.length <= 1) continue
+
+        const top = group[0]
+        const rest = group.slice(1)
+        const avgConfidence = group.reduce((sum, r) => sum + r.confidence, 0) / group.length
+
+        candidates.push({
+          subject: top.subject,
+          value: top.value,
+          confidence: Math.round(avgConfidence * 100) / 100,
+          mergedIds: rest.map((r) => r.id),
+          reason: `语义相似（向量）: "${group.map((r) => r.subject).join('", "')}" 表达同一含义，合并为 "${top.subject}"`
+        })
+      }
     }
   } catch (e) {
     logger.error('[memoryConsolidation] scanConsolidationCandidates error:', e as Record<string, unknown>)
@@ -199,6 +250,59 @@ function findSimilarSubjects(
       if (sim >= 0.6) {
         group.push(sorted[j])
         used.add(sorted[j].id)
+      }
+    }
+
+    if (group.length > 1) {
+      groups.push(group)
+    }
+  }
+
+  return groups
+}
+
+/**
+ * 查找语义相似的 subject 组（向量版，可选）
+ *
+ * 对每条偏好做 subject+value 拼接，用 embedding 生成向量，
+ * 再用余弦相似度判断是否语义相近（阈值默认 0.85）。
+ * 一次 embedBatch 批量调用生成所有向量，避免逐条 API 请求。
+ * 使用贪心聚类：按 confidence 降序，优先把高置信度条目作为组代表。
+ * embedding 失败时降级为空结果（不阻断 token 级合并）。
+ */
+async function findSemanticSimilarSubjects(
+  rows: Array<{ id: string; subject: string; value: string; confidence: number }>,
+  config: AiConfig,
+  threshold: number
+): Promise<Array<Array<typeof rows[0]>>> {
+  if (rows.length < 2) return []
+
+  let vectors: number[][]
+  try {
+    vectors = await embedBatch(config, rows.map((r) => `${r.subject} ${r.value}`))
+  } catch (e) {
+    logger.warn('[memoryConsolidation] embedding failed, skip semantic merge:', e as Record<string, unknown>)
+    return []
+  }
+  if (vectors.length !== rows.length) return []
+
+  const groups: Array<Array<typeof rows[0]>> = []
+  const used = new Set<string>()
+  const sorted = rows
+    .map((row, i) => ({ row, vec: vectors[i] }))
+    .sort((a, b) => b.row.confidence - a.row.confidence)
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (used.has(sorted[i].row.id)) continue
+    const group: typeof rows = [sorted[i].row]
+    used.add(sorted[i].row.id)
+
+    for (let j = i + 1; j < sorted.length; j++) {
+      if (used.has(sorted[j].row.id)) continue
+      const sim = cosineSimilarity(sorted[i].vec, sorted[j].vec)
+      if (sim >= threshold) {
+        group.push(sorted[j].row)
+        used.add(sorted[j].row.id)
       }
     }
 
