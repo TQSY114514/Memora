@@ -224,6 +224,101 @@ export function createPreference(input: {
   return newPref
 }
 
+/**
+ * 解析自然语言反馈类型（借鉴 MemOS 的记忆纠错闭环 add_feedback）
+ *
+ * 支持三种操作：
+ * - 修正（correction）：反馈中带有否定/修改意图，且与现有 value 冲突 → 更新 value
+ * - 补充（append）：反馈补充了新的信息 → 追加到 context
+ * - 替换（replace）：反馈明确要替换 → 直接替换 value
+ *
+ * 通过关键词启发式判断，不依赖 LLM，保证低延迟与确定性。
+ */
+function parseFeedbackKind(feedback: string): 'correction' | 'append' | 'replace' {
+  const f = feedback.trim().toLowerCase()
+  // 明确的替换/纠正意图
+  if (/(应为|应该改成|改成|其实|事实上|不对|错了|搞错了|不是|更正|纠正|替换|忘了它|remove)/.test(f)) {
+    return 'correction'
+  }
+  // 补充信息
+  if (/(补充|还有|另外|顺便|加一点|additional)/.test(f)) {
+    return 'append'
+  }
+  // 默认按替换处理（用户明确给出新值）
+  return 'replace'
+}
+
+/**
+ * 从反馈中提取价值主张（去掉意图词后的剩余文本）
+ * 简单启发式：如果反馈包含"xxx"，则提取引号内容；否则去除常见意图前缀。
+ */
+function extractFeedbackValue(feedback: string): string {
+  const quoteMatch = feedback.match(/["“”]([^"“”]+)["“”]/)
+  if (quoteMatch) return quoteMatch[1].trim()
+  // 去掉引导词，取剩余部分
+  return feedback
+    .replace(/^请|^帮我|^我记得|^我的|^其实|^应该是|^改成|^替换|^更正|^纠正|^不对|^不是|^忘了|^补充|^还有|^另外|^顺便/g, '')
+    .replace(/。[^。]*$/, '')
+    .trim()
+}
+
+/**
+ * 自然语言记忆反馈（借鉴 MemOS add_feedback）
+ *
+ * 用户通过自然语言反馈纠正/补充/替换偏好记忆，形成记忆纠错闭环。
+ * 反馈会提升偏好置信度，并记录审计日志。
+ *
+ * @returns 更新后的偏好；若偏好不存在返回 null
+ */
+export function feedbackPreference(input: {
+  preferenceId: string
+  feedback: string
+  workspaceId: string
+}): Preference | null {
+  const pref = getPreference(input.preferenceId)
+  if (!pref) return null
+  if (!input.feedback.trim()) return null
+
+  const kind = parseFeedbackKind(input.feedback)
+  const newValue = extractFeedbackValue(input.feedback)
+
+  let patch: Partial<Pick<Preference, 'value' | 'context'>>
+  if (kind === 'append') {
+    // 补充：把反馈追加到 context
+    const appended = (pref.context ? pref.context + '；' : '') + input.feedback.trim()
+    patch = { context: appended }
+  } else if (kind === 'correction' && newValue) {
+    // 修正：更新 value，并保留原值作为 context 备注
+    patch = { value: newValue, context: (pref.context ? pref.context + '；修正前：' + pref.value : '修正前：' + pref.value) }
+  } else {
+    // 替换：直接替换 value
+    patch = newValue ? { value: newValue } : {}
+  }
+
+  if (Object.keys(patch).length === 0) return pref
+
+  const updated = updatePreference(input.preferenceId, {
+    ...patch,
+    confidence: Math.min(1.0, pref.confidence + 0.2) // 反馈提升置信度
+  })
+
+  // 审计：反馈操作（在 update 审计之外记录反馈来源）
+  if (updated) {
+    addAuditLog({
+      entityType: 'preference',
+      entityId: input.preferenceId,
+      action: 'feedback',
+      beforeValue: pref as unknown as Record<string, unknown>,
+      afterValue: updated as unknown as Record<string, unknown>,
+      workspaceId: input.workspaceId,
+      sessionId: pref.sessionId,
+      reason: `feedback (${kind}): ${input.feedback.trim()}`
+    })
+  }
+
+  return updated
+}
+
 /** 获取单个偏好 */
 export function getPreference(id: string): Preference | null {
   const db = getDatabase()

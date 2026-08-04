@@ -17,12 +17,17 @@ vi.mock('../../src/search/semantic', () => ({
   semanticSearch: (...args: unknown[]) => semanticSearchMock(...args)
 }))
 
+const listFoldersMock = vi.fn()
+vi.mock('../../src/database/repositories/folderRepo', () => ({
+  listFolders: (...args: unknown[]) => listFoldersMock(...args)
+}))
+
 vi.mock('../../src/database/connection', () => ({
   getDatabase: vi.fn()
 }))
 
 import { getDatabase } from '../../src/database/connection'
-import { hybridSearch, computeGraphBoost } from '../../src/search/hybridSearch'
+import { hybridSearch, computeGraphBoost, computeEntityBoost } from '../../src/search/hybridSearch'
 
 const config = {
   provider: 'openai',
@@ -33,7 +38,7 @@ const config = {
   embeddingDim: 1536
 }
 
-function makeSession(id: string, title: string, isFavorite = false) {
+function makeSession(id: string, title: string, isFavorite = false, extra: Partial<Record<string, any>> = {}) {
   return {
     id,
     title,
@@ -41,7 +46,9 @@ function makeSession(id: string, title: string, isFavorite = false) {
     isFavorite,
     createdAt: '2026-07-01T00:00:00Z',
     updatedAt: '2026-07-20T00:00:00Z',
-    folderId: undefined
+    folderId: undefined,
+    tags: [],
+    ...extra
   }
 }
 
@@ -149,5 +156,117 @@ describe('computeGraphBoost', () => {
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
     expect(computeGraphBoost('s1')).toBeCloseTo(0.1, 5)
+  })
+})
+
+describe('computeEntityBoost', () => {
+  it('无知识条目时返回 0', () => {
+    const mockDb = makeFtsDb([])
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+    expect(computeEntityBoost('s1')).toBe(0)
+  })
+
+  it('会话存在实体链接关系时返回加成（最多 0.15）', () => {
+    const stmt = {
+      all: vi.fn(() => [{ id: 'e1' }, { id: 'e2' }]),
+      get: vi.fn(() => undefined)
+    }
+    const mockDb = {
+      prepare: vi.fn((sql: string) => {
+        // 第一条查询：获取会话的知识条目 id
+        if (sql.includes('SELECT id FROM knowledge_entries')) {
+          stmt.all = vi.fn(() => [{ id: 'e1' }, { id: 'e2' }])
+        }
+        // 第二条查询：统计实体链接关系数
+        if (sql.includes('knowledge_relations')) {
+          stmt.get = vi.fn(() => ({ cnt: 2 }))
+        }
+        return stmt
+      })
+    }
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    // 2 条关系 / 4 * 0.15 = 0.075
+    expect(computeEntityBoost('s1')).toBeCloseTo(0.075, 5)
+  })
+
+  it('实体链接越多加成越高，且有上限 0.15', () => {
+    const stmt = {
+      all: vi.fn(() => [{ id: 'e1' }]),
+      get: vi.fn(() => undefined)
+    }
+    const mockDb = {
+      prepare: vi.fn((sql: string) => {
+        if (sql.includes('knowledge_relations')) stmt.get = vi.fn(() => ({ cnt: 100 }))
+        return stmt
+      })
+    }
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+    expect(computeEntityBoost('s1')).toBeCloseTo(0.15, 5)
+  })
+})
+
+describe('hybridSearch scope（结构化检索范围，借鉴 MemPalace）', () => {
+  it('按 workspaceId 过滤：仅返回该工作区文件夹下的会话', async () => {
+    listFoldersMock.mockReturnValue([{ id: 'folder-a' }, { id: 'folder-b' }])
+    const ftsRow = { session_id: 's1', title: '架构', content: 'Electron', provider: 'ChatGPT', rank: 1 }
+    const mockDb = makeFtsDb([ftsRow])
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+    getSessionsByIdsMock.mockReturnValue(
+      new Map([['s1', makeSession('s1', '架构', false, { folderId: 'folder-x' })]])
+    )
+    semanticSearchMock.mockResolvedValue([])
+
+    const results = await hybridSearch('Electron', config, {
+      semantic: true,
+      scope: { workspaceId: 'ws1' }
+    })
+
+    // 会话 folderId=folder-x 不在允许集合内 → 被过滤
+    expect(results.length).toBe(0)
+  })
+
+  it('按 tag 过滤：仅返回含指定标签的会话', async () => {
+    const ftsRow = { session_id: 's1', title: 'Python', content: '后端', provider: 'ChatGPT', rank: 1 }
+    const mockDb = makeFtsDb([ftsRow])
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+    getSessionsByIdsMock.mockReturnValue(
+      new Map([['s1', makeSession('s1', 'Python', false, { tags: [{ name: 'work' }] })]])
+    )
+    semanticSearchMock.mockResolvedValue([])
+
+    // 会话标签为 work，不匹配 personal → 被过滤
+    const results = await hybridSearch('Python', config, {
+      semantic: true,
+      scope: { tag: 'personal' }
+    })
+    expect(results.length).toBe(0)
+
+    // 匹配 work → 保留
+    const kept = await hybridSearch('Python', config, {
+      semantic: true,
+      scope: { tag: 'work' }
+    })
+    expect(kept.length).toBe(1)
+  })
+
+  it('按 title 关键词过滤：仅返回标题包含关键词的会话', async () => {
+    const ftsRow = { session_id: 's1', title: 'Electron 项目', content: '构建', provider: 'ChatGPT', rank: 1 }
+    const mockDb = makeFtsDb([ftsRow])
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+    getSessionsByIdsMock.mockReturnValue(new Map([['s1', makeSession('s1', 'Electron 项目')]]))
+    semanticSearchMock.mockResolvedValue([])
+
+    const matched = await hybridSearch('Electron', config, {
+      semantic: true,
+      scope: { title: 'electron' }
+    })
+    expect(matched.length).toBe(1)
+
+    const missed = await hybridSearch('Electron', config, {
+      semantic: true,
+      scope: { title: 'rust' }
+    })
+    expect(missed.length).toBe(0)
   })
 })

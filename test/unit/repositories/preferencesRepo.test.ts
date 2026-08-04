@@ -15,7 +15,8 @@ import {
   getUserProfile,
   getConstitution,
   countPreferences,
-  detectConflicts
+  detectConflicts,
+  feedbackPreference
 } from '../../../src/database/repositories/preferencesRepo'
 
 vi.mock('../../../src/database/connection', () => ({ getDatabase: vi.fn() }))
@@ -266,6 +267,100 @@ describe('preferencesRepo', () => {
       stmtResults.set('GROUP BY subject', { all: [] })
       detectConflicts()
       expect(db.prepare).toHaveBeenCalled()
+    })
+  })
+
+  describe('feedbackPreference（记忆纠错闭环，借鉴 MemOS）', () => {
+    // 状态化 mock：第一次 get 返回原始偏好，后续 get 返回更新后的偏好
+    // （feedbackPreference 内部 getPreference 会先读原始值，updatePreference 更新后再读一次）
+    function statefulGet(updated: typeof prefRow) {
+      let n = 0
+      return () => {
+        n++
+        return n < 3 ? prefRow : updated
+      }
+    }
+
+    it('returns null when preference not found', () => {
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', { get: undefined })
+      const updated = feedbackPreference({
+        preferenceId: 'p1',
+        feedback: '改成 Rust',
+        workspaceId: 'ws1'
+      })
+      expect(updated).toBeNull()
+    })
+
+    it('correction 类型：修正值，保留原值为 context', () => {
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', {
+        get: statefulGet({ ...prefRow, value: 'Rust', context: '修正前：TypeScript', confidence: 0.7 })
+      })
+      stmtResults.set('UPDATE preferences SET ', { run: undefined })
+      const updated = feedbackPreference({
+        preferenceId: 'p1',
+        feedback: '不对，其实我更喜欢 Rust',
+        workspaceId: 'ws1'
+      })
+      expect(updated?.value).toBe('Rust')
+      expect(updated?.confidence).toBe(0.5 + 0.2) // 提升置信度 0.2
+      expect(updated?.context).toContain('修正前：TypeScript')
+      expect(addAuditLog).toHaveBeenCalled()
+    })
+
+    it('append 类型：补充信息追加到 context', () => {
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', {
+        get: statefulGet({ ...prefRow, context: '补充：适合大型项目', confidence: 0.7 })
+      })
+      stmtResults.set('UPDATE preferences SET ', { run: undefined })
+      const updated = feedbackPreference({
+        preferenceId: 'p1',
+        feedback: '补充：适合大型项目',
+        workspaceId: 'ws1'
+      })
+      expect(updated?.value).toBe('TypeScript') // value 不变
+      expect(updated?.context).toContain('补充：适合大型项目')
+      expect(addAuditLog).toHaveBeenCalled()
+    })
+
+    it('replace 类型：直接替换 value', () => {
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', {
+        get: statefulGet({ ...prefRow, value: 'JavaScript', confidence: 0.7 })
+      })
+      stmtResults.set('UPDATE preferences SET ', { run: undefined })
+      const updated = feedbackPreference({
+        preferenceId: 'p1',
+        feedback: 'JavaScript',
+        workspaceId: 'ws1'
+      })
+      expect(updated?.value).toBe('JavaScript')
+      expect(updated?.confidence).toBe(0.5 + 0.2)
+      expect(addAuditLog).toHaveBeenCalled()
+    })
+
+    it('extracts value from quoted content', () => {
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', {
+        get: statefulGet({ ...prefRow, value: 'Rust', confidence: 0.7 })
+      })
+      stmtResults.set('UPDATE preferences SET ', { run: undefined })
+      const updated = feedbackPreference({
+        preferenceId: 'p1',
+        feedback: '应该改成 "Rust"',
+        workspaceId: 'ws1'
+      })
+      expect(updated?.value).toBe('Rust')
+    })
+
+    it('confidence capped at 1.0', () => {
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', {
+        get: statefulGet({ ...prefRow, confidence: 1.0, value: 'Python' })
+      })
+      stmtResults.set('UPDATE preferences SET ', { run: undefined })
+      const updated = feedbackPreference({
+        preferenceId: 'p1',
+        feedback: '改成 Python',
+        workspaceId: 'ws1'
+      })
+      expect(updated?.confidence).toBe(1.0)
     })
   })
 })

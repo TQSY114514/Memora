@@ -12,6 +12,7 @@
 
 import { getDatabase } from '../database/connection'
 import { getSessionsByIds } from '../database/repositories/sessionRepo'
+import { listFolders } from '../database/repositories/folderRepo'
 import { segmentQuery } from './segmenter'
 import { semanticSearch } from './semantic'
 import { rerank, type RerankOptions } from './reranker'
@@ -24,6 +25,17 @@ export interface HybridSearchOptions {
   folderId?: string
   isFavorite?: boolean
   sortBy?: 'relevance' | 'date' | 'title'
+  /** 结构化检索范围（借鉴 MemPalace 的按人/项目/主题 scope 搜索） */
+  scope?: {
+    /** 按工作区过滤（跨会话记忆隔离） */
+    workspaceId?: string
+    /** 按标签过滤 */
+    tag?: string
+    /** 按提供商过滤 */
+    provider?: string
+    /** 按标题关键词过滤 */
+    title?: string
+  }
   /** 是否启用语义召回 */
   semantic?: boolean
   /** 语义搜索的最低相似度阈值 */
@@ -39,6 +51,7 @@ export interface ScoreBreakdown {
   vectorScore: number
   timeDecay: number
   graphBoost: number
+  entityBoost: number
   favoriteBonus: number
   total: number
 }
@@ -97,6 +110,40 @@ function computeTimeDecay(updatedAt: string, now: Date): number {
   return Math.exp(-daysSinceUpdate / 30)
 }
 
+/**
+ * 解析结构化检索范围（借鉴 MemPalace 的 scope 搜索）
+ * 将 workspaceId 解析为允许的 folderId 集合，供会话过滤使用。
+ */
+function resolveScopeFilters(scope?: HybridSearchOptions['scope']): {
+  folderIds?: Set<string>
+  tag?: string
+  title?: string
+} {
+  if (!scope) return {}
+  let folderIds: Set<string> | undefined
+  if (scope.workspaceId) {
+    folderIds = new Set(listFolders(scope.workspaceId).map((f) => f.id))
+  }
+  return {
+    folderIds,
+    tag: scope.tag,
+    title: scope.title
+  }
+}
+
+/** 判断会话是否命中 scope 过滤 */
+function passesScope(
+  session: SearchResult['session'],
+  scopeFilters: { folderIds?: Set<string>; tag?: string; title?: string }
+): boolean {
+  if (!scopeFilters) return true
+  const { folderIds, tag, title } = scopeFilters
+  if (folderIds && session.folderId && !folderIds.has(session.folderId)) return false
+  if (tag && !session.tags.some((t) => t.name === tag)) return false
+  if (title && !session.title.toLowerCase().includes(title.toLowerCase())) return false
+  return true
+}
+
 /** 归一化 FTS rank（rank 越小越好，转为 0-1 分数） */
 function normalizeFtsScore(rank: number): number {
   return 1 / (1 + rank)
@@ -131,6 +178,40 @@ export function computeGraphBoost(sessionId: string): number {
 }
 
 /**
+ * 计算实体链接 boost（借鉴 mem0 的实体抽取与跨记忆关联）
+ *
+ * 会话关联的知识条目若与工作区内其他知识条目存在显式关系（knowledge_relations），
+ * 说明该会话处于知识网络的关键节点，具备更强的关联价值 → 得分加成。
+ *
+ * @returns 实体关联得分（0 ~ 0.15）
+ */
+export function computeEntityBoost(sessionId: string): number {
+  try {
+    const db = getDatabase()
+    // 该会话的知识条目 id
+    const entryRows = db
+      .prepare(`SELECT id FROM knowledge_entries WHERE session_id = ?`)
+      .all(sessionId) as Array<{ id: string }>
+    if (entryRows.length === 0) return 0
+
+    // 统计这些条目作为端点对外建立的显式关系数量（跨条目实体链接）
+    const ids = entryRows.map((e) => e.id)
+    const placeholders = ids.map(() => '?').join(',')
+    const linkRow = db
+      .prepare(
+        `SELECT COUNT(*) as cnt FROM knowledge_relations
+         WHERE from_id IN (${placeholders}) OR to_id IN (${placeholders})`
+      )
+      .get(...ids, ...ids) as { cnt: number } | undefined
+    const linkCount = linkRow?.cnt ?? 0
+    // 实体链接越多，关联价值越高，最多 +0.15
+    return Math.min(linkCount / 4, 1) * 0.15
+  } catch {
+    return 0
+  }
+}
+
+/**
  * 混合搜索主函数
  *
  * 融合 FTS 关键词分数 + 语义向量分数 + 时间衰减 + 图谱 boost + 收藏加权
@@ -146,6 +227,7 @@ export async function hybridSearch(
 ): Promise<HybridSearchResult[]> {
   const limit = options?.limit ?? 50
   const now = new Date()
+  const scopeFilters = resolveScopeFilters(options?.scope)
 
   // 1. FTS 关键词召回
   const ftsQuery = buildFtsQuery(query, 'AND')
@@ -190,12 +272,18 @@ export async function hybridSearch(
       continue
     }
 
+    // 结构化检索范围过滤（借鉴 MemPalace）
+    if (!passesScope(session, scopeFilters)) {
+      continue
+    }
+
     const ftsScore = normalizeFtsScore(row.rank)
     const timeDecay = computeTimeDecay(session.updatedAt, now)
     const graphBoost = computeGraphBoost(row.session_id)
+    const entityBoost = computeEntityBoost(row.session_id)
     const favoriteBonus = session.isFavorite ? 0.1 : 0
 
-    const total = ftsScore * 0.4 + timeDecay * 0.15 + graphBoost + favoriteBonus
+    const total = ftsScore * 0.4 + timeDecay * 0.15 + graphBoost + entityBoost + favoriteBonus
 
     const snippet = buildSnippet(row.content, query)
 
@@ -213,6 +301,7 @@ export async function hybridSearch(
           vectorScore: existing.scoreBreakdown.vectorScore,
           timeDecay,
           graphBoost,
+          entityBoost,
           favoriteBonus,
           total
         }
@@ -228,6 +317,7 @@ export async function hybridSearch(
           vectorScore: 0,
           timeDecay,
           graphBoost,
+          entityBoost,
           favoriteBonus,
           total
         }
@@ -243,26 +333,33 @@ export async function hybridSearch(
     })
 
     for (const sr of semanticResults) {
+      // 结构化检索范围过滤（借鉴 MemPalace）
+      if (!passesScope(sr.session, scopeFilters)) {
+        continue
+      }
       const existing = resultMap.get(sr.session.id)
       if (existing) {
         // 更新现有条目的 vectorScore（取最高分）
         const fb = existing.scoreBreakdown.favoriteBonus
         const timeDecay = computeTimeDecay(sr.session.updatedAt, now)
         const graphBoost = computeGraphBoost(sr.session.id)
+        const entityBoost = computeEntityBoost(sr.session.id)
         const vectorScore = Math.max(existing.scoreBreakdown.vectorScore, sr.score)
         const total = existing.scoreBreakdown.ftsScore * 0.4 +
-          vectorScore * 0.3 + timeDecay * 0.15 + graphBoost + fb
+          vectorScore * 0.3 + timeDecay * 0.15 + graphBoost + entityBoost + fb
         existing.scoreBreakdown.vectorScore = vectorScore
         existing.scoreBreakdown.timeDecay = timeDecay
         existing.scoreBreakdown.graphBoost = graphBoost
+        existing.scoreBreakdown.entityBoost = entityBoost
         existing.scoreBreakdown.total = total
         existing.score = total
       } else {
         // 语义召回但 FTS 未命中的会话：新增条目
         const timeDecay = computeTimeDecay(sr.session.updatedAt, now)
         const graphBoost = computeGraphBoost(sr.session.id)
+        const entityBoost = computeEntityBoost(sr.session.id)
         const favoriteBonus = sr.session.isFavorite ? 0.1 : 0
-        const total = sr.score * 0.3 + timeDecay * 0.15 + graphBoost + favoriteBonus
+        const total = sr.score * 0.3 + timeDecay * 0.15 + graphBoost + entityBoost + favoriteBonus
         resultMap.set(sr.session.id, {
           session: sr.session,
           snippets: [{ snippet: sr.snippet, messageId: sr.messageId, sessionId: sr.session.id }],
@@ -273,6 +370,7 @@ export async function hybridSearch(
             vectorScore: sr.score,
             timeDecay,
             graphBoost,
+            entityBoost,
             favoriteBonus,
             total
           }

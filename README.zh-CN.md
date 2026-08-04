@@ -355,6 +355,19 @@ export MEMORA_FIELD_RESTRICTIONS="claude:tech,project;cursor:tech,communication,
 
 ---
 
+## 鸣谢
+
+本项目研究并学习了 AI 记忆与 Agent 上下文领域的多个优秀开源项目，它们的洞察塑造了 Memora 的设计：
+
+| 项目 | 我们借鉴了什么 |
+| --- | --- |
+| [mem0](https://github.com/mem0ai/mem0) | 实体抽取与跨记忆关联，增强检索相关性（见混合检索中的 `computeEntityBoost`） |
+| [OpenViking](https://github.com/volcengine/OpenViking) | 分层 L0/L1/L2 记忆加载，为 MCP `memory_recall` 响应节省 token |
+| [MemOS](https://github.com/MemTensor/MemOS) | 自然语言记忆反馈闭环（`memory_feedback`），用于修正/补充/替换偏好 |
+| [MemPalace](https://github.com/MemPalace/mempalace) | 结构化检索范围（按人/项目/主题），限定检索范围 |
+
+---
+
 ## License
 
 [MIT](LICENSE)

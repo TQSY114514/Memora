@@ -42,7 +42,8 @@ export const WRITE_TOOLS = new Set([
   'create_folder',
   'knowledge_entry_update',
   'summarize_session',
-  'memory_consolidate'
+  'memory_consolidate',
+  'memory_feedback'
 ])
 
 /** 破坏性工具列表（需 --destructive 额外开启，默认拒绝） */

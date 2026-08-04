@@ -153,6 +153,7 @@ export async function callTool(name: string, args: Record<string, unknown>, clie
     case 'memory_profile':
     case 'memory_get_constitution':
     case 'memory_forget':
+    case 'memory_feedback':
     case 'preference_search':
     case 'memory_audit_log':
       return handleMemoryTool(name, validatedArgs)

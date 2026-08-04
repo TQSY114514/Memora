@@ -115,7 +115,11 @@ export const TOOLS: McpTool[] = [
       properties: {
         query: { type: 'string', description: '自然语言问题或要召回的主题' },
         limit: { type: 'number', description: '返回结果数量上限，默认 5' },
-        threshold: { type: 'number', description: '相似度阈值（0-1），默认 0.25' }
+        threshold: { type: 'number', description: '相似度阈值（0-1），默认 0.25' },
+        tiered: {
+          type: 'boolean',
+          description: '是否启用分层返回（借鉴 OpenViking）：true 时返回 l0（摘要）/l1（概览）/l2（详情）三个层级，按需取用节省 token'
+        }
       },
       required: ['query']
     }
@@ -236,6 +240,20 @@ export const TOOLS: McpTool[] = [
         preferenceId: { type: 'string', description: '要遗忘的偏好 ID' }
       },
       required: ['preferenceId']
+    }
+  },
+  {
+    name: 'memory_feedback',
+    description:
+      '记忆纠错（借鉴 MemOS）：用户通过自然语言反馈纠正/补充/替换已有偏好记忆，形成记忆纠错闭环。用户说「我其实更喜欢 X」「补充一下我对 Y 的偏好」时用这个工具。反馈会提升该偏好的置信度，并记录审计日志。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        preferenceId: { type: 'string', description: '要校正的偏好 ID' },
+        feedback: { type: 'string', description: '自然语言反馈内容（支持修正/补充/替换）' },
+        workspaceId: { type: 'string', description: '偏好所属工作区 ID' }
+      },
+      required: ['preferenceId', 'feedback', 'workspaceId']
     }
   },
   {

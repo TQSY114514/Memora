@@ -12,12 +12,37 @@ import {
   createPreference,
   archivePreference,
   searchPreferences,
-  getConstitution
+  getConstitution,
+  feedbackPreference
 } from '../../database/repositories/preferencesRepo'
 import { listAuditLogs } from '../../database/repositories/auditRepo'
 import { semanticSearch } from '../../search/semantic'
 import { v4 as uuidv4 } from 'uuid'
 import { loadAiConfigForTool } from './shared'
+
+/**
+ * 构建 L0 层级摘要（一句话，~100 token）
+ * 借鉴 OpenViking 分层记忆架构：L0 = 摘要层
+ */
+function buildL0Summary(snippet: string): string {
+  if (!snippet) return ''
+  // 取前 100 字符作为摘要（可通过 AI 压缩进一步优化，但保持简单）
+  const trimmed = snippet.trim()
+  if (trimmed.length <= 100) return trimmed
+  return trimmed.slice(0, 97) + '…'
+}
+
+/**
+ * 构建 L1 层级概览（要点，~2k token）
+ * 借鉴 OpenViking 分层记忆架构：L1 = 概览层
+ */
+function buildL1Overview(snippet: string): string {
+  if (!snippet) return ''
+  // 取前 2000 字符作为概览
+  const trimmed = snippet.trim()
+  if (trimmed.length <= 2000) return trimmed
+  return trimmed.slice(0, 1997) + '…'
+}
 
 export async function handleMemoryTool(
   name: string,
@@ -29,6 +54,7 @@ export async function handleMemoryTool(
       if (!query) throw new Error('query 不能为空')
       const limit = Number(args.limit ?? 5)
       const threshold = Number(args.threshold ?? 0.25)
+      const tiered = args.tiered === true // 是否启用分层返回（借鉴 OpenViking）
 
       // 从主进程文件 + secretStore 组装 AiConfig
       const config = loadAiConfigForTool({
@@ -37,7 +63,15 @@ export async function handleMemoryTool(
       })
 
       const results = await semanticSearch(query, config, { limit, threshold })
-      return results.map((r) => ({
+      return tiered ? results.map((r) => ({
+        sessionId: r.session.id,
+        title: r.session.title,
+        provider: r.session.provider,
+        l0: buildL0Summary(r.snippet),
+        l1: buildL1Overview(r.snippet),
+        l2: r.snippet,
+        score: r.score
+      })) : results.map((r) => ({
         sessionId: r.session.id,
         title: r.session.title,
         provider: r.session.provider,
@@ -175,6 +209,27 @@ export async function handleMemoryTool(
       const pref = archivePreference(preferenceId)
       if (!pref) throw new Error('偏好不存在')
       return { preferenceId, status: 'archived', note: '偏好已遗忘（archived）' }
+    }
+
+    case 'memory_feedback': {
+      // 自然语言记忆反馈（借鉴 MemOS 记忆纠错闭环）
+      const preferenceId = String(args.preferenceId ?? '')
+      const feedback = String(args.feedback ?? '')
+      const workspaceId = String(args.workspaceId ?? '')
+      if (!preferenceId) throw new Error('preferenceId 不能为空')
+      if (!feedback) throw new Error('feedback 不能为空')
+      if (!workspaceId) throw new Error('workspaceId 不能为空')
+      const updated = feedbackPreference({ preferenceId, feedback, workspaceId })
+      if (!updated) throw new Error('偏好不存在')
+      return {
+        preferenceId: updated.id,
+        subject: updated.subject,
+        value: updated.value,
+        context: updated.context,
+        confidence: updated.confidence,
+        status: updated.status,
+        note: '反馈已应用，偏好已更新（记忆纠错闭环）'
+      }
     }
 
     case 'preference_search': {

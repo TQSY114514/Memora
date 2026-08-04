@@ -355,6 +355,19 @@ export MEMORA_FIELD_RESTRICTIONS="claude:tech,project;cursor:tech,communication,
 
 ---
 
+## Acknowledgments
+
+This project studies and learns from several outstanding open-source projects in the AI memory and agent context space. Their insights have shaped Memora's design:
+
+| Project | What we learned |
+| --- | --- |
+| [mem0](https://github.com/mem0ai/mem0) | Entity extraction & cross-memory linking to strengthen retrieval relevance (see `computeEntityBoost` in our hybrid search) |
+| [OpenViking](https://github.com/volcengine/OpenViking) | Tiered L0/L1/L2 memory loading to save tokens in MCP `memory_recall` responses |
+| [MemOS](https://github.com/MemTensor/MemOS) | Natural-language memory feedback loop (`memory_feedback`) for correcting/supplementing/replacing preferences |
+| [MemPalace](https://github.com/MemPalace/mempalace) | Structured search scope (by person / project / topic) for filtering retrieval range |
+
+---
+
 ## License
 
 [MIT](LICENSE)

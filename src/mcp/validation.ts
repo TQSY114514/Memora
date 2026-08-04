@@ -128,7 +128,8 @@ export const toolSchemas: Record<string, z.ZodType> = {
   memory_recall: z.object({
     query: nonEmptyString,
     limit: limitSchema,
-    threshold: thresholdSchema
+    threshold: thresholdSchema,
+    tiered: z.boolean().optional()
   }),
   memory_write: z.object({
     title: nonEmptyString,
@@ -153,6 +154,11 @@ export const toolSchemas: Record<string, z.ZodType> = {
   }),
   memory_forget: z.object({
     preferenceId: safeId
+  }),
+  memory_feedback: z.object({
+    preferenceId: safeId,
+    feedback: nonEmptyString,
+    workspaceId: safeId
   }),
   preference_search: z.object({
     query: nonEmptyString,

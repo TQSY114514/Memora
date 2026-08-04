@@ -2,6 +2,20 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.14.0] - 2026-08-04
+
+### Added
+
+#### 借鉴开源项目落地（分层记忆 / 记忆反馈 / 实体链接 / 检索范围）
+- **分层存储/按需加载（借鉴 OpenViking）**：`src/mcp/tools/memory.ts` 的 `memory_recall` 新增 `tiered` 参数，启用后返回 L0（摘要）/ L1（概览）/ L2（详情）三个层级，AI Agent 可按需取用，节省 token 消耗
+- **自然语言记忆反馈（借鉴 MemOS）**：`src/database/repositories/preferencesRepo.ts` 新增 `feedbackPreference`，支持通过自然语言「修正 / 补充 / 替换」偏好记忆，反馈提升置信度并记录审计日志；新增 MCP 工具 `memory_feedback`（含 schema、validation、accessControl 注册）
+- **实体链接检索增强（借鉴 mem0）**：`src/search/hybridSearch.ts` 新增 `computeEntityBoost`，基于会话知识条目对外建立的显式关系（knowledge_relations）计算实体关联得分，融入混合检索排序（最多 +0.15）
+- **结构化检索范围（借鉴 MemPalace）**：`src/search/hybridSearch.ts` 的 `HybridSearchOptions` 新增 `scope`，支持按工作区 / 标签 / 标题限定检索范围，FTS 与语义召回两路均生效
+- **README 鸣谢**：README.md / README.zh-CN.md 新增「Acknowledgments / 鸣谢」章节，标注真实借鉴的四个开源项目与对应落地点
+
+### Fixed
+- `test/mcp-schemas.test.ts`：工具数量断言从 31 更新为 32（新增 `memory_feedback`）
+
 ## [1.13.0] - 2026-08-04
 
 ### Added
