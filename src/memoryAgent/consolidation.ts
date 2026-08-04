@@ -53,7 +53,7 @@ export function scanConsolidationCandidates(workspaceId?: string): Consolidation
       rows = db
         .prepare(
           `SELECT id, subject, value, confidence, status FROM preferences
-           WHERE workspaceId = ? AND status = 'active'
+           WHERE workspace_id = ? AND status = 'active'
            ORDER BY subject, confidence DESC`
         )
         .all(workspaceId) as PrefRow[]
@@ -140,8 +140,8 @@ export function executeConsolidation(
   let merged = 0
 
   const updateStmt = db.prepare(
-    `UPDATE preferences SET status = 'superseded', updatedAt = ?
-     WHERE id = ? AND workspaceId = ?`
+    `UPDATE preferences SET status = 'superseded', updated_at = ?
+     WHERE id = ? AND workspace_id = ?`
   )
 
   const now = new Date().toISOString()
@@ -170,34 +170,35 @@ export function executeConsolidation(
 }
 
 /**
- * 查找语义相似的 subject 对
+ * 查找语义相似的 subject 对（跨类别，不限于技术栈）
+ *
+ * 对每条偏好做 subject+value 拼接，用 Jaccard 相似度（token 集合交并比）判断是否语义相近。
+ * 相似度 >= 阈值（默认 0.6）的条目聚为一组，作为可合并候选。
+ * 使用贪心聚类：按 confidence 降序，优先把高置信度条目作为组代表。
  */
-function findSimilarSubjects(rows: Array<{ id: string; subject: string; value: string; confidence: number }>): Array<Array<typeof rows[0]>> {
+function findSimilarSubjects(
+  rows: Array<{ id: string; subject: string; value: string; confidence: number }>
+): Array<Array<typeof rows[0]>> {
   const groups: Array<Array<typeof rows[0]>> = []
   const used = new Set<string>()
 
-  // 技术栈相关的相似检测
-  const techSubjects = rows.filter((r) =>
-    r.subject.toLowerCase().includes('技术栈') ||
-    r.subject.toLowerCase().includes('语言') ||
-    r.subject.toLowerCase().includes('tech') ||
-    r.subject.toLowerCase().includes('language') ||
-    r.subject.toLowerCase().includes('编程') ||
-    r.subject.toLowerCase().includes('programming')
-  )
+  // 按 confidence 降序排序，保证组代表优先取高置信度条目
+  const sorted = [...rows].sort((a, b) => b.confidence - a.confidence)
 
-  for (let i = 0; i < techSubjects.length; i++) {
-    if (used.has(techSubjects[i].id)) continue
-    const group: typeof rows = [techSubjects[i]]
-    used.add(techSubjects[i].id)
+  for (let i = 0; i < sorted.length; i++) {
+    if (used.has(sorted[i].id)) continue
+    const group: typeof rows = [sorted[i]]
+    used.add(sorted[i].id)
 
-    for (let j = i + 1; j < techSubjects.length; j++) {
-      if (used.has(techSubjects[j].id)) continue
-      // 检查 value 是否相似
-      const sim = textSimilarity(techSubjects[i].value, techSubjects[j].value)
-      if (sim > 0.6) {
-        group.push(techSubjects[j])
-        used.add(techSubjects[j].id)
+    for (let j = i + 1; j < sorted.length; j++) {
+      if (used.has(sorted[j].id)) continue
+      const sim = textSimilarity(
+        `${sorted[i].subject} ${sorted[i].value}`,
+        `${sorted[j].subject} ${sorted[j].value}`
+      )
+      if (sim >= 0.6) {
+        group.push(sorted[j])
+        used.add(sorted[j].id)
       }
     }
 
@@ -209,16 +210,39 @@ function findSimilarSubjects(rows: Array<{ id: string; subject: string; value: s
   return groups
 }
 
-/** 简单的文本相似度（基于共同 token） */
+/**
+ * 基于 token 的相似度（overlap coefficient，更适合短语/转述检测）
+ *
+ * 用 Jaccard 与 overlap 的加权组合：
+ * - overlap = |A∩B| / min(|A|,|B|)：衡量"一个是否包含另一个的大部分"，对转述/相似短语敏感
+ * - 最终取两者均值，兼顾纯度与召回
+ */
 function textSimilarity(a: string, b: string): number {
-  const tokensA = new Set(a.toLowerCase().split(/[\s,，、]+/).filter(Boolean))
-  const tokensB = new Set(b.toLowerCase().split(/[\s,，、]+/).filter(Boolean))
+  const tokensA = tokenize(a)
+  const tokensB = tokenize(b)
   if (tokensA.size === 0 || tokensB.size === 0) return 0
 
   let intersection = 0
   for (const t of tokensA) {
     if (tokensB.has(t)) intersection++
   }
+  const union = tokensA.size + tokensB.size - intersection
+  const jaccard = union === 0 ? 0 : intersection / union
+  const overlap = Math.min(tokensA.size, tokensB.size) === 0
+    ? 0
+    : intersection / Math.min(tokensA.size, tokensB.size)
+  return (jaccard + overlap) / 2
+}
 
-  return intersection / Math.min(tokensA.size, tokensB.size)
+/** 提取 token：英文按词切分 + 中文按单字切分 */
+function tokenize(text: string): Set<string> {
+  const lower = text.toLowerCase()
+  const tokens = new Set<string>()
+  // 英文词 / 数字
+  for (const m of lower.match(/[a-z0-9]+/g) ?? []) tokens.add(m)
+  // 中文单字
+  for (const ch of lower) {
+    if (/[\u4e00-\u9fa5]/.test(ch)) tokens.add(ch)
+  }
+  return tokens
 }

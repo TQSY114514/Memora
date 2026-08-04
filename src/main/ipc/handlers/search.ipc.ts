@@ -2,6 +2,7 @@ import { safeHandle } from '../safeHandle'
 import { IPC } from '@shared/constants'
 import { search, SearchOptions } from '@search/query'
 import { semanticSearch } from '@search/semantic'
+import { hybridSearch, HybridSearchOptions } from '@search/hybridSearch'
 import type { AiConfig } from '@shared/types'
 
 export function registerSearchHandlers(): void {
@@ -45,6 +46,19 @@ export function registerSearchHandlers(): void {
       options?: { limit?: number; threshold?: number }
     ) => {
       return semanticSearch(query, config, options)
+    }
+  )
+
+  // ===== 混合搜索（FTS + Vector 融合） =====
+  safeHandle(
+    IPC.SEARCH_HYBRID,
+    async (
+      _e,
+      query: string,
+      config: AiConfig,
+      options?: HybridSearchOptions
+    ) => {
+      return hybridSearch(query, config, options)
     }
   )
 }

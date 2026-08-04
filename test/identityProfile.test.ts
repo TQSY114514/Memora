@@ -76,4 +76,29 @@ describe('identityProfile.generateIdentityProfile', () => {
     // mock 的 db.prepare 至少被调用过一次
     expect(mockDb.prepare).toHaveBeenCalled()
   })
+
+  it('宪法查询使用 source = constitution 且 status = active', () => {
+    const mockDb = makeMockDb()
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    generateIdentityProfile()
+    const sqlCalls = mockDb.prepare.mock.calls.map((c) => String(c[0]))
+    const constitutionSql = sqlCalls.find((s) => s.includes('source = \'constitution\''))
+    expect(constitutionSql).toBeDefined()
+    expect(constitutionSql).toContain('status = \'active\'')
+    // 不应使用错误的 status = 'constitution'
+    expect(constitutionSql).not.toContain('status = \'constitution\'')
+  })
+
+  it('带 workspaceId 时使用 snake_case 列名（workspace_id）', () => {
+    const mockDb = makeMockDb()
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    generateIdentityProfile('ws-1')
+    const sqlCalls = mockDb.prepare.mock.calls.map((c) => String(c[0]))
+    const prefSql = sqlCalls.find((s) => s.includes('FROM preferences') && s.includes('workspace_id'))
+    expect(prefSql).toBeDefined()
+    // 不应使用 camelCase 列名
+    expect(prefSql).not.toContain('workspaceId')
+  })
 })

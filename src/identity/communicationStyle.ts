@@ -55,7 +55,7 @@ export function inferCommunicationStyle(workspaceId?: string): CommunicationStyl
     rows = db
       .prepare(
         `SELECT subject, value, confidence FROM preferences
-         WHERE workspaceId = ? AND status = 'active'
+         WHERE workspace_id = ? AND status = 'active'
          ORDER BY confidence DESC LIMIT 200`
       )
       .all(workspaceId) as PreferenceRow[]

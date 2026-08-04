@@ -215,6 +215,19 @@ const api = {
   ): Promise<SemanticSearchResult[]> =>
     ipcRenderer.invoke(IPC.SEARCH_SEMANTIC, query, config, options),
 
+  /** 混合搜索（FTS + Vector 融合） */
+  hybridSearch: (
+    query: string,
+    config: AiConfig,
+    options?: {
+      limit?: number
+      provider?: string
+      semantic?: boolean
+      semanticThreshold?: number
+      sortBy?: 'relevance' | 'date' | 'title'
+    }
+  ): Promise<unknown[]> => ipcRenderer.invoke(IPC.SEARCH_HYBRID, query, config, options),
+
   // ===== Sharing =====
   share: {
     exportHtml: (

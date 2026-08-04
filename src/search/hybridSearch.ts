@@ -13,7 +13,8 @@
 import { getDatabase } from '../database/connection'
 import { getSessionsByIds } from '../database/repositories/sessionRepo'
 import { segmentQuery } from './segmenter'
-import type { SearchResult } from '@shared/types'
+import { semanticSearch } from './semantic'
+import type { AiConfig, SearchResult } from '@shared/types'
 
 export interface HybridSearchOptions {
   limit?: number
@@ -22,7 +23,7 @@ export interface HybridSearchOptions {
   folderId?: string
   isFavorite?: boolean
   sortBy?: 'relevance' | 'date' | 'title'
-  /** 是否启用语义搜索 */
+  /** 是否启用语义召回 */
   semantic?: boolean
   /** 语义搜索的最低相似度阈值 */
   semanticThreshold?: number
@@ -116,13 +117,17 @@ function computeGraphBoost(sessionId: string): number {
 /**
  * 混合搜索主函数
  *
- * 融合 FTS 关键词分数 + 时间衰减 + 图谱 boost + 收藏加权
- * 返回带 score_breakdown 的结果
+ * 融合 FTS 关键词分数 + 语义向量分数 + 时间衰减 + 图谱 boost + 收藏加权
+ * 返回带 score_breakdown 的结果。
+ *
+ * 当 options.semantic === true 且传入有效 AiConfig 时，会额外执行语义召回，
+ * 将两路结果按会话去重合并，语义命中会话的 vectorScore 取最高分。
  */
-export function hybridSearch(
+export async function hybridSearch(
   query: string,
+  config: AiConfig,
   options?: HybridSearchOptions
-): HybridSearchResult[] {
+): Promise<HybridSearchResult[]> {
   const limit = options?.limit ?? 50
   const now = new Date()
 
@@ -140,7 +145,7 @@ export function hybridSearch(
     }
   }
 
-  // 2. 聚合 + 评分
+  // 2. 聚合 FTS 结果 + 评分
   const uniqueSessionIds = [...new Set(rows.map((r) => r.session_id))]
   const sessionMap = getSessionsByIds(uniqueSessionIds)
 
@@ -174,9 +179,7 @@ export function hybridSearch(
     const graphBoost = computeGraphBoost(row.session_id)
     const favoriteBonus = session.isFavorite ? 0.1 : 0
 
-    // 融合评分
-    const vectorScore = 0 // 默认无向量分数，由外部 semanticSearch 补充
-    const total = ftsScore * 0.4 + vectorScore * 0.3 + timeDecay * 0.15 + graphBoost + favoriteBonus
+    const total = ftsScore * 0.4 + timeDecay * 0.15 + graphBoost + favoriteBonus
 
     const snippet = buildSnippet(row.content, query)
 
@@ -191,7 +194,7 @@ export function hybridSearch(
         existing.score = total
         existing.scoreBreakdown = {
           ftsScore,
-          vectorScore,
+          vectorScore: existing.scoreBreakdown.vectorScore,
           timeDecay,
           graphBoost,
           favoriteBonus,
@@ -206,7 +209,7 @@ export function hybridSearch(
         score: total,
         scoreBreakdown: {
           ftsScore,
-          vectorScore,
+          vectorScore: 0,
           timeDecay,
           graphBoost,
           favoriteBonus,
@@ -216,9 +219,55 @@ export function hybridSearch(
     }
   }
 
+  // 3. 语义召回（可选）：与本文件的 FTS 结果按会话去重合并
+  if (options?.semantic && config) {
+    const semanticResults = await semanticSearch(query, config, {
+      limit,
+      threshold: options.semanticThreshold
+    })
+
+    for (const sr of semanticResults) {
+      const existing = resultMap.get(sr.session.id)
+      if (existing) {
+        // 更新现有条目的 vectorScore（取最高分）
+        const fb = existing.scoreBreakdown.favoriteBonus
+        const timeDecay = computeTimeDecay(sr.session.updatedAt, now)
+        const graphBoost = computeGraphBoost(sr.session.id)
+        const vectorScore = Math.max(existing.scoreBreakdown.vectorScore, sr.score)
+        const total = existing.scoreBreakdown.ftsScore * 0.4 +
+          vectorScore * 0.3 + timeDecay * 0.15 + graphBoost + fb
+        existing.scoreBreakdown.vectorScore = vectorScore
+        existing.scoreBreakdown.timeDecay = timeDecay
+        existing.scoreBreakdown.graphBoost = graphBoost
+        existing.scoreBreakdown.total = total
+        existing.score = total
+      } else {
+        // 语义召回但 FTS 未命中的会话：新增条目
+        const timeDecay = computeTimeDecay(sr.session.updatedAt, now)
+        const graphBoost = computeGraphBoost(sr.session.id)
+        const favoriteBonus = sr.session.isFavorite ? 0.1 : 0
+        const total = sr.score * 0.3 + timeDecay * 0.15 + graphBoost + favoriteBonus
+        resultMap.set(sr.session.id, {
+          session: sr.session,
+          snippets: [{ snippet: sr.snippet, messageId: sr.messageId, sessionId: sr.session.id }],
+          rank: 0,
+          score: total,
+          scoreBreakdown: {
+            ftsScore: 0,
+            vectorScore: sr.score,
+            timeDecay,
+            graphBoost,
+            favoriteBonus,
+            total
+          }
+        })
+      }
+    }
+  }
+
   const results = Array.from(resultMap.values())
 
-  // 3. 排序
+  // 4. 排序
   if (options?.sortBy === 'date') {
     results.sort((a, b) => new Date(b.session.updatedAt).getTime() - new Date(a.session.updatedAt).getTime())
   } else if (options?.sortBy === 'title') {

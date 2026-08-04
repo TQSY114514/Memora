@@ -130,6 +130,8 @@ export const IPC = {
 
   // 语义搜索（Phase 2）
   SEARCH_SEMANTIC: 'search:semantic',
+  // 混合搜索（FTS + Vector 融合）
+  SEARCH_HYBRID: 'search:hybrid',
 
   // Project Memory（Phase 3）
   AI_MEMORY_ASK: 'ai:memory:ask',

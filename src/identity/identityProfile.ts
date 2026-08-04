@@ -94,7 +94,7 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
     prefRows = db
       .prepare(
         `SELECT subject, value, confidence, status FROM preferences
-         WHERE workspaceId = ? AND status = 'active'
+         WHERE workspace_id = ? AND status = 'active'
          ORDER BY confidence DESC LIMIT 100`
       )
       .all(workspaceId) as ProfileRow[]
@@ -114,8 +114,8 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
     knowRows = db
       .prepare(
         `SELECT title, type, content FROM knowledge_entries
-         WHERE workspaceId = ? AND status = 'active'
-         ORDER BY updatedAt DESC LIMIT 50`
+         WHERE workspace_id = ? AND status = 'active'
+         ORDER BY updated_at DESC LIMIT 50`
       )
       .all(workspaceId) as KnowledgeRow[]
   } else {
@@ -134,7 +134,7 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
     constitutionRows = db
       .prepare(
         `SELECT subject, value, confidence, status FROM preferences
-         WHERE workspaceId = ? AND status = 'constitution'
+         WHERE workspace_id = ? AND source = 'constitution' AND status = 'active'
          ORDER BY confidence DESC LIMIT 50`
       )
       .all(workspaceId) as ProfileRow[]
@@ -142,7 +142,7 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
     constitutionRows = db
       .prepare(
         `SELECT subject, value, confidence, status FROM preferences
-         WHERE status = 'constitution'
+         WHERE source = 'constitution' AND status = 'active'
          ORDER BY confidence DESC LIMIT 50`
       )
       .all() as ProfileRow[]
@@ -154,9 +154,9 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
     statRow = db
       .prepare(
         `SELECT
-           (SELECT COUNT(*) FROM chat_sessions WHERE workspaceId = ?) as totalSessions,
-           (SELECT COUNT(*) FROM messages WHERE sessionId IN (SELECT id FROM chat_sessions WHERE workspaceId = ?)) as totalMessages,
-           (SELECT MIN(createdAt) FROM chat_sessions WHERE workspaceId = ?) as firstSession`
+           (SELECT COUNT(*) FROM chat_sessions cs JOIN folders f ON f.id = cs.folder_id WHERE f.workspace_id = ?) as totalSessions,
+           (SELECT COUNT(*) FROM messages m JOIN chat_sessions cs ON m.session_id = cs.id JOIN folders f ON f.id = cs.folder_id WHERE f.workspace_id = ?) as totalMessages,
+           (SELECT MIN(cs.created_at) FROM chat_sessions cs JOIN folders f ON f.id = cs.folder_id WHERE f.workspace_id = ?) as firstSession`
       )
       .get(workspaceId, workspaceId, workspaceId) as StatRow | undefined
   } else {
@@ -175,9 +175,10 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
   if (workspaceId) {
     providerRows = db
       .prepare(
-        `SELECT provider, COUNT(*) as cnt FROM chat_sessions
-         WHERE workspaceId = ?
-         GROUP BY provider ORDER BY cnt DESC LIMIT 5`
+        `SELECT cs.provider, COUNT(*) as cnt FROM chat_sessions cs
+         JOIN folders f ON f.id = cs.folder_id
+         WHERE f.workspace_id = ?
+         GROUP BY cs.provider ORDER BY cnt DESC LIMIT 5`
       )
       .all(workspaceId) as SessionRow[]
   } else {
