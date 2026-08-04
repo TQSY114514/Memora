@@ -123,7 +123,7 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
       .prepare(
         `SELECT title, type, content FROM knowledge_entries
          WHERE status = 'active'
-         ORDER BY updatedAt DESC LIMIT 50`
+         ORDER BY updated_at DESC LIMIT 50`
       )
       .all() as KnowledgeRow[]
   }
@@ -165,7 +165,7 @@ export function generateIdentityProfile(workspaceId?: string): IdentityProfile {
         `SELECT
            (SELECT COUNT(*) FROM chat_sessions) as totalSessions,
            (SELECT COUNT(*) FROM messages) as totalMessages,
-           (SELECT MIN(createdAt) FROM chat_sessions) as firstSession`
+           (SELECT MIN(created_at) FROM chat_sessions) as firstSession`
       )
       .get() as StatRow | undefined
   }

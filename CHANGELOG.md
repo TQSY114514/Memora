@@ -18,6 +18,8 @@
 
 #### 身份画像 SQL 修复
 - **`src/identity/*`**：修正宪法偏好查询条件（`status='constitution'` → `source='constitution' AND status='active'`），统一 `workspaceId` → `workspace_id` 列名
+- **`src/identity/identityProfile.ts`**：修复无工作区分支的列名 bug（`updatedAt` → `updated_at`、`createdAt` → `created_at`）
+- **`src/security/securityCenter.ts`**：修复敏感信息 / Prompt Injection 扫描的列名 bug（`m.sessionId` → `m.session_id`、`m.createdAt` → `m.created_at`）
 
 #### 加密工作区共享（E2E Shared Workspace）
 - **`src/sharing/encryptedWorkspace.ts`**：新增端到端加密的工作区导出/导入，复用 MMF 作为可移植载体，外层叠加 AES-256-GCM 加密（复用 `src/crypto/e2e.ts`）

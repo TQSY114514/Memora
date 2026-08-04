@@ -94,10 +94,10 @@ export function generateSecurityReport(): SecurityCenterReport {
   try {
     const msgRows = db
       .prepare(
-        `SELECT m.id, m.content, s.title as source, m.createdAt
+        `SELECT m.id, m.content, s.title as source, m.created_at as createdAt
          FROM messages m
-         JOIN chat_sessions s ON m.sessionId = s.id
-         ORDER BY m.createdAt DESC
+         JOIN chat_sessions s ON m.session_id = s.id
+         ORDER BY m.created_at DESC
          LIMIT 500`
       )
       .all() as SensitiveScanRow[]
@@ -150,8 +150,8 @@ export function generateSecurityReport(): SecurityCenterReport {
       .prepare(
         `SELECT m.content, s.title as source
          FROM messages m
-         JOIN chat_sessions s ON m.sessionId = s.id
-         ORDER BY m.createdAt DESC
+         JOIN chat_sessions s ON m.session_id = s.id
+         ORDER BY m.created_at DESC
          LIMIT 200`
       )
       .all() as Array<{ content: string; source: string }>
