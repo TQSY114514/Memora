@@ -27,7 +27,8 @@
 #### 测试覆盖率提升
 - 新增 `piiInjection` / `identityInference` / `mmf` / `mcpMemoryTools` / `apiClient` / `encryptedWorkspace` 单元测试，覆盖 PII 与 Prompt Injection 检测、决策模式与沟通风格推断、MMF 导入导出、MCP 记忆工具、AI API 客户端、加密工作区共享
 - 补充 `securityCenter` 的 Prompt Injection 与 PII 检测分支测试
-- vitest 覆盖率门禁从 15% 上调至 statements 24% / branches 24% / functions 19% / lines 25%
+- 新增 `exporters` / `summarizer` / `embedder` / `indexer` / `localEmbedder` / `cloudSync` / `semantic` 单元测试，覆盖各导出格式、AI 总结、会话向量嵌入、FTS 索引、本地嵌入模型常量、云端同步状态机、语义搜索 fallback 路径
+- vitest 覆盖率门禁从 24% 上调至 statements 30% / branches 28% / functions 24% / lines 31%
 
 #### 本地 ONNX 嵌入模型（#15）
 - 新增 `src/ai/localEmbedder.ts`：集成 `@huggingface/transformers`，支持在本地运行 ONNX 格式 embedding 模型，无需外部 API

@@ -18,12 +18,12 @@ export default defineConfig({
       ],
       reporter: ['text', 'text-summary', 'lcov'],
       thresholds: {
-        // v1.13：补充 pii/injection/pattern/communication/mmf/mcp/api 测试，覆盖率提升至 ~25%
-        // 门禁设为略低于实际值，留 >1% 余量防止小幅回退阻断 CI
-        statements: 24,
-        branches: 24,
-        functions: 19,
-        lines: 25
+        // v1.13+: 补充 exporters/summarizer/embedder/indexer/localEmbedder/cloudSync/semantic 测试
+        // 覆盖率提升至 ~30%，门禁设为略低于实际值，留 >1% 余量防止小幅回退阻断 CI
+        statements: 30,
+        branches: 28,
+        functions: 24,
+        lines: 31
       }
     }
   },
