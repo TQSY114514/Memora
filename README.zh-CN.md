@@ -253,6 +253,9 @@ Git for Memory — 每次变更生成 commit + diff，支持 blame 追溯、版�
 ### 导出格式扩展
 MMF（Memora Memory Format）— 完整偏好+知识+对话，可导入其他实例。同时支持 JSON（OpenAI 兼容）、Markdown、HTML、Claude Code .jsonl。
 
+### 端到端加密工作区共享
+将工作区导出为 **AES-256-GCM 加密载荷**（密码保护 + SHA-256 校验），可在 Claude Code / Cursor / OpenCode / 其他 Memora 实例间安全共享。只有持有正确密码的接收方才能解密并还原完整记忆（偏好、宪法、知识、审计日志）。
+
 ### 记忆智能体
 定期扫描记忆库，主动发现知识缺口、提醒总结、间隔重复复习。
 

@@ -21,7 +21,7 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'workspaces' | 'visibility' | 'comments'>('workspaces')
+  const [activeTab, setActiveTab] = useState<'workspaces' | 'visibility' | 'comments' | 'share'>('workspaces')
 
   // 创建表单
   const [showCreate, setShowCreate] = useState(false)
@@ -36,6 +36,14 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [commentEntryId, setCommentEntryId] = useState('')
   const [commentContent, setCommentContent] = useState('')
+
+  // 加密共享
+  const [sharePassword, setSharePassword] = useState('')
+  const [sharePayload, setSharePayload] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [importPayload, setImportPayload] = useState('')
+  const [importTargetId, setImportTargetId] = useState('')
+  const [importPassword, setImportPassword] = useState('')
 
   const loadWorkspaces = useCallback(async () => {
     setLoading(true)
@@ -101,6 +109,28 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
     }
   }
 
+  async function handleExportEncrypted(wsId: string, wsName: string) {
+    if (!sharePassword) return
+    try {
+      const payload = await window.Memora.team.exportEncrypted(wsId, sharePassword)
+      setSharePayload(JSON.stringify(payload, null, 2))
+      setShareMessage(`已加密导出工作区「${wsName}」，请复制下方载荷发送给接收方`)
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  async function handleImportEncrypted() {
+    if (!importPayload || !importPassword || !importTargetId) return
+    try {
+      const payload = JSON.parse(importPayload)
+      const result = await window.Memora.team.importEncrypted(payload, importPassword, importTargetId)
+      setShareMessage(`导入完成：偏好 ${result.imported.preferences} / 宪法 ${result.imported.constitution} / 知识 ${result.imported.knowledge}，跳过 ${result.skipped}`)
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
       <div
@@ -117,7 +147,7 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
 
         {/* 标签页 */}
         <div className="flex border-b border-border px-5">
-          {(['workspaces', 'visibility', 'comments'] as const).map((tab) => (
+          {(['workspaces', 'visibility', 'comments', 'share'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -127,7 +157,7 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
                   : 'border-transparent text-fg-muted hover:text-fg-secondary'
               }`}
             >
-              {tab === 'workspaces' ? '工作区' : tab === 'visibility' ? '可见性' : '评论'}
+              {tab === 'workspaces' ? '工作区' : tab === 'visibility' ? '可见性' : tab === 'comments' ? '评论' : '加密共享'}
             </button>
           ))}
         </div>
@@ -264,6 +294,75 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
                   className="Memora-btn Memora-btn-primary text-xs px-3 py-1"
                 >发送</button>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'share' && (
+            <div className="space-y-4">
+              <div className="bg-bg-hover rounded-md p-4 space-y-3">
+                <p className="text-xs font-medium">导出加密工作区</p>
+                <p className="text-[10px] text-fg-muted">选择工作区并设置密码，将记忆打包为 AES-256-GCM 加密载荷，只有持有正确密码的接收方才能解密。可为 Claude Code / Cursor / OpenCode 等共享。</p>
+                <select
+                  value={importTargetId}
+                  onChange={(e) => setImportTargetId(e.target.value)}
+                  className="Memora-input text-xs w-full py-1"
+                >
+                  <option value="">选择工作区...</option>
+                  {workspaces.map((ws) => (
+                    <option key={ws.id} value={ws.id}>{ws.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="password"
+                  value={sharePassword}
+                  onChange={(e) => setSharePassword(e.target.value)}
+                  className="Memora-input text-xs w-full py-1"
+                  placeholder="加密密码"
+                />
+                <button
+                  onClick={() => {
+                    const ws = workspaces.find(w => w.id === importTargetId)
+                    if (ws) handleExportEncrypted(ws.id, ws.name)
+                  }}
+                  disabled={!importTargetId || !sharePassword}
+                  className="Memora-btn Memora-btn-primary text-xs px-4 py-1.5"
+                >导出加密载荷</button>
+                {sharePayload && (
+                  <textarea
+                    readOnly
+                    value={sharePayload}
+                    className="Memora-input w-full text-[10px] font-mono h-32"
+                    onFocus={(e) => e.target.select()}
+                  />
+                )}
+              </div>
+
+              <div className="bg-bg-hover rounded-md p-4 space-y-3">
+                <p className="text-xs font-medium">导入加密工作区</p>
+                <input
+                  type="text"
+                  value={importPayload}
+                  onChange={(e) => setImportPayload(e.target.value)}
+                  className="Memora-input text-xs w-full py-1"
+                  placeholder="粘贴加密载荷 JSON"
+                />
+                <input
+                  type="password"
+                  value={importPassword}
+                  onChange={(e) => setImportPassword(e.target.value)}
+                  className="Memora-input text-xs w-full py-1"
+                  placeholder="解密密码"
+                />
+                <button
+                  onClick={handleImportEncrypted}
+                  disabled={!importPayload || !importPassword || !importTargetId}
+                  className="Memora-btn Memora-btn-primary text-xs px-4 py-1.5"
+                >解密并导入</button>
+              </div>
+
+              {shareMessage && (
+                <div className="p-3 rounded-md text-xs bg-green-500/10 text-green-500">{shareMessage}</div>
+              )}
             </div>
           )}
         </div>

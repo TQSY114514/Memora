@@ -753,7 +753,14 @@ const api = {
       replyTo: string | null; resolved: boolean
     }>> => ipcRenderer.invoke(IPC.TEAM_GET_REPLIES, parentId),
     resolveComment: (commentId: string): Promise<boolean> =>
-      ipcRenderer.invoke(IPC.TEAM_RESOLVE_COMMENT, commentId)
+      ipcRenderer.invoke(IPC.TEAM_RESOLVE_COMMENT, commentId),
+    exportEncrypted: (workspaceId: string, password: string): Promise<{
+      format: string; workspace: { id: string; name: string }; checksum: string; package: unknown
+    }> => ipcRenderer.invoke(IPC.TEAM_EXPORT_ENCRYPTED, workspaceId, password),
+    importEncrypted: (payload: unknown, password: string, targetWorkspaceId: string): Promise<{
+      imported: { preferences: number; constitution: number; knowledge: number }
+      skipped: number
+    }> => ipcRenderer.invoke(IPC.TEAM_IMPORT_ENCRYPTED, payload, password, targetWorkspaceId)
   },
 
   // ===== 模板市场（v1.11） =====

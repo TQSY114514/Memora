@@ -253,6 +253,9 @@ Define your own distillation format (Background → Options → Decision → Rat
 ### Export Formats
 MMF (Memora Memory Format) — full preferences + knowledge + conversations, importable to other instances. Also supports JSON (OpenAI-compatible), Markdown, HTML, Claude Code .jsonl.
 
+### E2E Encrypted Workspace Sharing
+Export a workspace as an **AES-256-GCM encrypted payload** (password-protected, SHA-256 verified) and securely share it across Claude Code / Cursor / OpenCode / other Memora instances. Only the receiver holding the correct password can decrypt and restore the full memory (preferences, constitution, knowledge, audit logs).
+
 ### Memory Agent
 Periodically scans your memory library, proactively finds knowledge gaps, reminds you to summarize, spaced repetition.
 

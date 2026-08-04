@@ -278,6 +278,8 @@ export const IPC = {
   TEAM_LIST_COMMENTS: 'team:list-comments',
   TEAM_GET_REPLIES: 'team:get-replies',
   TEAM_RESOLVE_COMMENT: 'team:resolve-comment',
+  TEAM_EXPORT_ENCRYPTED: 'team:export-encrypted',
+  TEAM_IMPORT_ENCRYPTED: 'team:import-encrypted',
 
   // ===== 模板市场（v1.11） =====
   TEMPLATE_LIST: 'template:list',

@@ -6,6 +6,14 @@
 
 ### Added
 
+#### 多 Agent 共享接入 UI + 持久化
+- **`src/main/ipc/handlers/team.ipc.ts`**：团队工作区从内存数组改为落盘持久化（`userData/team/workspaces.json`，原子写 rename），并新增 `TEAM_EXPORT_ENCRYPTED` / `TEAM_IMPORT_ENCRYPTED` 加密导出/导入入口，复用 `encryptedWorkspace` 的 AES-256-GCM 加密
+- **`src/preload/index.ts`**：为 `team` 模块新增 `exportEncrypted` / `importEncrypted`
+- **`src/renderer/.../TeamWorkspace/index.tsx`**：新增「加密共享」标签页，支持加密导出/导入工作区记忆
+- **README.md / README.zh-CN.md**：补充「端到端加密工作区共享」说明
+
+### Changed
+
 #### 混合检索精排（Hybrid Retrieval + Reranker）
 - **`src/search/hybridSearch.ts`**：将 FTS 关键词召回与向量语义召回真正融合，按加权公式（FTS 0.4 + Vector 0.3 + 时间衰减 0.15 + 图谱 boost + 收藏加成）综合排序
 - **`src/search/reranker.ts`**：新增交叉编码器精排阶段，对融合后的 top-k 结果按 query 相似度重排，`rerank` 选项默认关闭，用户配置 embedding 后启用
