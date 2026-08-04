@@ -2,7 +2,7 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.13.0] - 2026-08-04
 
 ### Added
 
@@ -38,7 +38,12 @@
 - 新增 `piiInjection` / `identityInference` / `mmf` / `mcpMemoryTools` / `apiClient` / `encryptedWorkspace` 单元测试，覆盖 PII 与 Prompt Injection 检测、决策模式与沟通风格推断、MMF 导入导出、MCP 记忆工具、AI API 客户端、加密工作区共享
 - 补充 `securityCenter` 的 Prompt Injection 与 PII 检测分支测试
 - 新增 `exporters` / `summarizer` / `embedder` / `indexer` / `localEmbedder` / `cloudSync` / `semantic` 单元测试，覆盖各导出格式、AI 总结、会话向量嵌入、FTS 索引、本地嵌入模型常量、云端同步状态机、语义搜索 fallback 路径
+- 新增 `test/unit/repositories/*.test.ts`：为 12 个数据库仓库模块（workspace/folder/tag/session/summary/knowledge/preferences/audit/rollback/mcpPermissions/embedding/distillation）建立基于 `dbMock.ts` 的隔离测试，`database/repositories` 覆盖率提升至 **97%**，整体 statements 覆盖率提升至 **45%**
 - vitest 覆盖率门禁从 24% 上调至 statements 30% / branches 28% / functions 24% / lines 31%
+
+### Fixed
+- **`src/database/repositories/knowledgeRepo.ts`**：`listRelations` 未将 snake_case 行映射为 camelCase 类型（`from_id`→`fromId`），导致返回对象的字段名与类型声明不一致，已修复
+- **`src/main/ipc/handlers/team.ipc.ts`**：`store` 变量改为 `const`，消除 ES Lint warning
 
 #### 本地 ONNX 嵌入模型（#15）
 - 新增 `src/ai/localEmbedder.ts`：集成 `@huggingface/transformers`，支持在本地运行 ONNX 格式 embedding 模型，无需外部 API

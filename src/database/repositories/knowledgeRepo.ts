@@ -311,11 +311,14 @@ export function listRelations(entryId: string): KnowledgeRelationRow[] {
   const db = getDatabase()
   const out = db
     .prepare('SELECT from_id, to_id, relation FROM knowledge_relations WHERE from_id = ?')
-    .all(entryId) as KnowledgeRelationRow[]
+    .all(entryId) as Array<{ from_id: string; to_id: string; relation: KnowledgeRelation }>
   const incoming = db
     .prepare('SELECT from_id, to_id, relation FROM knowledge_relations WHERE to_id = ?')
-    .all(entryId) as KnowledgeRelationRow[]
-  return [...out, ...incoming]
+    .all(entryId) as Array<{ from_id: string; to_id: string; relation: KnowledgeRelation }>
+  return [
+    ...out.map(r => ({ fromId: r.from_id, toId: r.to_id, relation: r.relation })),
+    ...incoming.map(r => ({ fromId: r.from_id, toId: r.to_id, relation: r.relation })),
+  ]
 }
 
 /**

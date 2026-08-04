@@ -60,7 +60,7 @@ function loadStore(): TeamStore {
   }
 }
 
-let store: TeamStore = loadStore()
+const store: TeamStore = loadStore()
 
 export function registerTeamHandlers(): void {
   // 创建工作区
