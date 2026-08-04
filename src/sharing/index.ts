@@ -9,3 +9,5 @@ export * from './jsonExporter'
 export * from './mmfExporter'
 
 export * from './mmfImporter'
+
+export * from './encryptedWorkspace'

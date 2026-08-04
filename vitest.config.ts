@@ -18,14 +18,12 @@ export default defineConfig({
       ],
       reporter: ['text', 'text-summary', 'lcov'],
       thresholds: {
-        // v1.11：新增 11 个模块（capsule/crypto/sync/team/templates/migration +
-        // 5 个 IPC handler + 5 个 UI 组件），暂无单元测试，覆盖率下调
-        // 当前实际：statements 16.27% / branches 16.86% / functions 12.69% / lines 16.83%
+        // v1.13：补充 pii/injection/pattern/communication/mmf/mcp/api 测试，覆盖率提升至 ~25%
         // 门禁设为略低于实际值，留 >1% 余量防止小幅回退阻断 CI
-        statements: 15,
-        branches: 15,
-        functions: 11,
-        lines: 15
+        statements: 24,
+        branches: 24,
+        functions: 19,
+        lines: 25
       }
     }
   },

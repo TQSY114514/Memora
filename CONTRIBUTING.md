@@ -20,7 +20,7 @@ start.bat  # Windows
 
 ## 技术栈
 
-- **Electron 33** + **Vite** 桌面应用框架
+- **Electron 39** + **Vite** 桌面应用框架
 - **React 18** + **TypeScript** 渲染层
 - **better-sqlite3** 本地数据库（同步、WAL 模式）
 - **Zustand** 状态管理
@@ -50,8 +50,8 @@ src/
 ├── importer/          # 各平台对话导入器（适配器模式）
 ├── search/            # FTS5 + 语义搜索 + 向量 LRU 缓存
 ├── ai/                # AI 总结、嵌入、RAG
-├── mcp/               # MCP Server（25 工具）
-├── sharing/           # HTML/Markdown/Claude Code 导出
+├── mcp/               # MCP Server（31 工具）+ 字段级权限
+├── sharing/           # HTML/Markdown/JSON/Claude Code/MMF 导出 + E2E 加密工作区共享
 └── shared/            # 跨进程共享类型/常量
 ```
 
@@ -97,6 +97,8 @@ Memora 采用适配器模式，新增平台支持只需：
 
 - [ ] `npm run typecheck` 无错误
 - [ ] `npm run lint` 无错误
+- [ ] `npm run test` 全部通过
+- [ ] `npm run test:coverage` 达到覆盖率门禁
 - [ ] `npm run build` 构建通过
 - [ ] 提交信息符合 Conventional Commits
 - [ ] 新功能有对应 UI（如适用）

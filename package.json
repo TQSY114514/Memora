@@ -5,6 +5,9 @@
   "author": "Memora",
   "main": "out/main/index.js",
   "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "bin": {
     "memora-mcp": "out/main/index.js"
   },

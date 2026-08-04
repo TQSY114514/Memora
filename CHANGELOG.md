@@ -19,6 +19,16 @@
 #### 身份画像 SQL 修复
 - **`src/identity/*`**：修正宪法偏好查询条件（`status='constitution'` → `source='constitution' AND status='active'`），统一 `workspaceId` → `workspace_id` 列名
 
+#### 加密工作区共享（E2E Shared Workspace）
+- **`src/sharing/encryptedWorkspace.ts`**：新增端到端加密的工作区导出/导入，复用 MMF 作为可移植载体，外层叠加 AES-256-GCM 加密（复用 `src/crypto/e2e.ts`）
+- 导出 `encryptSharedWorkspace` 渲染 MMF 并加密，携带 SHA-256 校验和；导入 `decryptSharedWorkspace` 校验格式、密码与校验和后方可还原
+- 支持多 Agent / 团队工作区安全共享：只有持有正确密码的接收方才能解密还原
+
+#### 测试覆盖率提升
+- 新增 `piiInjection` / `identityInference` / `mmf` / `mcpMemoryTools` / `apiClient` / `encryptedWorkspace` 单元测试，覆盖 PII 与 Prompt Injection 检测、决策模式与沟通风格推断、MMF 导入导出、MCP 记忆工具、AI API 客户端、加密工作区共享
+- 补充 `securityCenter` 的 Prompt Injection 与 PII 检测分支测试
+- vitest 覆盖率门禁从 15% 上调至 statements 24% / branches 24% / functions 19% / lines 25%
+
 #### 本地 ONNX 嵌入模型（#15）
 - 新增 `src/ai/localEmbedder.ts`：集成 `@huggingface/transformers`，支持在本地运行 ONNX 格式 embedding 模型，无需外部 API
 - 三种预设模型：`all-MiniLM-L6-v2`（23MB/384维）、`multilingual-e5-small`（120MB/384维）、`bge-small-zh-v1.5`（50MB/512维）

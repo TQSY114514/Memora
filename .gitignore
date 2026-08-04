@@ -28,3 +28,4 @@ coverage/
 
 # IDE / AI agent 临时文件
 .omo/
+.trae/

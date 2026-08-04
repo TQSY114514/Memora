@@ -239,7 +239,7 @@ Confidence Decay:      30 days unaccessed → confidence -0.1 → below 0.05 aut
 Auto-detects local AI apps, one-click extraction: Cursor, Claude Code, OpenCode, Windsurf, Cline + 11 format imports. Built-in prompt injection detection.
 
 ### Hybrid Retrieval (v2.0)
-FTS5 keyword search + vector semantic retrieval + time decay + graph boost, sub-millisecond response with comprehensive score breakdown.
+FTS5 keyword search + vector semantic retrieval + time decay + graph boost, sub-millisecond response with comprehensive score breakdown. Optional **Reranker** (cross-encoder) refines the top-k results by query relevance — enabled when you configure an embedding model, and gracefully falls back to weighted fusion when disabled.
 
 ### Knowledge Base
 Distill conversations into structured knowledge/decisions/tasks — searchable, linkable, reusable.
