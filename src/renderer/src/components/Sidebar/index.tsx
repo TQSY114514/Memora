@@ -45,6 +45,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
 
   const [folders, setLocalFolders] = useState<Folder[]>([])
   const [showSmartFolderDialog, setShowSmartFolderDialog] = useState(false)
+  const [showMoreTools, setShowMoreTools] = useState(false)
   const [smartName, setSmartName] = useState('')
   const [smartKeywords, setSmartKeywords] = useState('')
   const [smartProviders, setSmartProviders] = useState('')
@@ -250,7 +251,6 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
                     : 'text-fg-secondary hover:bg-bg-hover'
                 }`}
               >
-                <span className="text-xs opacity-70">📁</span>
                 <span className="truncate">{ws.name}</span>
               </button>
               <button
@@ -258,7 +258,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
                 className="text-fg-muted hover:text-accent text-xs px-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 title="重命名"
               >
-                ✎
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
               </button>
             </div>
 
@@ -287,7 +287,6 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
                       }`}
                       title={f.rule ? '智能文件夹' : ''}
                     >
-                      <span className="text-xs opacity-60">{f.rule ? '🔮' : '📂'}</span>
                       <span className="truncate">{f.name}</span>
                     </button>
                     <button
@@ -295,7 +294,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
                       className="text-fg-muted hover:text-accent text-xs px-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="重命名"
                     >
-                      ✎
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
                     </button>
                   </div>
                 ))}
@@ -326,113 +325,138 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
         )}
       </div>
 
-      {/* 底部操作 */}
-      <div className="border-t border-border p-2 space-y-1">
+      {/* 底部操作（折叠：核心项常驻，其余默认收起） */}
+      <div className="border-t border-border p-2">
+        <div className="px-2 py-1 flex items-center justify-between">
+          <span className="text-[10px] font-medium text-fg-muted uppercase tracking-wider">
+            记忆中枢
+          </span>
+          <span className="text-[10px] text-fg-muted opacity-60">核心</span>
+        </div>
+        <div className="space-y-0.5">
         <button
           onClick={onOpenMemory}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center gap-2 px-2 py-1.5 justify-start"
           title={t('sidebar.memoryTip')}
         >
           {t('sidebar.memory')}
         </button>
         <button
           onClick={onOpenKnowledge}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center gap-2 px-2 py-1.5 justify-start"
           title={t('sidebar.knowledgeTip')}
         >
           {t('sidebar.knowledge')}
         </button>
         <button
           onClick={onOpenPreferences}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
+          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center gap-2 px-2 py-1.5 justify-start"
           title={t('sidebar.preferencesTip')}
         >
           {t('sidebar.preferences')}
         </button>
-        <button
-          onClick={onOpenMcpPermissions}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="MCP 工具权限管理"
-        >
-          MCP 权限
-        </button>
-        <button
-          onClick={onOpenMemoryAgent}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="记忆智能体 - 知识缺口扫描 & 复习提醒"
-        >
-          记忆智能体
-        </button>
-        <button
-          onClick={onOpenCloudSync}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="端到端加密云端同步"
-        >
-          云端同步
-        </button>
-        <button
-          onClick={onOpenTimeCapsule}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="记忆时间胶囊 - 封存记忆，未来开启"
-        >
-          时间胶囊
-        </button>
-        <button
-          onClick={onOpenTeamWorkspace}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="团队记忆共享 - 协作工作区"
-        >
-          团队共享
-        </button>
-        <button
-          onClick={onOpenTemplateMarket}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="记忆模板市场 - 社区专家记忆包"
-        >
-          模板市场
-        </button>
-        <button
-          onClick={onOpenMigrationWizard}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="AI 迁移向导 - 从其他平台迁移"
-        >
-          迁移向导
-        </button>
-        <button
-          onClick={onOpenIdentityProfile}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="AI 身份画像 - 一键生成你的 AI 人格"
-        >
-          身份画像
-        </button>
-        <button
-          onClick={onOpenSecurityCenter}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title="安全中心 - 加密状态 + 敏感信息扫描"
-        >
-          安全中心
-        </button>
-        <button
-          onClick={onOpenImportCenter}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title={t('sidebar.importCenterTip')}
-        >
-          {t('sidebar.importCenter')}
-        </button>
-        <button
-          onClick={handleImport}
-          className="Memora-btn Memora-btn-ghost w-full text-xs"
-          title={t('sidebar.manualImportTip')}
-        >
-          {t('sidebar.manualImport')}
-        </button>
-        <button
-          onClick={onOpenSettings}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center justify-center gap-1.5"
-          title={t('sidebar.settings')}
-        >
-          {t('sidebar.settings')}
-        </button>
+        </div>
+        <div className="flex items-center gap-1 mt-1.5">
+          <button
+            onClick={onOpenSettings}
+            className="Memora-btn Memora-btn-ghost flex-1 text-xs flex items-center justify-center gap-1.5"
+            title={t('sidebar.settings')}
+          >
+            {t('sidebar.settings')}
+          </button>
+          <button
+            onClick={() => setShowMoreTools(!showMoreTools)}
+            className={`Memora-btn Memora-btn-ghost text-xs px-2 transition-colors ${showMoreTools ? 'text-accent' : ''}`}
+            title={showMoreTools ? '收起' : '更多工具'}
+          >
+            {showMoreTools ? '▾' : '⋯'}
+          </button>
+        </div>
+
+        {showMoreTools && (
+          <div className="pt-2 mt-1.5 border-t border-border">
+            <div className="px-2 pb-1 text-[10px] font-medium text-fg-muted uppercase tracking-wider">工具</div>
+            <div className="grid grid-cols-2 gap-0.5">
+            <button
+              onClick={onOpenMcpPermissions}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="MCP 工具权限管理"
+            >
+              MCP 权限
+            </button>
+            <button
+              onClick={onOpenMemoryAgent}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="记忆智能体 - 知识缺口扫描 & 复习提醒"
+            >
+              记忆智能体
+            </button>
+            <button
+              onClick={onOpenCloudSync}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="端到端加密云端同步"
+            >
+              云端同步
+            </button>
+            <button
+              onClick={onOpenTimeCapsule}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="记忆时间胶囊 - 封存记忆，未来开启"
+            >
+              时间胶囊
+            </button>
+            <button
+              onClick={onOpenTeamWorkspace}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="团队记忆共享 - 协作工作区"
+            >
+              团队共享
+            </button>
+            <button
+              onClick={onOpenTemplateMarket}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="记忆模板市场 - 社区专家记忆包"
+            >
+              模板市场
+            </button>
+            <button
+              onClick={onOpenMigrationWizard}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="AI 迁移向导 - 从其他平台迁移"
+            >
+              迁移向导
+            </button>
+            <button
+              onClick={onOpenIdentityProfile}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="AI 身份画像 - 一键生成你的 AI 人格"
+            >
+              身份画像
+            </button>
+            <button
+              onClick={onOpenSecurityCenter}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title="安全中心 - 加密状态 + 敏感信息扫描"
+            >
+              安全中心
+            </button>
+            <button
+              onClick={onOpenImportCenter}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title={t('sidebar.importCenterTip')}
+            >
+              {t('sidebar.importCenter')}
+            </button>
+            <button
+              onClick={handleImport}
+              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
+              title={t('sidebar.manualImportTip')}
+            >
+              {t('sidebar.manualImport')}
+            </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showSmartFolderDialog && (
@@ -613,11 +637,12 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
           </span>
         )}
       </div>
-      {/* 平台过滤 */}
-      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+      {/* 平台过滤（折叠为单行滚动，弱化视觉权重） */}
+      <div className="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar">
+        <span className="text-[10px] text-fg-muted shrink-0 opacity-60">平台</span>
         <button
           onClick={() => setSearchProvider(null)}
-          className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+          className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 transition-colors ${
             searchProvider === null ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
           }`}
         >
@@ -627,10 +652,10 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
           <button
             key={key}
             onClick={() => setSearchProvider(searchProvider === key ? null : key)}
-            className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
-              searchProvider === key ? 'text-white' : 'hover:bg-bg-hover'
+            className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 transition-colors ${
+              searchProvider === key ? 'text-white' : 'text-fg-muted hover:text-fg-secondary hover:bg-bg-hover'
             }`}
-            style={searchProvider === key ? { backgroundColor: meta.color } : { color: meta.color }}
+            style={searchProvider === key ? { backgroundColor: meta.color } : undefined}
           >
             {meta.label}
           </button>

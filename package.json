@@ -27,10 +27,11 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "benchmark": "node scripts/run-benchmark.js",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:linux": "electron-vite build && electron-builder --linux",
-    "dist": "electron-vite build && electron-builder",
+    "clean": "node scripts/clean.js all",
+    "dist:win": "node scripts/clean.js dist && electron-vite build && electron-builder --win",
+    "dist:mac": "node scripts/clean.js dist && electron-vite build && electron-builder --mac",
+    "dist:linux": "node scripts/clean.js dist && electron-vite build && electron-builder --linux",
+    "dist": "node scripts/clean.js dist && electron-vite build && electron-builder",
     "prepare": "husky",
     "postinstall": "node scripts/postinstall.js"
   },
@@ -61,7 +62,6 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
     "@tanstack/react-virtual": "^3.14.9",
     "better-sqlite3": "^12.11.1",
     "electron-updater": "^6.8.9",
@@ -72,6 +72,9 @@
     "uuid": "^11.0.3",
     "zod": "^4.4.3",
     "zustand": "^5.0.2"
+  },
+  "optionalDependencies": {
+    "@huggingface/transformers": "^3.8.1"
   },
   "overrides": {
     "sharp": "^0.35.3"
@@ -94,6 +97,11 @@
       "owner": "TQSY114514",
       "repo": "Memora"
     },
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
     "win": {
       "icon": "build/icon.ico",
       "target": [

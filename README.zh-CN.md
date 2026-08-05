@@ -10,14 +10,14 @@
 
 <!-- Badges -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.13-6366f1?style=flat-square" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.14.0-6366f1?style=flat-square" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-39-47848F?style=flat-square" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/SQLite-FTS5-003B57?style=flat-square" alt="SQLite"/>
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License"/>
   <img src="https://img.shields.io/badge/Local_First-%E2%9C%93-6366f1?style=flat-square" alt="Local First"/>
-  <img src="https://img.shields.io/badge/MCP-31_tools-6366f1?style=flat-square" alt="MCP Tools"/>
+  <img src="https://img.shields.io/badge/MCP-32_tools-6366f1?style=flat-square" alt="MCP Tools"/>
 </p>
 
 <!-- Language Switcher -->
@@ -170,7 +170,7 @@ $ node out/main/index.js --mcp
 
 **一键复制，粘贴到任何新 AI 对话开头 — 换 AI，不换人设。**
 
-### 31 个 MCP 工具 — AI 世界的 iCloud
+### 32 个 MCP 工具 — AI 世界的 iCloud
 
 不只是读写，而是**理解型记忆**：
 
@@ -225,7 +225,7 @@ $ node out/main/index.js --mcp
 | **记忆时间线** | 无 | 无 | 无 | **演化追踪 + 趋势分析** |
 | **记忆合并去重** | 无 | 无 | 无 | **自动合并重复记忆** |
 | **混合检索** | 基础 | 基础 | 仅向量 | **FTS5 + 向量 + 时间衰减 + 图谱增强** |
-| MCP 生态 | 无 | 无 | 无 | **31 个工具 + 字段级权限** |
+| MCP 生态 | 无 | 无 | 无 | **32 个工具 + 字段级权限** |
 | **字段级权限** | 无 | 无 | 无 | **按客户端控制类别访问** |
 | **注入攻击检测** | 无 | 无 | 无 | **导入时自动扫描** |
 | 端到端加密 | — | — | — | **AES-256-GCM** |

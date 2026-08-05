@@ -10,14 +10,14 @@
 
 <!-- Badges -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.13-6366f1?style=flat-square" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.14.0-6366f1?style=flat-square" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-39-47848F?style=flat-square" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/SQLite-FTS5-003B57?style=flat-square" alt="SQLite"/>
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License"/>
   <img src="https://img.shields.io/badge/Local_First-%E2%9C%93-6366f1?style=flat-square" alt="Local First"/>
-  <img src="https://img.shields.io/badge/MCP-31_tools-6366f1?style=flat-square" alt="MCP Tools"/>
+  <img src="https://img.shields.io/badge/MCP-32_tools-6366f1?style=flat-square" alt="MCP Tools"/>
 </p>
 
 <!-- Language Switcher -->
@@ -170,7 +170,7 @@ Automatically generates a **complete AI persona profile** from your preferences,
 
 **Copy once, paste into any new AI conversation — switch AI, keep your identity.**
 
-### 2. 31 MCP Tools — The iCloud for AI
+### 2. 32 MCP Tools — The iCloud for AI
 
 Not just read/write, but **understanding-based memory**:
 
@@ -225,7 +225,7 @@ Confidence Decay:      30 days unaccessed → confidence -0.1 → below 0.05 aut
 | **Memory Timeline** | None | None | None | **Evolution tracking + trend analysis** |
 | **Memory Consolidation** | None | None | None | **Auto merge duplicates** |
 | **Hybrid Retrieval** | Basic | Basic | Vector only | **FTS5 + Vector + Time Decay + Graph Boost** |
-| MCP Ecosystem | None | None | None | **31 tools + field-level permissions** |
+| MCP Ecosystem | None | None | None | **32 tools + field-level permissions** |
 | **Field-Level Permissions** | None | None | None | **Per-client category control** |
 | **Prompt Injection Detection** | None | None | None | **Import-time scanning** |
 | E2E Encryption | — | — | — | **AES-256-GCM** |

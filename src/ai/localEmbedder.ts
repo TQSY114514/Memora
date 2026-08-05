@@ -251,13 +251,30 @@ function requestWorker<T>(type: 'load' | 'embed' | 'delete-model', payload: { mo
 let fbPipeline: any = null
 let fbExtractor: any = null
 
+/**
+ * 动态加载 @huggingface/transformers（可选依赖，未安装时给出可操作的提示）
+ * 安装包默认不携带该依赖，用户需通过 `npm install @huggingface/transformers` 启用本地嵌入。
+ */
+async function importOptionalTransformers(): Promise<any> {
+  try {
+    return await import('@huggingface/transformers')
+  } catch (e) {
+    const isNotFound = e instanceof Error && 'code' in e && (e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND'
+    throw new Error(
+      isNotFound
+        ? '本地嵌入组件未安装。请运行 `npm install @huggingface/transformers` 或在 AI 设置中改用远程嵌入 API。'
+        : e instanceof Error ? e.message : String(e)
+    )
+  }
+}
+
 async function fbLoad(modelId: string): Promise<LoadResult> {
   try {
     if (!fbPipeline) {
-      const transformers = await import('@huggingface/transformers')
+      const transformers = await importOptionalTransformers()
       fbPipeline = transformers.pipeline
     }
-    const { env } = await import('@huggingface/transformers')
+    const { env } = await importOptionalTransformers()
     env.cacheDir = join(app.getPath('userData'), 'models')
     if (mirror) env.remoteHost = mirror
     try {
