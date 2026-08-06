@@ -78,6 +78,10 @@ export interface ChatSession {
   createdAt: string
   updatedAt: string
   importedAt: string
+  /** 会话类型（v1.15）：persistent=常驻（默认）/ temporary=临时会话（到期自动清理） */
+  sessionType?: 'persistent' | 'temporary'
+  /** 临时会话过期时间（sessionType='temporary' 时有效） */
+  expiresAt?: string
   tags: Tag[]
   messages?: Message[]
 }
@@ -394,6 +398,7 @@ export interface MemoryCitation {
   messageId: string
   snippet: string           // 引用的消息片段
   score: number             // 相关度
+  reason?: string           // 归因：为什么该来源被用于回答（v1.15 Sources Attribution）
 }
 
 /** Project Memory 问答结果（Phase 3） */
@@ -448,6 +453,12 @@ export interface Preference {
   lastAccessedAt?: string
   /** 访问次数 */
   accessCount: number
+  /** 时态记忆（v1.15）：生效时间（null=无限制） */
+  validAt?: string
+  /** 失效时间（null=永不过期；检索时过期偏好自动过滤） */
+  invalidAt?: string
+  /** 时态类型：permanent（常驻，默认）/ temporary（临时，有失效时间）/ scheduled（计划性，有生效时间） */
+  temporalType?: 'permanent' | 'temporary' | 'scheduled'
 }
 
 /** 用户画像（聚合偏好，用于 MCP memory_profile） */
@@ -467,6 +478,38 @@ export interface ConflictReport {
     preferenceB: Preference
     reason: string
   }>
+}
+
+/**
+ * 结构化记忆块（v1.15，Letta 式 memory blocks）
+ * 比偏好更自由的键值记忆：label 唯一，value 为 markdown 文本
+ */
+export interface MemoryBlock {
+  id: string
+  workspaceId: string
+  /** 块标签：human / persona / project_context / custom:xxx */
+  label: string
+  /** 块内容（markdown） */
+  value: string
+  /** 只读保护（系统/导入块不可被 AI 覆盖） */
+  readOnly: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+/** 记忆块变更历史（v1.15）：每次 save 一条记录，支持回滚 */
+export interface MemoryBlockHistory {
+  id: string
+  blockId: string
+  /** 变更前内容（首次创建为 undefined） */
+  oldValue?: string
+  /** 变更后内容 */
+  newValue: string
+  /** 变更来源：user / mcp / ai / import / system */
+  changedBy: string
+  /** 变更原因（可选） */
+  reason?: string
+  createdAt: string
 }
 
 /**

@@ -300,7 +300,24 @@ export const IPC = {
   IDENTITY_GENERATE: 'identity:generate',
 
   // ===== 安全中心（v1.12） =====
-  SECURITY_REPORT: 'security:report'
+  SECURITY_REPORT: 'security:report',
+
+  // ===== 时态记忆（v1.15） =====
+  PREF_TEMPORAL_UPDATE: 'pref:temporal-update',
+  // 自然语言记忆反馈（v1.15 行动项 5：UI 版 memory_feedback）
+  PREF_FEEDBACK: 'pref:feedback',
+
+  // ===== 结构化记忆块（v1.15 Letta 式 memory blocks） =====
+  MEMORY_BLOCKS_LIST: 'memory-blocks:list',
+  MEMORY_BLOCKS_GET: 'memory-blocks:get',
+  MEMORY_BLOCKS_SAVE: 'memory-blocks:save',
+  MEMORY_BLOCKS_DELETE: 'memory-blocks:delete',
+  MEMORY_BLOCKS_HISTORY: 'memory-blocks:history',
+  MEMORY_BLOCKS_ROLLBACK: 'memory-blocks:rollback',
+
+  // ===== 临时会话（v1.15） =====
+  SESSION_SET_TEMPORARY: 'session:set-temporary',
+  SESSION_CLEANUP_EXPIRED: 'session:cleanup-expired'
 } as const
 
 /** Provider 显示元信息 */

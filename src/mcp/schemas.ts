@@ -80,14 +80,15 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'add_session',
-    description: '在 Memora 中创建新对话。返回新对话的 ID。可指定 provider（如 ChatGPT/Claude/Gemini 等）和 folderId。',
+    description: '在 Memora 中创建新对话。返回新对话的 ID。可指定 provider（如 ChatGPT/Claude/Gemini 等）和 folderId。设置 sessionType=temporary 创建临时会话（30 天后自动清理，适合敏感对话）。',
     inputSchema: {
       type: 'object',
       properties: {
         title: { type: 'string', description: '对话标题' },
         provider: { type: 'string', description: 'AI 平台标识，如 Claude/ChatGPT/Gemini/DeepSeek 等' },
         folderId: { type: 'string', description: '目标文件夹 ID（可选）' },
-        messages: { type: 'array', description: '消息列表', items: { type: 'object' } }
+        messages: { type: 'array', description: '消息列表', items: { type: 'object' } },
+        sessionType: { type: 'string', description: '会话类型：persistent（默认）/ temporary（临时，30 天自动清理）', enum: ['persistent', 'temporary'] }
       },
       required: ['title', 'provider']
     }
@@ -434,5 +435,78 @@ export const TOOLS: McpTool[] = [
         workspaceId: { type: 'string', description: '工作区 ID（可选，预览可不传）' },
         dry_run: { type: 'boolean', description: '是否仅预览（默认 true，不执行实际合并）' }
       }
+    }
+  },
+  {
+    name: 'memory_block_list',
+    description:
+      '列出结构化记忆块（v1.15 Letta 式键值记忆：human / persona / project_context / custom:xxx）。可按工作区筛选。「现在有哪些长期记忆块？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID（可选，不传则列出所有）' }
+      }
+    }
+  },
+  {
+    name: 'memory_block_get',
+    description: '按 ID 获取单个记忆块及其完整内容（markdown 值）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        blockId: { type: 'string', description: '记忆块 ID' }
+      },
+      required: ['blockId']
+    }
+  },
+  {
+    name: 'memory_block_save',
+    description:
+      '保存结构化记忆块（按 label upsert，工作区内唯一）。value 为 markdown 文本；重复保存同 label 会更新内容并记录版本历史。readOnly 块仅用户可改，AI/MCP 写入被拒绝。「记住我的项目背景」「更新 persona 设定」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workspaceId: { type: 'string', description: '目标工作区 ID' },
+        label: { type: 'string', description: '块标签（human / persona / project_context / custom:xxx，≤120 字符）' },
+        value: { type: 'string', description: '块内容（markdown 文本）' },
+        readOnly: { type: 'boolean', description: '是否只读保护（默认 false；只读块 AI/MCP 无法修改）' },
+        reason: { type: 'string', description: '变更原因（可选，记录到历史）' }
+      },
+      required: ['workspaceId', 'label', 'value']
+    }
+  },
+  {
+    name: 'memory_block_delete',
+    description: '删除记忆块及其全部历史。不可恢复。readOnly 块仅用户可删除。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        blockId: { type: 'string', description: '要删除的记忆块 ID' }
+      },
+      required: ['blockId']
+    }
+  },
+  {
+    name: 'memory_block_history',
+    description: '查看记忆块的版本历史（每次变更的 old/new 值、变更者、原因），按时间倒序。「这个块改过什么？」用这个工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        blockId: { type: 'string', description: '记忆块 ID' },
+        limit: { type: 'number', description: '返回数量上限，默认 10' }
+      },
+      required: ['blockId']
+    }
+  },
+  {
+    name: 'memory_block_rollback',
+    description: '将记忆块回滚到指定历史版本（恢复为该次变更之前的值），并记录一条 rollback 历史。readOnly 块仅用户可回滚。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        blockId: { type: 'string', description: '记忆块 ID' },
+        historyId: { type: 'string', description: '要回滚到的历史记录 ID（来自 memory_block_history）' }
+      },
+      required: ['blockId', 'historyId']
     }
   }]

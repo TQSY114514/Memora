@@ -42,7 +42,9 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
   message_count INTEGER DEFAULT 0,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL,
-  imported_at   TEXT NOT NULL
+  imported_at   TEXT NOT NULL,
+  session_type  TEXT NOT NULL DEFAULT 'persistent',  -- persistent（常驻）/ temporary（临时会话，到期自动清理）
+  expires_at    TEXT                                 -- 临时会话过期时间（temporary 时有效）
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_folder ON chat_sessions(folder_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_provider ON chat_sessions(provider);
@@ -187,7 +189,10 @@ CREATE TABLE IF NOT EXISTS preferences (
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL,
   last_accessed_at TEXT,
-  access_count    INTEGER DEFAULT 0
+  access_count    INTEGER DEFAULT 0,
+  valid_at        TEXT,          -- 时态记忆（v1.15）：生效时间（null=无限制）
+  invalid_at      TEXT,          -- 失效时间（null=永不过期；过期偏好检索时自动过滤）
+  temporal_type   TEXT DEFAULT 'permanent'  -- permanent / temporary / scheduled（时态类型，检索打分用）
 );
 CREATE INDEX IF NOT EXISTS idx_pref_workspace ON preferences(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_pref_subject ON preferences(subject);
@@ -235,4 +240,31 @@ CREATE TABLE IF NOT EXISTS distillation_templates (
   updated_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_distill_builtin ON distillation_templates(is_builtin);
+
+-- 结构化记忆块（v1.15 行动项 2：Letta 式 memory blocks）
+-- 比偏好更自由的键值记忆：label 唯一（human / persona / project_context / custom:xxx）
+-- read_only=1 的块为系统保护块（如 MMF 导入的宪法），AI/MCP 不可覆盖，仅用户可改
+CREATE TABLE IF NOT EXISTS memory_blocks (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  label        TEXT NOT NULL,             -- 块标签（UNIQUE 于 workspace 内）
+  value        TEXT NOT NULL,             -- 块内容（markdown 文本）
+  read_only    INTEGER DEFAULT 0,         -- 1=只读（系统/导入保护）
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_memory_blocks_workspace ON memory_blocks(workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_blocks_label ON memory_blocks(workspace_id, label);
+
+-- 记忆块变更历史（v1.15）：每次 save 生成一条记录，支持版本回滚
+CREATE TABLE IF NOT EXISTS memory_block_history (
+  id         TEXT PRIMARY KEY,
+  block_id   TEXT NOT NULL REFERENCES memory_blocks(id) ON DELETE CASCADE,
+  old_value  TEXT,                         -- 变更前内容（首次创建为 NULL）
+  new_value  TEXT NOT NULL,                -- 变更后内容
+  changed_by TEXT DEFAULT 'user',          -- user / mcp / ai / import / system
+  reason     TEXT,                         -- 变更原因（可选）
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_memory_block_history_block ON memory_block_history(block_id);
 `

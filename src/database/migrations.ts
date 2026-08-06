@@ -93,6 +93,11 @@ const migrations: Migration[] = [
     version: 12,
     description: '建 distillation_templates 表（自定义蒸馏模板：用户可定制记忆蒸馏的 system prompt）',
     up: (db) => createDistillationTemplatesTable(db)
+  },
+  {
+    version: 13,
+    description: '时间感知记忆 + 结构化记忆块：preferences 加 valid_at/invalid_at/temporal_type，chat_sessions 加 session_type/expires_at，建 memory_blocks/memory_block_history 表',
+    up: (db) => migrateToTimeAwareMemory(db)
   }
 ]
 
@@ -545,6 +550,69 @@ function createDistillationTemplatesTable(db: Database.Database): void {
     )
   })
   tx()
+}
+
+/**
+ * v13：时间感知记忆 + 结构化记忆块
+ * - preferences 加 valid_at / invalid_at / temporal_type（时态偏好：生效/失效时间，检索时过滤过期项）
+ * - chat_sessions 加 session_type / expires_at（临时会话：到期自动清理）
+ * - 建 memory_blocks / memory_block_history 表（Letta 式结构化记忆块 + 版本历史）
+ *
+ * 注：新库由 schema.ts 直接建表；本迁移服务旧库（幂等：列存在则跳过）。
+ */
+function migrateToTimeAwareMemory(db: Database.Database): void {
+  // preferences 时态列
+  const prefCols = db.prepare('PRAGMA table_info(preferences)').all() as Array<{ name: string }>
+  if (!prefCols.some((c) => c.name === 'valid_at')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN valid_at TEXT')
+  }
+  if (!prefCols.some((c) => c.name === 'invalid_at')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN invalid_at TEXT')
+  }
+  if (!prefCols.some((c) => c.name === 'temporal_type')) {
+    db.exec("ALTER TABLE preferences ADD COLUMN temporal_type TEXT DEFAULT 'permanent'")
+  }
+  // 时态查询索引（过滤未生效/已失效偏好）
+  db.exec('CREATE INDEX IF NOT EXISTS idx_pref_temporal ON preferences(valid_at, invalid_at)')
+
+  // chat_sessions 临时会话列
+  const sessCols = db.prepare('PRAGMA table_info(chat_sessions)').all() as Array<{ name: string }>
+  if (!sessCols.some((c) => c.name === 'session_type')) {
+    db.exec("ALTER TABLE chat_sessions ADD COLUMN session_type TEXT NOT NULL DEFAULT 'persistent'")
+  }
+  if (!sessCols.some((c) => c.name === 'expires_at')) {
+    db.exec('ALTER TABLE chat_sessions ADD COLUMN expires_at TEXT')
+  }
+  // 临时会话清理索引（找出已到期会话）
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_temporary ON chat_sessions(session_type, expires_at)')
+
+  // memory_blocks + history（新库已由 schema.ts 建表，旧库这里幂等建）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS memory_blocks (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      label        TEXT NOT NULL,
+      value        TEXT NOT NULL,
+      read_only    INTEGER DEFAULT 0,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+    )
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_memory_blocks_workspace ON memory_blocks(workspace_id)')
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_blocks_label ON memory_blocks(workspace_id, label)')
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS memory_block_history (
+      id         TEXT PRIMARY KEY,
+      block_id   TEXT NOT NULL REFERENCES memory_blocks(id) ON DELETE CASCADE,
+      old_value  TEXT,
+      new_value  TEXT NOT NULL,
+      changed_by TEXT DEFAULT 'user',
+      reason     TEXT,
+      created_at TEXT NOT NULL
+    )
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_memory_block_history_block ON memory_block_history(block_id)')
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */
