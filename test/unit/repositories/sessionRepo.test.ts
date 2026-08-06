@@ -63,12 +63,14 @@ const tagRow = {
 describe('sessionRepo', () => {
   let db: ReturnType<typeof makeDb>['db']
   let stmtResults: ReturnType<typeof makeDb>['stmtResults']
+  let calls: ReturnType<typeof makeDb>['calls']
 
   beforeEach(() => {
     vi.restoreAllMocks()
     const m = makeDb()
     db = m.db
     stmtResults = m.stmtResults
+    calls = m.calls
     vi.mocked(getDatabase).mockReturnValue(db as any)
   })
 
@@ -111,6 +113,29 @@ describe('sessionRepo', () => {
     })
     expect(session.id).toBe('s1')
     expect(db.prepare).not.toHaveBeenCalledWith(expect.stringContaining('INSERT INTO messages'))
+  })
+
+  it('createSession defaults session_type to persistent when sessionType is missing', () => {
+    stmtResults.set('SELECT * FROM chat_sessions WHERE id = ?', { get: sessionRow })
+    // 模拟导入器：sessionInput 不含 sessionType 字段
+    createSession({
+      provider: 'openai',
+      title: 'Imported',
+      isFavorite: false,
+      messageCount: 0,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      tags: []
+    })
+    const insertCall = calls.find(
+      (c) =>
+        typeof c === 'object' &&
+        c !== null &&
+        'run' in c &&
+        (c as { run: unknown[] }).run[0]?.title === 'Imported'
+    ) as { run: [{ title: string; session_type: unknown }] }
+    // 必须插入 'persistent'（NOT NULL 列），而不是 null —— 否则触发 not null constraint failed
+    expect(insertCall.run[0].session_type).toBe('persistent')
   })
 
   it('createSession returns existing session when insert conflicts (changes===0)', () => {

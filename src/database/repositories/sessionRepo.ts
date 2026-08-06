@@ -166,7 +166,7 @@ export function createSession(
       created_at: session.createdAt,
       updated_at: session.updatedAt,
       imported_at: importedAt,
-      session_type: session.sessionType ?? null,
+      session_type: session.sessionType ?? 'persistent',
       expires_at: session.expiresAt ?? null
     })
 
