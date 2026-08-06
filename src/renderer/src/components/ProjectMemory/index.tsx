@@ -234,6 +234,11 @@ function AnswerCard({
                     </span>
                   </div>
                   <p className="text-xs text-fg-muted line-clamp-2">{c.snippet}</p>
+                  {c.reason && (
+                    <p className="text-[10px] text-fg-muted mt-1 opacity-80">
+                      为何引用: {c.reason}
+                    </p>
+                  )}
                 </button>
               )
             })}

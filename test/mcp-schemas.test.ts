@@ -8,8 +8,8 @@ import { TOOLS } from '../src/mcp/schemas'
  * 这些测试纯数据校验，不依赖 DB / electron，可在 vitest node 环境运行。
  */
 describe('MCP TOOLS schema', () => {
-  it('暴露恰好 32 个工具', () => {
-    expect(TOOLS).toHaveLength(32)
+  it('暴露恰好 38 个工具', () => {
+    expect(TOOLS).toHaveLength(38)
   })
 
   it('工具名唯一', () => {
@@ -71,5 +71,17 @@ describe('MCP TOOLS schema', () => {
     expect(names.has('list_workspaces')).toBe(true)
     expect(names.has('list_folders')).toBe(true)
     expect(names.has('create_folder')).toBe(true)
+    // memory blocks 域（v1.15）
+    expect(names.has('memory_block_list')).toBe(true)
+    expect(names.has('memory_block_get')).toBe(true)
+    expect(names.has('memory_block_save')).toBe(true)
+    expect(names.has('memory_block_delete')).toBe(true)
+    expect(names.has('memory_block_history')).toBe(true)
+    expect(names.has('memory_block_rollback')).toBe(true)
+  })
+
+  it('memory_block_save 的 required 字段完整', () => {
+    const save = TOOLS.find((t) => t.name === 'memory_block_save')!
+    expect(save.inputSchema.required).toEqual(['workspaceId', 'label', 'value'])
   })
 })

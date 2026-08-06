@@ -37,6 +37,41 @@ const SYSTEM_PROMPT = `你是 Memora 的 Project Memory 助手。用户会基于
 - 用中文回答，结构清晰，使用 Markdown 格式
 - 如果多个片段都涉及同一主题，综合它们的信息`
 
+/**
+ * 来源归因提示（v1.15 Sources Attribution，借鉴 ChatGPT/Gemini 的 sources）
+ *
+ * 在答案生成后，让 LLM 判断实际使用了哪些片段、为什么用。
+ * 只返回真正支撑答案的片段，避免把所有检索结果都当引用。
+ */
+const ATTRIBUTION_PROMPT = `你是来源归因器。下面给出一段 AI 回答和若干候选来源片段（每段以 【片段 N】 开头）。
+请判断回答实际依赖了哪些片段，并说明每个被使用片段的原因。
+
+要求：
+- 只包含实际支撑回答内容的片段；未使用的不要列出
+- 原因用一句话、中文、简洁（如"提供了用户的技术栈偏好"）
+- 严格输出 JSON 数组，格式：[{"index": 1, "reason": "..."}]
+- 不要输出任何额外文字或 Markdown 代码块`
+
+/** 解析归因 LLM 的 JSON 输出（容错：去掉 ```json 围栏/前后噪音） */
+function parseAttribution(text: string): Array<{ index: number; reason: string }> | null {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  const start = cleaned.indexOf('[')
+  const end = cleaned.lastIndexOf(']')
+  if (start === -1 || end === -1 || end <= start) return null
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1)) as unknown
+    if (!Array.isArray(parsed)) return null
+    return parsed
+      .filter((x): x is { index: number; reason: string } =>
+        typeof x === 'object' && x !== null &&
+        typeof (x as { index?: unknown }).index === 'number' &&
+        typeof (x as { reason?: unknown }).reason === 'string')
+      .map((x) => ({ index: x.index, reason: x.reason }))
+  } catch {
+    return null
+  }
+}
+
 /** 截取消息片段（用于 prompt 和引用展示） */
 function truncate(text: string, maxChars = 500): string {
   if (text.length <= maxChars) return text
@@ -161,10 +196,40 @@ ${contextBlocks.join('\n\n---\n\n')}
 
   const answer = await callChat(config, SYSTEM_PROMPT, userPrompt, { temperature: 0.3, timeoutMs: 180_000 })
 
+  // 5. 来源归因（v1.15 Sources Attribution）
+  //    让 LLM 判断回答实际使用了哪些片段 + 原因，过滤掉未被使用的检索结果
+  let finalCitations = citations
+  try {
+    const attributionInput =
+      `## AI 回答\n${answer}\n\n## 候选来源片段\n` +
+      contextBlocks.map((block, i) => `【片段 ${i + 1}】\n${block}`).join('\n\n')
+    const attributionRaw = await callChat(
+      config,
+      ATTRIBUTION_PROMPT,
+      attributionInput,
+      { temperature: 0, timeoutMs: 60_000 }
+    )
+    const used = parseAttribution(attributionRaw)
+    // 解析成功（含空数组 = 未使用任何来源）才应用归因；解析失败降级保留全部
+    if (used !== null) {
+      const usedIndexes = new Set(used.map((u) => u.index - 1)) // LLM 输出 1-based
+      const reasonByIndex = new Map(used.map((u) => [u.index - 1, u.reason]))
+      finalCitations = citations
+        .map((c, idx) => ({ c, idx }))
+        .filter(({ idx }) => usedIndexes.has(idx))
+        .map(({ c, idx }) => {
+          const reason = reasonByIndex.get(idx)
+          return reason ? { ...c, reason } : c
+        })
+    }
+  } catch {
+    // 归因失败：降级为返回全部检索片段（向后兼容）
+  }
+
   return {
     question: trimmed,
     answer,
-    citations,
+    citations: finalCitations,
     model: config.chatModel,
     createdAt: new Date().toISOString()
   }

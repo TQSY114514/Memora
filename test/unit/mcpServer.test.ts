@@ -25,10 +25,12 @@ vi.mock('../../src/mcp/accessControl', () => ({
   get isDestructiveEnabled() { return state.destructive },
   WRITE_TOOLS: new Set([
     'add_session', 'add_message', 'memory_write', 'memory_save_preference',
-    'update_session', 'create_folder', 'knowledge_entry_update', 'summarize_session'
+    'update_session', 'create_folder', 'knowledge_entry_update', 'summarize_session',
+    'memory_block_save', 'memory_block_rollback'
   ]),
   DESTRUCTIVE_TOOLS: new Set([
-    'delete_session', 'knowledge_entry_delete', 'memory_forget'
+    'delete_session', 'knowledge_entry_delete', 'memory_forget',
+    'memory_block_delete'
   ]),
   ALLOWED_TOOLS: null,
   isToolAllowed: () => true,
@@ -92,7 +94,13 @@ const validArgs: Record<string, Record<string, unknown>> = {
   list_workspaces: {},
   list_tags: {},
   create_folder: { workspaceId: 'w1', name: 'folder' },
-  list_folders: {}
+  list_folders: {},
+  memory_block_list: { workspaceId: 'w1' },
+  memory_block_get: { blockId: 'b1' },
+  memory_block_save: { workspaceId: 'w1', label: 'human', value: 'x' },
+  memory_block_delete: { blockId: 'b1' },
+  memory_block_history: { blockId: 'b1' },
+  memory_block_rollback: { blockId: 'b1', historyId: 'h1' }
 }
 
 describe('MCP callTool — 路由分发', () => {
@@ -146,6 +154,20 @@ describe('MCP callTool — 路由分发', () => {
       await callTool(t, validArgs[t])
     }
     expect(memoryHandler).toHaveBeenCalledTimes(tools.length)
+  })
+
+  it('memory_block 域工具路由到 handleMemoryTool（v1.15）', async () => {
+    memoryHandler.mockResolvedValue({ ok: true })
+    const tools = [
+      'memory_block_list', 'memory_block_get', 'memory_block_save',
+      'memory_block_delete', 'memory_block_history', 'memory_block_rollback'
+    ]
+    for (const t of tools) {
+      await callTool(t, validArgs[t])
+    }
+    expect(memoryHandler).toHaveBeenCalledTimes(tools.length)
+    expect(sessionsHandler).not.toHaveBeenCalled()
+    expect(workspaceHandler).not.toHaveBeenCalled()
   })
 
   it('workspace 域工具路由到 handleWorkspaceTool', async () => {
@@ -276,21 +298,28 @@ describe('MCP callTool — 访问控制（默认只读）', () => {
     await expect(callTool('create_folder', validArgs.create_folder)).rejects.toThrow(/READONLY/)
     await expect(callTool('knowledge_entry_update', validArgs.knowledge_entry_update)).rejects.toThrow(/READONLY/)
     await expect(callTool('summarize_session', validArgs.summarize_session)).rejects.toThrow(/READONLY/)
+    await expect(callTool('memory_block_save', validArgs.memory_block_save)).rejects.toThrow(/READONLY/)
+    await expect(callTool('memory_block_rollback', validArgs.memory_block_rollback)).rejects.toThrow(/READONLY/)
 
     // 拒绝时审计日志记录 allowed=false
-    expect(auditToolCall).toHaveBeenCalledTimes(7)
+    expect(auditToolCall).toHaveBeenCalledTimes(9)
     // handler 不应被调用
     expect(sessionsHandler).not.toHaveBeenCalled()
+    expect(memoryHandler).not.toHaveBeenCalled()
   })
 
   it('破坏性工具在只读模式下被拒绝（优先级高于写）', async () => {
     await expect(callTool('delete_session', validArgs.delete_session)).rejects.toThrow(/DESTRUCTIVE/)
     await expect(callTool('knowledge_entry_delete', validArgs.knowledge_entry_delete)).rejects.toThrow(/DESTRUCTIVE/)
     await expect(callTool('memory_forget', validArgs.memory_forget)).rejects.toThrow(/DESTRUCTIVE/)
+    await expect(callTool('memory_block_delete', validArgs.memory_block_delete)).rejects.toThrow(/DESTRUCTIVE/)
 
     // 破坏性拒绝时审计日志记录
     expect(auditToolCall).toHaveBeenCalledWith(
       'delete_session', { sessionId: 's1' }, false, 'destructive not enabled'
+    )
+    expect(auditToolCall).toHaveBeenCalledWith(
+      'memory_block_delete', { blockId: 'b1', changedBy: 'mcp' }, false, 'destructive not enabled'
     )
   })
 })
@@ -357,11 +386,13 @@ describe('MCP callTool — 开启破坏性模式（--destructive）', () => {
     await callTool('delete_session', validArgs.delete_session)
     await callTool('knowledge_entry_delete', validArgs.knowledge_entry_delete)
     await callTool('memory_forget', validArgs.memory_forget)
+    await callTool('memory_block_delete', validArgs.memory_block_delete)
 
-    expect(auditToolCall).toHaveBeenCalledTimes(3)
+    expect(auditToolCall).toHaveBeenCalledTimes(4)
     expect(auditToolCall).toHaveBeenCalledWith('delete_session', { sessionId: 's1' }, true, 'destructive')
     expect(auditToolCall).toHaveBeenCalledWith('knowledge_entry_delete', { entryId: 'k1' }, true, 'destructive')
     expect(auditToolCall).toHaveBeenCalledWith('memory_forget', { preferenceId: 'p1' }, true, 'destructive')
+    expect(auditToolCall).toHaveBeenCalledWith('memory_block_delete', { blockId: 'b1', changedBy: 'mcp' }, true, 'destructive')
   })
 })
 

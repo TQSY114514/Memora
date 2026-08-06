@@ -14,7 +14,10 @@ import {
   updateSession,
   toggleFavorite,
   moveSession,
-  deleteSession
+  deleteSession,
+  setSessionTemporary,
+  cleanupExpiredSessions,
+  DEFAULT_TEMP_SESSION_DAYS
 } from '../../../src/database/repositories/sessionRepo'
 
 vi.mock('../../../src/database/connection', () => ({ getDatabase: vi.fn() }))
@@ -276,5 +279,97 @@ describe('sessionRepo', () => {
   it('deleteSession unindexes and deletes in a transaction', () => {
     deleteSession('s1')
     expect(db.prepare).toHaveBeenCalledWith('DELETE FROM chat_sessions WHERE id = ?')
+  })
+
+  // ===== 临时会话模式（v1.15 行动项 4）=====
+
+  it('setSessionTemporary marks session temporary with expiresAt', () => {
+    stmtResults.set('SELECT * FROM chat_sessions WHERE id = ?', { get: sessionRow })
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T00:00:00.000Z'))
+    try {
+      setSessionTemporary('s1', 'temporary')
+      const prepareCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.calls
+      const idx = prepareCalls.findIndex(([sql]: [string]) => sql.includes('SET session_type'))
+      expect(idx).toBeGreaterThanOrEqual(0)
+      const runCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.results[idx].value.run.mock.calls
+      const params = runCalls[0] as [string, string, string, string]
+      expect(params[0]).toBe('temporary')
+      expect(params[1]).toBe('2026-08-31T00:00:00.000Z') // 30 天后（默认）
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('setSessionTemporary honors custom days', () => {
+    stmtResults.set('SELECT * FROM chat_sessions WHERE id = ?', { get: sessionRow })
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T00:00:00.000Z'))
+    try {
+      setSessionTemporary('s1', 'temporary', 7)
+      const prepareCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.calls
+      const idx = prepareCalls.findIndex(([sql]: [string]) => sql.includes('SET session_type'))
+      const runCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.results[idx].value.run.mock.calls
+      const params = runCalls[0] as [string, string, string, string]
+      expect(params[1]).toBe('2026-08-08T00:00:00.000Z') // 7 天后
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('setSessionTemporary reverting to persistent clears expiresAt', () => {
+    stmtResults.set('SELECT * FROM chat_sessions WHERE id = ?', { get: { ...sessionRow, session_type: 'temporary', expires_at: '2026-09-01T00:00:00.000Z' } })
+    setSessionTemporary('s1', 'persistent')
+    const prepareCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.calls
+    const idx = prepareCalls.findIndex(([sql]: [string]) => sql.includes('SET session_type'))
+    const runCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.results[idx].value.run.mock.calls
+    const params = runCalls[0] as [string, string, string, string]
+    expect(params[0]).toBe('persistent')
+    expect(params[1]).toBeNull()
+  })
+
+  it('setSessionTemporary clamps days to [1, 365]', () => {
+    stmtResults.set('SELECT * FROM chat_sessions WHERE id = ?', { get: sessionRow })
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T00:00:00.000Z'))
+    try {
+      setSessionTemporary('s1', 'temporary', 9999)
+      const prepareCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.calls
+      const idx = prepareCalls.findIndex(([sql]: [string]) => sql.includes('SET session_type'))
+      const runCalls = (db.prepare as ReturnType<typeof vi.fn>).mock.results[idx].value.run.mock.calls
+      const params = runCalls[0] as [string, string, string, string]
+      expect(params[1]).toBe('2027-08-01T00:00:00.000Z') // 365 天后（上限）
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('setSessionTemporary throws when session missing', () => {
+    stmtResults.set('SELECT * FROM chat_sessions WHERE id = ?', { get: undefined })
+    expect(() => setSessionTemporary('ghost', 'temporary')).toThrow('会话不存在')
+  })
+
+  it('cleanupExpiredSessions deletes only expired temporary sessions', () => {
+    // 两条过期 + 一条未过期临时 + 一条常驻
+    stmtResults.set('SELECT id FROM chat_sessions WHERE session_type =', {
+      all: [
+        { id: 'exp1' },
+        { id: 'exp2' }
+      ]
+    })
+    const deleted = cleanupExpiredSessions('2026-08-01T00:00:00.000Z')
+    expect(deleted).toBe(2)
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM chat_sessions WHERE id IN'))
+  })
+
+  it('cleanupExpiredSessions returns 0 when none expired', () => {
+    stmtResults.set('SELECT id FROM chat_sessions WHERE session_type =', { all: [] })
+    const deleted = cleanupExpiredSessions('2026-08-01T00:00:00.000Z')
+    expect(deleted).toBe(0)
+    expect(db.prepare).not.toHaveBeenCalledWith(expect.stringContaining('DELETE FROM chat_sessions WHERE id IN'))
+  })
+
+  it('DEFAULT_TEMP_SESSION_DAYS is 30', () => {
+    expect(DEFAULT_TEMP_SESSION_DAYS).toBe(30)
   })
 })

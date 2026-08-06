@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { getDatabase } from '../../../src/database/connection'
 import { makeDb } from './dbMock'
 import { addAuditLog } from '../../../src/database/repositories/auditRepo'
@@ -16,7 +16,9 @@ import {
   getConstitution,
   countPreferences,
   detectConflicts,
-  feedbackPreference
+  feedbackPreference,
+  computeTemporalScore,
+  isPreferenceActive
 } from '../../../src/database/repositories/preferencesRepo'
 
 vi.mock('../../../src/database/connection', () => ({ getDatabase: vi.fn() }))
@@ -361,6 +363,132 @@ describe('preferencesRepo', () => {
         workspaceId: 'ws1'
       })
       expect(updated?.confidence).toBe(1.0)
+    })
+  })
+
+  describe('computeTemporalScore（v1.15 时间感知检索）', () => {
+    it('permanent（无时间边界）返回 1.0', () => {
+      expect(computeTemporalScore({})).toBe(1)
+      expect(computeTemporalScore({ validAt: undefined, invalidAt: undefined })).toBe(1)
+    })
+
+    it('未生效（valid_at 在未来）返回 0', () => {
+      const score = computeTemporalScore(
+        { validAt: '2099-01-01T00:00:00.000Z' },
+        new Date('2026-01-01T00:00:00.000Z')
+      )
+      expect(score).toBe(0)
+    })
+
+    it('已过期（invalid_at 在过去）返回 0', () => {
+      const score = computeTemporalScore(
+        { invalidAt: '2020-01-01T00:00:00.000Z' },
+        new Date('2026-01-01T00:00:00.000Z')
+      )
+      expect(score).toBe(0)
+    })
+
+    it('窗口中心分数最高（≥0.9），边界处衰减', () => {
+      const now = new Date('2026-06-15T00:00:00.000Z')
+      // 窗口：2026-01-01 ~ 2026-12-31，现在正处中心附近
+      const center = computeTemporalScore(
+        { validAt: '2026-01-01T00:00:00.000Z', invalidAt: '2026-12-31T00:00:00.000Z' },
+        now
+      )
+      // 窗口：2026-06-15T00:00 ~ 2026-06-16T00:00，now 恰在窗口左边界
+      const edge = computeTemporalScore(
+        { validAt: '2026-06-15T00:00:00.000Z', invalidAt: '2026-06-16T00:00:00.000Z' },
+        now
+      )
+      expect(center).toBeGreaterThan(0.9)
+      expect(edge).toBeLessThan(center)
+      expect(edge).toBeGreaterThanOrEqual(0.6)
+    })
+
+    it('只有 valid_at 无 invalid_at：从 start 时刻到未来一周内维持高分', () => {
+      const now = new Date('2026-06-15T00:00:00.000Z')
+      const score = computeTemporalScore({ validAt: '2026-06-14T00:00:00.000Z' }, now)
+      expect(score).toBeGreaterThan(0.6)
+    })
+
+    it('只有 invalid_at 无 valid_at：从过去一周内到到期日', () => {
+      const now = new Date('2026-06-15T00:00:00.000Z')
+      const score = computeTemporalScore({ invalidAt: '2026-06-16T00:00:00.000Z' }, now)
+      expect(score).toBeGreaterThan(0.6)
+    })
+  })
+
+  describe('isPreferenceActive（v1.15 过期过滤）', () => {
+    it('已过期偏好返回 false', () => {
+      expect(
+        isPreferenceActive(
+          { invalidAt: '2020-01-01T00:00:00.000Z' },
+          new Date('2026-01-01T00:00:00.000Z')
+        )
+      ).toBe(false)
+    })
+
+    it('未生效偏好返回 false', () => {
+      expect(
+        isPreferenceActive(
+          { validAt: '2099-01-01T00:00:00.000Z' },
+          new Date('2026-01-01T00:00:00.000Z')
+        )
+      ).toBe(false)
+    })
+
+    it('窗口内偏好返回 true', () => {
+      expect(
+        isPreferenceActive(
+          { validAt: '2026-01-01T00:00:00.000Z', invalidAt: '2026-12-31T00:00:00.000Z' },
+          new Date('2026-06-01T00:00:00.000Z')
+        )
+      ).toBe(true)
+    })
+
+    it('无时间窗口的 permanent 偏好始终 true', () => {
+      expect(isPreferenceActive({}, new Date())).toBe(true)
+    })
+  })
+
+  describe('searchPreferences 时态过滤（v1.15）', () => {
+    // 固定系统时间为 2026-06-15（窗口中心附近），使时态打分断言确定
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-15T00:00:00.000Z'))
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('过期偏好不进入结果（SQL 层时态条件 + 打分过滤）', () => {
+      // mock 返回的数据里含一条 invalid_at 在未来、一条已过期；
+      // searchPreferences 内部先按 SQL 过滤（mock 直接返回 all 行集绕过 SQL），
+      // 此处验证时态打分排序：过期行算 0 分会被排到末尾，最后 slice 掉
+      stmtResults.set('JOIN preferences_fts', {
+        all: [
+          { ...prefRow, id: 'p-valid', confidence: 0.5, invalid_at: '2026-12-31T00:00:00.000Z', valid_at: '2026-01-01T00:00:00.000Z', temporal_type: 'temporary' },
+          { ...prefRow, id: 'p-expired', confidence: 0.9, invalid_at: '2020-01-01T00:00:00.000Z', temporal_type: 'temporary' }
+        ]
+      })
+      const results = searchPreferences('lang', { workspaceId: 'ws1', limit: 1 })
+      expect(results).toHaveLength(1)
+      expect(results[0].id).toBe('p-valid')
+    })
+
+    it('有效窗口内偏好按 confidence × 时态分排序（时态分反超置信度）', () => {
+      // p-low: 高置信 0.7 但正处窗口边界（invalid 恰为 now）→ 时态分 0.6，加权 0.42
+      // p-high: 低置信 0.5 但处窗口中心附近 → 时态分 ≈1，加权 ≈0.48
+      // 结果：p-high 因时态加权反超 p-low，证明时态分参与排序
+      stmtResults.set('JOIN preferences_fts', {
+        all: [
+          { ...prefRow, id: 'p-low', confidence: 0.7, invalidAt: undefined, invalid_at: '2026-06-15T00:00:00.000Z', valid_at: '2026-06-14T00:00:00.000Z', temporal_type: 'temporary' },
+          { ...prefRow, id: 'p-high', confidence: 0.5, valid_at: '2026-01-01T00:00:00.000Z', invalid_at: '2026-12-31T00:00:00.000Z', temporal_type: 'temporary' }
+        ]
+      })
+      const results = searchPreferences('lang', { workspaceId: 'ws1', limit: 2 })
+      expect(results).toHaveLength(2)
+      expect(results[0].id).toBe('p-high')
     })
   })
 })

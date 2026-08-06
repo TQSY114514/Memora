@@ -73,11 +73,24 @@ describe('工具分类一致性', () => {
     }
   })
 
-  it('破坏性工具恰好 3 个（delete_session / knowledge_entry_delete / memory_forget）', () => {
-    expect(DESTRUCTIVE_TOOLS.size).toBe(3)
+  it('破坏性工具恰好 4 个（delete_session / knowledge_entry_delete / memory_forget / memory_block_delete）', () => {
+    expect(DESTRUCTIVE_TOOLS.size).toBe(4)
     expect(DESTRUCTIVE_TOOLS.has('delete_session')).toBe(true)
     expect(DESTRUCTIVE_TOOLS.has('knowledge_entry_delete')).toBe(true)
     expect(DESTRUCTIVE_TOOLS.has('memory_forget')).toBe(true)
+    expect(DESTRUCTIVE_TOOLS.has('memory_block_delete')).toBe(true)
+  })
+
+  it('memory_block 域写工具分类正确（v1.15）', () => {
+    expect(WRITE_TOOLS.has('memory_block_save')).toBe(true)
+    expect(WRITE_TOOLS.has('memory_block_rollback')).toBe(true)
+    // delete 仅属破坏性集合（避免同时出现在 write + destructive）
+    expect(WRITE_TOOLS.has('memory_block_delete')).toBe(false)
+    expect(DESTRUCTIVE_TOOLS.has('memory_block_delete')).toBe(true)
+    // 只读工具不应在写集合
+    expect(WRITE_TOOLS.has('memory_block_list')).toBe(false)
+    expect(WRITE_TOOLS.has('memory_block_get')).toBe(false)
+    expect(WRITE_TOOLS.has('memory_block_history')).toBe(false)
   })
 
   it('写工具集合非空且为合理子集', () => {

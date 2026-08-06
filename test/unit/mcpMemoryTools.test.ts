@@ -19,6 +19,14 @@ vi.mock('../../src/database/repositories/auditRepo', () => ({
 vi.mock('../../src/search/semantic', () => ({
   semanticSearch: vi.fn()
 }))
+vi.mock('../../src/database/repositories/memoryBlocksRepo', () => ({
+  listBlocks: vi.fn(),
+  getBlock: vi.fn(),
+  saveBlock: vi.fn(),
+  deleteBlock: vi.fn(),
+  listBlockHistory: vi.fn(),
+  rollbackBlock: vi.fn()
+}))
 vi.mock('../../src/mcp/tools/shared', () => ({
   loadAiConfigForTool: vi.fn()
 }))
@@ -30,6 +38,7 @@ import { createPreference, archivePreference, searchPreferences, getConstitution
 import { listAuditLogs } from '../../src/database/repositories/auditRepo'
 import { semanticSearch } from '../../src/search/semantic'
 import { loadAiConfigForTool } from '../../src/mcp/tools/shared'
+import { listBlocks, getBlock, saveBlock, deleteBlock, listBlockHistory, rollbackBlock } from '../../src/database/repositories/memoryBlocksRepo'
 
 describe('mcp.tools.memory.handleMemoryTool', () => {
   beforeEach(() => {
@@ -145,6 +154,77 @@ describe('mcp.tools.memory.handleMemoryTool', () => {
     const result = await handleMemoryTool('memory_audit_log', {})
     expect(result).toHaveLength(1)
     expect(result[0].action).toBe('create')
+  })
+
+  it('memory_block_list returns mapped blocks', async () => {
+    vi.mocked(listBlocks).mockReturnValue([
+      { id: 'b1', workspaceId: 'ws-1', label: 'human', value: '内容', readOnly: false, createdAt: 'x', updatedAt: 'x' } as any
+    ])
+    const result = await handleMemoryTool('memory_block_list', { workspaceId: 'ws-1' })
+    expect(listBlocks).toHaveBeenCalledWith('ws-1')
+    expect(result).toHaveLength(1)
+    expect(result[0].label).toBe('human')
+  })
+
+  it('memory_block_get requires blockId and returns block', async () => {
+    await expect(handleMemoryTool('memory_block_get', {})).rejects.toThrow('blockId')
+    vi.mocked(getBlock).mockReturnValue({ id: 'b1', label: 'human', value: '内容' } as any)
+    const result = await handleMemoryTool('memory_block_get', { blockId: 'b1' })
+    expect(result.label).toBe('human')
+  })
+
+  it('memory_block_get throws when block does not exist', async () => {
+    vi.mocked(getBlock).mockReturnValue(null as any)
+    await expect(handleMemoryTool('memory_block_get', { blockId: 'b1' })).rejects.toThrow('不存在')
+  })
+
+  it('memory_block_save requires workspaceId/label/value', async () => {
+    await expect(handleMemoryTool('memory_block_save', { workspaceId: 'ws-1', label: 'human' })).rejects.toThrow('value')
+    await expect(handleMemoryTool('memory_block_save', {})).rejects.toThrow('workspaceId')
+  })
+
+  it('memory_block_save calls saveBlock with changedBy=mcp', async () => {
+    vi.mocked(saveBlock).mockReturnValue({ id: 'b1', label: 'human', value: '内容', readOnly: false } as any)
+    const result = await handleMemoryTool('memory_block_save', {
+      workspaceId: 'ws-1',
+      label: 'human',
+      value: '内容',
+      readOnly: true,
+      reason: '测试'
+    })
+    expect(saveBlock).toHaveBeenCalledWith({
+      workspaceId: 'ws-1',
+      label: 'human',
+      value: '内容',
+      readOnly: true,
+      changedBy: 'mcp',
+      reason: '测试'
+    })
+    expect(result.label).toBe('human')
+  })
+
+  it('memory_block_delete requires blockId and calls deleteBlock with changedBy=mcp', async () => {
+    await expect(handleMemoryTool('memory_block_delete', {})).rejects.toThrow('blockId')
+    const result = await handleMemoryTool('memory_block_delete', { blockId: 'b1' })
+    expect(deleteBlock).toHaveBeenCalledWith('b1', 'mcp')
+    expect(result.deleted).toBe(true)
+  })
+
+  it('memory_block_history returns history', async () => {
+    vi.mocked(listBlockHistory).mockReturnValue([
+      { id: 'h1', blockId: 'b1', oldValue: '旧', newValue: '新', changedBy: 'mcp', createdAt: 'x' } as any
+    ])
+    const result = await handleMemoryTool('memory_block_history', { blockId: 'b1', limit: 5 })
+    expect(listBlockHistory).toHaveBeenCalledWith('b1', 5)
+    expect(result).toHaveLength(1)
+  })
+
+  it('memory_block_rollback requires blockId and historyId', async () => {
+    await expect(handleMemoryTool('memory_block_rollback', { blockId: 'b1' })).rejects.toThrow('historyId')
+    vi.mocked(rollbackBlock).mockReturnValue({ id: 'b1', label: 'human', value: '旧值' } as any)
+    const result = await handleMemoryTool('memory_block_rollback', { blockId: 'b1', historyId: 'h1' })
+    expect(rollbackBlock).toHaveBeenCalledWith('b1', 'h1', 'mcp')
+    expect(result.note).toContain('h1')
   })
 
   it('throws on unknown tool', async () => {
