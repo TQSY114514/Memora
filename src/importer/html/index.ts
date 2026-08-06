@@ -1,35 +1,62 @@
 import type { Importer, ParsedSession } from '../types'
 
 /**
- * 从 HTML 中提取纯文本（字符级扫描标签，兼容标签属性中的 < 与引号）。
- * - 先整块剔除 script/style/注释，避免其内容被误当作正文
- * - 然后按字符状态机逐个剥离 <...> 标签
+ * 从 HTML 中提取纯文本（单遍字符状态机，避免使用可绕过的标签正则）。
+ * - 整块跳过 script/style/注释（含内容）
+ * - 剥离其余 <...> 标签（兼容属性值中的 < 与引号）
  * - 最后解码常见 HTML 实体并压缩空白
  */
 function extractText(html: string): string {
-  let s = html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-
+  const n = html.length
+  const lower = html.toLowerCase()
   let out = ''
-  let inTag = false
-  let inQuote: string | null = null
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i]
-    if (inTag) {
+  let i = 0
+
+  while (i < n) {
+    // 注释块：<!-- ... --> 整块跳过
+    if (html.startsWith('<!--', i)) {
+      const end = html.indexOf('-->', i + 4)
+      i = end === -1 ? n : end + 3
+      continue
+    }
+
+    if (html[i] !== '<') {
+      out += html[i]
+      i++
+      continue
+    }
+
+    // 读取标签名（兼容结束标签 /）
+    let j = i + 1
+    if (html[j] === '/') j++
+    const nameStart = j
+    while (j < n && /[a-z0-9]/i.test(html[j])) j++
+    const tagName = lower.slice(nameStart, j)
+
+    // script/style 块：跳过至对应结束标签
+    if (tagName === 'script' || tagName === 'style') {
+      const closeIdx = lower.indexOf(`</${tagName}`, j)
+      if (closeIdx === -1) { i = n; break }
+      const gtIdx = html.indexOf('>', closeIdx)
+      i = gtIdx === -1 ? n : gtIdx + 1
+      continue
+    }
+
+    // 普通标签：跳到其后的 '>'（跳过引号内的内容）
+    let inQuote: string | null = null
+    let k = i + 1
+    while (k < n) {
+      const ch = html[k]
       if (inQuote) {
         if (ch === inQuote) inQuote = null
       } else if (ch === '"' || ch === "'") {
         inQuote = ch
       } else if (ch === '>') {
-        inTag = false
+        break
       }
-    } else if (ch === '<') {
-      inTag = true
-    } else {
-      out += ch
+      k++
     }
+    i = k < n ? k + 1 : n
   }
 
   return out
