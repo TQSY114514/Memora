@@ -280,7 +280,9 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
       {/* 顶部 */}
       <header className="px-5 py-3 border-b border-border bg-bg-primary flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-base">🧠</span>
+          <span className="text-accent">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M12 5v14" /></svg>
+          </span>
           <div>
             <h2 className="text-sm font-semibold">偏好记忆</h2>
             <p className="text-[10px] text-fg-muted">用户偏好 · 喜恶 · 工具习惯</p>
@@ -296,7 +298,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               }`}
               title="列表视图"
             >
-              ☰ 列表
+              列表
             </button>
             <button
               onClick={() => setViewMode('profile')}
@@ -305,7 +307,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               }`}
               title="画像视图（按类别分组）"
             >
-              📋 画像
+              画像
             </button>
             <button
               onClick={() => setViewMode('health')}
@@ -314,7 +316,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               }`}
               title="记忆健康视图（分层记忆与健康评分）"
             >
-              📊 健康
+              健康
             </button>
             <button
               onClick={() => setViewMode('conflicts')}
@@ -323,7 +325,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               }`}
               title="冲突解决视图（检测并处理偏好冲突）"
             >
-              <span>⚠️ 冲突</span>
+              <span>冲突</span>
               {conflictCount > 0 && (
                 <span
                   className={`text-[10px] px-1 rounded-full ${
@@ -345,7 +347,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               }`}
               title="AI 宪法（所有 AI 工具都应遵循的核心原则）"
             >
-              🛡 宪法
+              宪法
             </button>
           </div>
           {workspaces.length > 1 && (
@@ -362,8 +364,8 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               ))}
             </select>
           )}
-          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-            ✕
+          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm" title="关闭">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
       </header>
@@ -391,7 +393,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
             title="用自然语言修正记忆（如：我其实更喜欢 Vim 而不是 VS Code）"
           >
-            ✍️ 修正记忆
+            修正记忆
           </button>
           <button
             onClick={handleDecay}
@@ -399,7 +401,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
             title="对长期未访问的偏好进行置信度衰减"
           >
-            {decaying ? '⏳ 衰减中…' : '⏬ 运行衰减'}
+            {decaying ? '衰减中…' : '运行衰减'}
           </button>
           <button
             onClick={handleExport}
@@ -407,7 +409,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
             title="导出当前工作区的全部记忆（偏好 + 宪法 + 知识 + 审计日志）为 MMF JSON 文件"
           >
-            {exporting ? '⏳ 导出中…' : '📤 导出记忆'}
+            {exporting ? '导出中…' : '导出记忆'}
           </button>
           <button
             onClick={openImportModal}
@@ -415,7 +417,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
             title="从 MMF JSON 文件导入记忆到当前工作区"
           >
-            📥 导入记忆
+            导入记忆
           </button>
         </div>
 
@@ -519,7 +521,9 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
 
             {!loading && filtered.length === 0 && (
               <div className="text-center py-16">
-                <div className="text-4xl mb-3 opacity-30">🧠</div>
+                <div className="mb-3 flex justify-center opacity-30 text-accent">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M12 5v14" /></svg>
+                </div>
                 <p className="text-sm text-fg-secondary mb-1">
                   {searchQuery.trim() ? '未找到匹配的偏好' : '这个工作区还没有偏好记忆'}
                 </p>
@@ -584,14 +588,15 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-              <h3 className="text-sm font-semibold">📥 导入记忆（MMF）</h3>
-              <button
-                onClick={() => !importing && setShowImportModal(false)}
-                className="text-fg-muted hover:text-fg-primary text-sm"
-                disabled={importing}
-              >
-                ✕
-              </button>
+              <h3 className="text-sm font-semibold">导入记忆（MMF）</h3>
+                <button
+                  onClick={() => !importing && setShowImportModal(false)}
+                  className="text-fg-muted hover:text-fg-primary text-sm"
+                  disabled={importing}
+                  title="关闭"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
             </div>
             <div className="px-5 py-4 space-y-3 overflow-y-auto">
               <div className="flex items-center gap-2">
@@ -600,7 +605,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
                   disabled={importing}
                   className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
                 >
-                  📂 选择文件…
+                  选择文件…
                 </button>
                 <span className="text-[11px] text-fg-muted">
                   选择 .json 文件，或直接在下方粘贴 MMF JSON 内容
@@ -644,7 +649,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
                 disabled={importing || !importJsonText.trim()}
                 className="Memora-btn Memora-btn-primary text-xs"
               >
-                {importing ? '⏳ 导入中…' : '确认导入'}
+                {importing ? '导入中…' : '确认导入'}
               </button>
             </div>
           </div>
