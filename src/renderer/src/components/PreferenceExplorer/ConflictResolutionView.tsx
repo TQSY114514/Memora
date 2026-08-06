@@ -36,7 +36,7 @@ function PreferenceSide({
         </div>
         <span className="text-[10px] text-fg-muted tabular-nums">{(conf * 100).toFixed(0)}%</span>
       </div>
-      <p className="text-[10px] text-fg-muted mt-1.5">📅 {formatDate(pref.createdAt)}</p>
+      <p className="text-[10px] text-fg-muted mt-1.5">{formatDate(pref.createdAt)}</p>
     </div>
   )
 }
@@ -103,7 +103,7 @@ function ConflictItem({
         <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent">
           {report.subject}
         </span>
-        <span className="text-[10px] text-fg-muted">⚠ 冲突原因：{reason}</span>
+        <span className="text-[10px] text-fg-muted">冲突原因：{reason}</span>
       </div>
 
       <div className="flex items-stretch gap-2 mb-2.5">
@@ -310,7 +310,9 @@ export function ConflictResolutionView({ workspaceId, onResolved }: ConflictReso
       <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">
         {totalConflicts === 0 ? (
           <div className="text-center py-16">
-            <div className="text-4xl mb-3 opacity-30">✓</div>
+            <div className="mb-3 flex justify-center opacity-30 text-accent">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+            </div>
             <p className="text-sm text-fg-secondary">没有检测到冲突</p>
             <p className="text-xs text-fg-muted mt-1">所有偏好记忆保持一致</p>
           </div>

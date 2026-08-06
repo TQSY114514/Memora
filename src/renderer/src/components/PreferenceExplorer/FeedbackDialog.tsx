@@ -56,13 +56,14 @@ export function FeedbackDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-          <h3 className="text-sm font-semibold">✍️ 修正记忆</h3>
+          <h3 className="text-sm font-semibold">修正记忆</h3>
           <button
             onClick={() => !submitting && onClose()}
             className="text-fg-muted hover:text-fg-primary text-sm"
             disabled={submitting}
+            title="关闭"
           >
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
         <div className="px-5 py-4 space-y-3 overflow-y-auto">
@@ -119,7 +120,7 @@ export function FeedbackDialog({
             disabled={submitting || !text.trim() || !target}
             className="Memora-btn Memora-btn-primary text-xs"
           >
-            {submitting ? '⏳ 应用中…' : '应用修正'}
+            {submitting ? '应用中…' : '应用修正'}
           </button>
         </div>
       </div>
