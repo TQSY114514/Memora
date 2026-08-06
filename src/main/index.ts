@@ -9,6 +9,7 @@ import { backgroundImporter } from '../importer/backgroundImporter'
 import { shutdownSemanticWorker } from '../search/semantic'
 import { decayConfidence } from '../database/repositories/preferencesRepo'
 import { runMemoryLifecycle } from './memoryLifecycle'
+import { cleanupExpiredSessions } from '../database/repositories/sessionRepo'
 import { backupService } from './backup'
 import { logger } from './logger'
 import { initAutoUpdater } from './updater'
@@ -45,11 +46,22 @@ protocol.registerSchemesAsPrivileged([
 // 通过 `electron --mcp` 启动时，运行 MCP Server 而非 GUI
 const isMcpMode = process.argv.includes('--mcp')
 
+/** 启动时清理过期临时会话（v1.15 行动项 4），GUI 与 MCP 模式共用 */
+function cleanupTemporarySessions(): void {
+  try {
+    const cleaned = cleanupExpiredSessions()
+    if (cleaned > 0) logger.info(`[startup] cleaned ${cleaned} expired temporary session(s)`)
+  } catch (e) {
+    logger.warn('cleanup expired sessions failed', { error: String(e) })
+  }
+}
+
 if (isMcpMode) {
   app.disableHardwareAcceleration()
   app.whenReady().then(async () => {
     if (app.dock) app.dock.hide()
     initDatabase()
+    cleanupTemporarySessions()
     const { startMcpServer } = await import('../mcp/server')
     await startMcpServer()
   })
@@ -240,6 +252,8 @@ function startGui(): void {
   app.whenReady().then(() => {
     // 初始化数据库
     initDatabase()
+
+    cleanupTemporarySessions()
 
     // 注册 app:// 协议处理器（生产模式下用自定义协议替代 file://）
     // app://renderer/index.html → {rendererDist}/index.html

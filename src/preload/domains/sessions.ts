@@ -29,7 +29,15 @@ export const session = {
     ipcRenderer.invoke(IPC.SESSION_TOGGLE_FAVORITE, id),
   /** 按智能文件夹规则列出会话 */
   listByRule: (workspaceId: string, rule: FolderRule): Promise<ChatSession[]> =>
-    ipcRenderer.invoke(IPC.SESSION_LIST_BY_RULE, workspaceId, rule)
+    ipcRenderer.invoke(IPC.SESSION_LIST_BY_RULE, workspaceId, rule),
+  /** 标记/取消临时会话（v1.15）：temporary 时设置过期时间 */
+  setTemporary: (
+    id: string,
+    type: 'temporary' | 'persistent',
+    days?: number
+  ): Promise<void> => ipcRenderer.invoke(IPC.SESSION_SET_TEMPORARY, id, type, days),
+  /** 清理已过期临时会话，返回清理数量 */
+  cleanupExpired: (): Promise<number> => ipcRenderer.invoke(IPC.SESSION_CLEANUP_EXPIRED)
 }
 
 // ===== Tag =====

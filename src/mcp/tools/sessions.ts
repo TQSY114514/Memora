@@ -6,7 +6,7 @@
  * delete_session / export_session / summarize_session。
  */
 
-import { listSessions, getSession, createSession, updateSession, deleteSession } from '../../database/repositories/sessionRepo'
+import { listSessions, getSession, createSession, updateSession, deleteSession, DEFAULT_TEMP_SESSION_DAYS } from '../../database/repositories/sessionRepo'
 import { indexSessionForSearch } from '../../search/indexer'
 import { getSummary } from '../../database/repositories/summaryRepo'
 import { getDatabase } from '../../database/connection'
@@ -88,6 +88,12 @@ export async function handleSessionsTool(
       const provider = String(args.provider ?? 'Unknown')
       if (!title) throw new Error('title 不能为空')
       const folderId = args.folderId ? String(args.folderId) : undefined
+      // 临时会话支持（v1.15 行动项 4）：sessionType='temporary' 时到期自动清理
+      const isValidType = args.sessionType === 'temporary'
+      const sessionType = isValidType ? 'temporary' : 'persistent'
+      const expiresAt = isValidType
+        ? new Date(Date.now() + DEFAULT_TEMP_SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+        : undefined
       const rawMessages = (args.messages ?? []) as Array<Record<string, unknown>>
       const messages = rawMessages.map((m, idx) => ({
         id: uuidv4(),
@@ -106,9 +112,16 @@ export async function handleSessionsTool(
         messageCount: messages.length,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        tags: []
+        tags: [],
+        sessionType,
+        expiresAt
       }, messages)
-      return { sessionId: session.id, title: session.title }
+      return {
+        sessionId: session.id,
+        title: session.title,
+        sessionType: session.sessionType ?? 'persistent',
+        expiresAt: session.expiresAt ?? null
+      }
     }
 
     case 'add_message': {

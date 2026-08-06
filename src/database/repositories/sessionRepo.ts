@@ -17,6 +17,8 @@ interface SessionRow {
   created_at: string
   updated_at: string
   imported_at: string
+  session_type: string | null
+  expires_at: string | null
 }
 
 interface MessageRow {
@@ -64,6 +66,8 @@ function rowToSession(row: SessionRow, tags: Tag[] = [], messages?: Message[]): 
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     importedAt: row.imported_at,
+    sessionType: (row.session_type as ChatSession['sessionType']) ?? undefined,
+    expiresAt: row.expires_at ?? undefined,
     tags,
     messages
   }
@@ -144,9 +148,10 @@ export function createSession(
     const result = db.prepare(
       `INSERT INTO chat_sessions
        (id, source_id, provider, model, title, description, folder_id, is_favorite,
-        message_count, created_at, updated_at, imported_at)
+        message_count, created_at, updated_at, imported_at, session_type, expires_at)
        VALUES (@id, @source_id, @provider, @model, @title, @description, @folder_id,
-               @is_favorite, @message_count, @created_at, @updated_at, @imported_at)
+               @is_favorite, @message_count, @created_at, @updated_at, @imported_at,
+               @session_type, @expires_at)
        ON CONFLICT(source_id, provider) WHERE source_id IS NOT NULL DO NOTHING`
     ).run({
       id,
@@ -160,7 +165,9 @@ export function createSession(
       message_count: messages.length,
       created_at: session.createdAt,
       updated_at: session.updatedAt,
-      imported_at: importedAt
+      imported_at: importedAt,
+      session_type: session.sessionType ?? null,
+      expires_at: session.expiresAt ?? null
     })
 
     // 冲突未插入：直接返回，不写消息（已存在会话已有消息）
@@ -376,4 +383,64 @@ export function deleteSession(id: string): void {
     db.prepare('DELETE FROM chat_sessions WHERE id = ?').run(id)
   })
   tx()
+}
+
+// ===== 临时会话模式（v1.15 行动项 4）=====
+
+/** 默认临时会话保留天数（对齐 ChatGPT/Claude 的 Temporary Chat 语义） */
+export const DEFAULT_TEMP_SESSION_DAYS = 30
+
+/**
+ * 将会话标记为 temporary（或取消），设置过期时间
+ * - 不影响会话内容与索引，仅改元数据
+ * - 标记为 temporary 时：expiresAt = now + days 天
+ * - 标记回 persistent 时：清空 expiresAt
+ */
+export function setSessionTemporary(
+  id: string,
+  type: 'temporary' | 'persistent',
+  days = DEFAULT_TEMP_SESSION_DAYS
+): void {
+  const db = getDatabase()
+  const session = getSession(id, false)
+  if (!session) throw new Error(`会话不存在: ${id}`)
+
+  // 防御：过期天数限制在 1-365 之间（防注入异常 ISO / 无限期临时会话）
+  const safeDays = Math.min(Math.max(Math.trunc(days) || DEFAULT_TEMP_SESSION_DAYS, 1), 365)
+  const expireIso =
+    type === 'temporary'
+      ? new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString()
+      : null
+  db.prepare(
+    `UPDATE chat_sessions
+     SET session_type = ?, expires_at = ?, updated_at = ?
+     WHERE id = ?`
+  ).run(type, expireIso, new Date().toISOString(), id)
+}
+
+/**
+ * 清理已过期的临时会话（级联删除消息/标签/FTS 索引）
+ * 返回被清理的会话数量。未过期/常驻会话不受影响。
+ */
+export function cleanupExpiredSessions(nowIso?: string): number {
+  const db = getDatabase()
+  const now = nowIso ?? new Date().toISOString()
+  const expired = db
+    .prepare(
+      `SELECT id FROM chat_sessions
+       WHERE session_type = 'temporary' AND expires_at IS NOT NULL AND expires_at < ?`
+    )
+    .all(now) as Array<{ id: string }>
+
+  const tx = db.transaction(() => {
+    for (const { id } of expired) {
+      unindexSession(id)
+    }
+    if (expired.length > 0) {
+      db.prepare('DELETE FROM chat_sessions WHERE id IN (' + expired.map(() => '?').join(',') + ')')
+        .run(...expired.map((r) => r.id))
+    }
+  })
+  tx()
+  return expired.length
 }

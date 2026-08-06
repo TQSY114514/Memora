@@ -74,7 +74,8 @@ export const toolSchemas: Record<string, z.ZodType> = {
     title: nonEmptyString,
     provider: nonEmptyString,
     folderId: safeId.optional(),
-    messages: z.array(messageItemSchema).optional()
+    messages: z.array(messageItemSchema).optional(),
+    sessionType: z.enum(['persistent', 'temporary']).optional()
   }),
   add_message: z.object({
     sessionId: safeId,
@@ -183,6 +184,35 @@ export const toolSchemas: Record<string, z.ZodType> = {
   }),
   list_folders: z.object({
     workspaceId: safeId.optional()
+  }),
+
+  // memory blocks 域（v1.15 结构化记忆块）
+  memory_block_list: z.object({
+    workspaceId: safeId.optional()
+  }),
+  memory_block_get: z.object({
+    blockId: safeId
+  }),
+  memory_block_save: z.object({
+    workspaceId: safeId,
+    label: z.string().trim().min(1).max(120),
+    value: z.string().min(1),
+    readOnly: z.boolean().optional(),
+    changedBy: z.enum(['user', 'mcp', 'ai', 'import', 'system']).default('mcp'),
+    reason: z.string().optional()
+  }),
+  memory_block_delete: z.object({
+    blockId: safeId,
+    changedBy: z.enum(['user', 'mcp', 'ai', 'import', 'system']).default('mcp')
+  }),
+  memory_block_history: z.object({
+    blockId: safeId,
+    limit: limitSchema
+  }),
+  memory_block_rollback: z.object({
+    blockId: safeId,
+    historyId: safeId,
+    changedBy: z.enum(['user', 'mcp', 'ai', 'import', 'system']).default('mcp')
   })
 }
 

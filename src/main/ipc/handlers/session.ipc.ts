@@ -1,5 +1,6 @@
 import { safeHandle, assertSafeId, assertSafeIds } from '../safeHandle'
 import { IPC } from '@shared/constants'
+import type { FolderRule } from '@shared/types'
 import {
   getSession,
   listMessagesBySession,
@@ -13,7 +14,9 @@ import {
   deleteTag,
   attachTag,
   detachTag,
-  listSessionsByRule
+  listSessionsByRule,
+  setSessionTemporary,
+  cleanupExpiredSessions
 } from '@db/repositories'
 
 export function registerSessionHandlers(): void {
@@ -80,7 +83,15 @@ export function registerSessionHandlers(): void {
   })
 
   // ===== 智能文件夹：按规则列出会话 =====
-  safeHandle(IPC.SESSION_LIST_BY_RULE, (_e, workspaceId: string, rule: any) => {
-    return listSessionsByRule(workspaceId, rule)
+  safeHandle(IPC.SESSION_LIST_BY_RULE, (_e, workspaceId: string, rule: FolderRule) => {
+    return listSessionsByRule(assertSafeId(workspaceId, 'workspaceId'), rule)
   })
+
+  // ===== 临时会话模式（v1.15 行动项 4）=====
+  safeHandle(
+    IPC.SESSION_SET_TEMPORARY,
+    (_e, id: string, type: 'temporary' | 'persistent', days?: number) =>
+      setSessionTemporary(assertSafeId(id), type, days)
+  )
+  safeHandle(IPC.SESSION_CLEANUP_EXPIRED, () => cleanupExpiredSessions())
 }
