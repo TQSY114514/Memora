@@ -43,14 +43,14 @@ export function PreferenceCard({
                 className="text-fg-muted hover:text-accent text-xs px-1 py-0.5"
                 title="记忆溯源"
               >
-                🔍
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
               </button>
               <button
                 onClick={onEdit}
                 className="text-fg-muted hover:text-accent text-xs px-1 py-0.5"
                 title="编辑值"
               >
-                ✎
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
               </button>
               {pref.status !== 'archived' && (
                 <button
@@ -58,7 +58,7 @@ export function PreferenceCard({
                   className="text-fg-muted hover:text-yellow-500 text-xs px-1 py-0.5"
                   title="归档（遗忘）"
                 >
-                  🗇
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z" /></svg>
                 </button>
               )}
               <button
@@ -66,7 +66,7 @@ export function PreferenceCard({
                 className="text-fg-muted hover:text-red-500 text-xs px-1 py-0.5"
                 title="删除"
               >
-                🗑
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
               </button>
             </div>
           </div>
@@ -91,11 +91,11 @@ export function PreferenceCard({
             <span className="px-1.5 py-0.5 rounded bg-bg-hover">
               {SOURCE_META[pref.source] ?? pref.source}
             </span>
-            <span title="访问次数">↻ {pref.accessCount ?? 0}</span>
+            <span title="访问次数">{pref.accessCount ?? 0} 次</span>
             {pref.lastAccessedAt && (
-              <span title="最后访问">⏱ {formatDate(pref.lastAccessedAt)}</span>
+              <span title="最后访问">{formatDate(pref.lastAccessedAt)}</span>
             )}
-            <span title="创建时间">📅 {formatDate(pref.createdAt)}</span>
+            <span title="创建时间">{formatDate(pref.createdAt)}</span>
           </div>
         </div>
       </div>

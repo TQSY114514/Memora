@@ -81,7 +81,7 @@ export function PreferenceEditor({
               ? '编辑宪法条目'
               : '编辑偏好'
             : isConstitution
-              ? '🛡 新建宪法条目'
+              ? '新建宪法条目'
               : '新建偏好'}
         </h3>
 

@@ -22,18 +22,15 @@ function formatDateTime(iso: string): string {
 
 /** 溯源抽屉中的键值行 */
 function ExplainRow({
-  icon,
   label,
   children
 }: {
-  icon: string
   label: string
   children: ReactNode
 }) {
   return (
     <div className="flex items-start gap-2 py-1.5">
       <span className="text-fg-muted w-20 flex-shrink-0 text-[11px] flex items-center gap-1">
-        <span>{icon}</span>
         {label}
       </span>
       <span className="text-[11px] text-fg-secondary break-all flex-1 min-w-0">{children}</span>
@@ -94,11 +91,13 @@ export function MemoryExplainDrawer({
         {/* 头部 */}
         <div className="px-5 py-3.5 border-b border-border flex items-center justify-between sticky top-0 bg-bg-primary z-10">
           <div className="flex items-center gap-2">
-            <span className="text-base">🔍</span>
+            <span className="text-accent">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+          </span>
             <h3 className="text-sm font-semibold">记忆溯源</h3>
           </div>
-          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-            ✕
+          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm" title="关闭">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
 
@@ -163,19 +162,19 @@ export function MemoryExplainDrawer({
               时间线
             </h4>
             <div className="rounded-lg border border-border bg-bg-secondary/40 px-3 py-1">
-              <ExplainRow icon="📅" label="提取时间">
+              <ExplainRow label="提取时间">
                 <span>{formatDate(pref.createdAt) || '—'}</span>
                 {formatDateTime(pref.createdAt) && (
                   <span className="text-fg-muted"> · {formatDateTime(pref.createdAt)}</span>
                 )}
               </ExplainRow>
-              <ExplainRow icon="✏" label="更新时间">
+              <ExplainRow label="更新时间">
                 <span>{formatDate(pref.updatedAt) || '—'}</span>
                 {formatDateTime(pref.updatedAt) && (
                   <span className="text-fg-muted"> · {formatDateTime(pref.updatedAt)}</span>
                 )}
               </ExplainRow>
-              <ExplainRow icon="⏱" label="最后访问">
+              <ExplainRow label="最后访问">
                 {pref.lastAccessedAt ? (
                   <>
                     <span>{formatDate(pref.lastAccessedAt)}</span>
@@ -200,7 +199,7 @@ export function MemoryExplainDrawer({
             </h4>
             <div className="flex items-center gap-2 text-[11px] text-fg-secondary">
               <span className="px-2 py-1 rounded bg-bg-hover">
-                ↻ 出现次数：{pref.accessCount ?? 0}
+                出现次数：{pref.accessCount ?? 0}
               </span>
             </div>
           </section>
@@ -230,8 +229,8 @@ export function MemoryExplainDrawer({
                 </h3>
                 <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-fg-muted">
                   <span className="px-1.5 py-0.5 rounded bg-bg-hover">{session.provider}</span>
-                  <span>💬 {session.messageCount} 条消息</span>
-                  <span>📅 {formatDate(session.createdAt)}</span>
+                  <span>{session.messageCount} 条消息</span>
+                  <span>{formatDate(session.createdAt)}</span>
                 </div>
                 {session.description && (
                   <p className="text-[11px] text-fg-secondary mt-2 break-words">

@@ -137,21 +137,19 @@ function DecayRow({ mem }: { mem: TieredMemory }) {
 /** 体检建议卡片 */
 type SuggestionTone = 'warning' | 'info'
 interface Suggestion {
-  icon: string
   text: string
   tone: SuggestionTone
   action?: { label: string; onClick: () => void }
 }
 
 function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
-  const { icon, text, tone, action } = suggestion
+  const { text, tone, action } = suggestion
   const toneClass =
     tone === 'warning'
       ? 'border-amber-500/30 bg-amber-500/5'
       : 'border-border bg-bg-primary'
   return (
     <div className={`rounded-md border ${toneClass} p-2.5 flex items-center gap-2`}>
-      <span className="text-sm flex-shrink-0">{icon}</span>
       <span className="text-[12px] text-fg-secondary flex-1 min-w-0 break-words">
         {text}
       </span>
@@ -336,7 +334,9 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
   if (isEmpty) {
     return (
       <div className="text-center py-16">
-        <div className="text-4xl mb-3 opacity-30">📊</div>
+        <div className="mb-3 flex justify-center opacity-30 text-accent">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M7 13v4" /><path d="M11 9v8" /><path d="M15 5v12" /><path d="M19 11v6" /></svg>
+        </div>
         <p className="text-sm text-fg-secondary">还没有偏好数据，无法生成记忆健康报告</p>
       </div>
     )
@@ -362,7 +362,6 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
   const suggestions: Suggestion[] = []
   if (conflictCount > 0) {
     suggestions.push({
-      icon: '⚠️',
       text: `发现 ${conflictCount} 条冲突偏好，建议解决`,
       tone: 'warning',
       action: onNavigateConflicts
@@ -372,7 +371,6 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
   }
   if (health!.atRisk.length > 5) {
     suggestions.push({
-      icon: '⚠️',
       text: `${health!.atRisk.length} 条记忆即将遗忘，建议运行维护`,
       tone: 'warning',
       action: { label: '运行维护', onClick: handleRun }
@@ -380,21 +378,18 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
   }
   if (totalAll > 0 && (counts?.archived ?? 0) > totalAll * 0.5) {
     suggestions.push({
-      icon: '💡',
       text: '归档比例较高，可考虑清理',
       tone: 'info'
     })
   }
   if (constitutionCount === 0) {
     suggestions.push({
-      icon: '💡',
       text: '建议设置 AI 宪法，定义你的核心原则',
       tone: 'info'
     })
   }
   if (health!.longTerm < 3) {
     suggestions.push({
-      icon: '💡',
       text: '长期记忆较少，多与 AI 对话以积累',
       tone: 'info'
     })
@@ -520,7 +515,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         {highlights.length > 0 && (
           <div className="rounded-lg border border-border bg-bg-primary p-4">
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <span>✨</span> 高亮记忆 (Top {highlights.length})
+              高亮记忆 (Top {highlights.length})
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {highlights.map((h, i) => (
@@ -540,7 +535,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         {summary && summary.summary && (
           <div className="rounded-lg border border-border bg-bg-primary p-4">
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <span>📝</span> 用户画像摘要
+              用户画像摘要
             </h3>
             <p className="text-[12px] text-fg-secondary leading-relaxed whitespace-pre-wrap break-words">
               {summary.summary}
@@ -552,7 +547,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         {summary && summary.trends && summary.trends.length > 0 && (
           <div className="rounded-lg border border-border bg-bg-primary p-4">
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <span>📈</span> 偏好趋势
+              偏好趋势
             </h3>
             <div className="space-y-2">
               {summary.trends.map((t, i) => (
@@ -579,7 +574,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         {(decayGroups.critical.length > 0 || decayGroups.declining.length > 0) && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
             <h3 className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <span>📉</span> 衰减趋势
+              衰减趋势
             </h3>
             {decayGroups.critical.length > 0 && (
               <div className="mb-2">
@@ -612,7 +607,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         {suggestions.length > 0 && (
           <div className="rounded-lg border border-border bg-bg-primary p-4">
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <span>🩺</span> 记忆体检报告
+              记忆体检报告
             </h3>
             <div className="space-y-1.5">
               {suggestions.map((s, i) => (
@@ -626,7 +621,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         <div className="rounded-lg border border-border bg-bg-secondary/40 p-4">
           <div className="mb-2">
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-0.5 flex items-center gap-1.5">
-              <span>🔧</span> 记忆维护
+              记忆维护
             </h3>
             <p className="text-[11px] text-fg-muted">
               执行记忆生命周期操作：维护、衰减、归档、层级升降
@@ -639,7 +634,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
               className="Memora-btn Memora-btn-primary text-xs whitespace-nowrap"
               title="运行记忆维护（衰减 + 归档 + 层级升降）"
             >
-              {running ? '⏳ 维护中…' : '⚙ 运行维护'}
+              {running ? '维护中…' : '运行维护'}
             </button>
             <button
               onClick={handleDecay}
@@ -647,7 +642,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
               className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
               title="触发置信度衰减（长期未访问的偏好）"
             >
-              {decaying ? '⏳ 衰减中…' : '⏬ 触发衰减'}
+              {decaying ? '衰减中…' : '触发衰减'}
             </button>
           </div>
           {runMsg && (
