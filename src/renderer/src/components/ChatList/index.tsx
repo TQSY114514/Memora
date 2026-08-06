@@ -20,10 +20,13 @@ export function ChatList() {
   const setSessions = useStore((s) => s.setSessions)
   const pinnedIds = useStore((s) => s.pinnedIds)
   const togglePin = useStore((s) => s.togglePin)
+  const unpinIds = useStore((s) => s.unpinIds)
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBatchBar, setShowBatchBar] = useState(false)
   const dialog = useDialog()
+  // shift 范围选择的锚点：最近一次点击/选中的会话（而非 findIndex 第一个选中项）
+  const lastSelectedRef = useRef<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -62,22 +65,27 @@ export function ChatList() {
       else next.add(sessionId)
       setSelectedIds(next)
       setShowBatchBar(next.size > 0)
+      lastSelectedRef.current = sessionId
       return
     }
     if (e.shiftKey && selectedIds.size > 0) {
       const idx = sortedSessions.findIndex((s) => s.id === sessionId)
-      const lastSelected = sortedSessions.findIndex((s) => selectedIds.has(s.id))
-      if (lastSelected >= 0 && idx >= 0) {
-        const [from, to] = [Math.min(idx, lastSelected), Math.max(idx, lastSelected)]
+      // 锚点 = 最近一次点击/选中的会话；若为空回退到第一个选中项
+      const anchorId = lastSelectedRef.current ?? Array.from(selectedIds)[0]
+      const anchorIdx = sortedSessions.findIndex((s) => s.id === anchorId)
+      if (anchorIdx >= 0 && idx >= 0) {
+        const [from, to] = [Math.min(idx, anchorIdx), Math.max(idx, anchorIdx)]
         const next = new Set(selectedIds)
         for (let i = from; i <= to; i++) next.add(sortedSessions[i].id)
         setSelectedIds(next)
         setShowBatchBar(true)
+        lastSelectedRef.current = sessionId
         return
       }
     }
     setSelectedIds(new Set())
     setShowBatchBar(false)
+    lastSelectedRef.current = sessionId
     setActiveSession(sessionId)
     try {
       const session = await window.Memora.session.get(sessionId, false)
@@ -132,7 +140,8 @@ export function ChatList() {
     const ok = await dialog.confirm(`确定删除「${title}」？此操作不可撤销。`)
     if (!ok) return
     try {
-      await window.Memora.batch.deleteSessions([sessionId])
+      await window.Memora.session.delete(sessionId)
+      clearDeletedState([sessionId])
       refreshList()
     } catch (e) {
       dialog.alert('删除失败：' + (e instanceof Error ? e.message : String(e)))
@@ -147,10 +156,23 @@ export function ChatList() {
       await window.Memora.batch.deleteSessions(ids)
       setSelectedIds(new Set())
       setShowBatchBar(false)
+      lastSelectedRef.current = null
+      clearDeletedState(ids)
       refreshList()
     } catch (e) {
       dialog.alert('批量删除失败：' + (e instanceof Error ? e.message : String(e)))
     }
+  }
+
+  /** 删除后清理：激活会话指向已删除项时清空；置顶残留 ID 移除 */
+  function clearDeletedState(deletedIds: string[]) {
+    const deleted = new Set(deletedIds)
+    if (activeSessionId && deleted.has(activeSessionId)) {
+      setActiveSession(null)
+      setActiveSessionData(null)
+    }
+    const stalePinned = Array.from(pinnedIds).filter((id) => deleted.has(id))
+    if (stalePinned.length > 0) unpinIds(stalePinned)
   }
 
   async function refreshList() {
@@ -210,7 +232,7 @@ export function ChatList() {
             {selectedIds.size === sortedSessions.length ? '取消全选' : '全选'}
           </button>
           <button onClick={handleBatchDelete} className="Memora-btn text-xs text-red-500 hover:bg-red-500/10">
-            🗑 删除选中
+            删除选中
           </button>
           <button onClick={handleClearSelection} className="Memora-btn Memora-btn-ghost text-xs ml-auto">
             取消

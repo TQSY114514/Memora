@@ -9,6 +9,7 @@ import { MemoryHealthView } from './MemoryHealthView'
 import { ConflictResolutionView } from './ConflictResolutionView'
 import { MemoryExplainDrawer } from './MemoryExplainDrawer'
 import { ConstitutionView } from './ConstitutionView'
+import { FeedbackDialog } from './FeedbackDialog'
 
 interface PreferenceExplorerProps {
   onClose: () => void
@@ -30,6 +31,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
     archived: number
   } | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
+  const [subjectFilter, setSubjectFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'list' | 'profile' | 'health' | 'conflicts' | 'constitution'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -40,6 +42,8 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
   const [decaying, setDecaying] = useState(false)
   const [decayMsg, setDecayMsg] = useState<string | null>(null)
   const [conflictCount, setConflictCount] = useState(0)
+  // 自然语言修正记忆（v1.15 行动项 5）
+  const [showFeedback, setShowFeedback] = useState(false)
   // 搜索防抖：避免每输入一个字符就触发 FTS 查询
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -116,14 +120,24 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
   function handleSwitchWorkspace(id: string) {
     setCurrentWsId(id)
     setFilter('all')
+    setSubjectFilter('all')
     setSearchQuery('')
     setViewMode('list')
   }
 
+  // 按 subject 分类（v1.15 行动项 5）：从当前列表去重提取类别
+  const subjects = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of entries) set.add(e.subject)
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [entries])
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return entries
-    return entries.filter((e) => e.status === filter)
-  }, [entries, filter])
+    let list = entries
+    if (filter !== 'all') list = list.filter((e) => e.status === filter)
+    if (subjectFilter !== 'all') list = list.filter((e) => e.subject === subjectFilter)
+    return list
+  }, [entries, filter, subjectFilter])
 
   async function handleArchive(pref: Preference) {
     const ok = await dialog.confirm(`确定归档（遗忘）「${pref.subject}: ${pref.value}」？`)
@@ -173,6 +187,11 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
     } finally {
       setDecaying(false)
     }
+  }
+
+  // ===== 自然语言修正记忆（v1.15 行动项 5） =====
+  function openFeedback() {
+    setShowFeedback(true)
   }
 
   function handleSaved(updated: Preference) {
@@ -367,6 +386,14 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             + 新建
           </button>
           <button
+            onClick={openFeedback}
+            disabled={!currentWsId || entries.length === 0}
+            className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
+            title="用自然语言修正记忆（如：我其实更喜欢 Vim 而不是 VS Code）"
+          >
+            ✍️ 修正记忆
+          </button>
+          <button
             onClick={handleDecay}
             disabled={decaying || !currentWsId}
             className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
@@ -415,6 +442,36 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
                     {t.count}
                   </span>
                 )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 按类别分组过滤（v1.15 行动项 5） */}
+        {viewMode === 'list' && subjects.length > 1 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[10px] text-fg-muted mr-0.5">类别:</span>
+            <button
+              onClick={() => setSubjectFilter('all')}
+              className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                subjectFilter === 'all'
+                  ? 'bg-accent-muted text-accent'
+                  : 'text-fg-muted hover:bg-bg-hover'
+              }`}
+            >
+              全部
+            </button>
+            {subjects.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSubjectFilter(subjectFilter === s ? 'all' : s)}
+                className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                  subjectFilter === s
+                    ? 'bg-accent-muted text-accent'
+                    : 'text-fg-muted hover:bg-bg-hover'
+                }`}
+              >
+                {s}
               </button>
             ))}
           </div>
@@ -592,6 +649,16 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 自然语言修正记忆弹层（v1.15 行动项 5） */}
+      {showFeedback && (
+        <FeedbackDialog
+          entries={entries}
+          workspaceId={currentWsId}
+          onClose={() => setShowFeedback(false)}
+          onApplied={() => refresh()}
+        />
       )}
 
       <PromptDialog state={dialog.state} onClose={dialog.handleClose} />

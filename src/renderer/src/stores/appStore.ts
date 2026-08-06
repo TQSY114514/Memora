@@ -61,6 +61,8 @@ interface AppState {
   setError: (e: string | null) => void
   togglePin: (id: string) => void
   isPinned: (id: string) => boolean
+  /** 批量取消置顶（会话删除后清理 localStorage 残留） */
+  unpinIds: (ids: string[]) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -100,5 +102,17 @@ export const useStore = create<AppState>((set, get) => ({
     savePinnedIds(next)
     set({ pinnedIds: next })
   },
-  isPinned: (id) => get().pinnedIds.has(id)
+  isPinned: (id) => get().pinnedIds.has(id),
+  unpinIds: (ids) => {
+    if (ids.length === 0) return
+    const next = new Set(get().pinnedIds)
+    let changed = false
+    for (const id of ids) {
+      if (next.delete(id)) changed = true
+    }
+    if (changed) {
+      savePinnedIds(next)
+      set({ pinnedIds: next })
+    }
+  }
 }))
