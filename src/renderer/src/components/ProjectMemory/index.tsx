@@ -36,7 +36,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
     const q = question.trim()
     if (!q || loading) return
     if (!aiConfigured) {
-      setError('请先配置 AI（点击左上角 ⚙ AI）')
+      setError('请先配置 AI（点击左上角设置中的 AI 配置）')
       return
     }
 
@@ -67,15 +67,17 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
       {/* 顶部 */}
       <header className="px-5 py-3 border-b border-border bg-bg-primary flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-base">🧠</span>
+          <span className="text-accent">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M12 5v14" /></svg>
+          </span>
           <div>
             <h2 className="text-sm font-semibold">Project Memory</h2>
             <p className="text-[10px] text-fg-muted">基于历史对话的智能问答</p>
           </div>
         </div>
         <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-          ✕
-        </button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
       </header>
 
       {/* 问答区 */}
@@ -84,7 +86,9 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
           {/* 空状态引导 */}
           {!answer && !loading && !error && (
             <div className="text-center py-12">
-              <div className="text-4xl mb-3 opacity-40">🧠</div>
+              <div className="mb-3 flex justify-center opacity-40 text-accent">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M12 5v14" /></svg>
+              </div>
               <p className="text-sm text-fg-secondary mb-1">问任何关于你项目的问题</p>
               <p className="text-xs text-fg-muted mb-6">
                 Memora 会从你的历史 AI 对话中检索相关内容并回答

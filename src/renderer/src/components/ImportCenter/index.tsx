@@ -400,7 +400,9 @@ function AppsView({
 
       {apps.length === 0 && !detecting && (
         <div className="text-center py-12 text-fg-muted text-sm">
-          <div className="text-4xl mb-3 opacity-40">🤖</div>
+          <div className="mb-3 flex justify-center opacity-40 text-accent">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></svg>
+          </div>
           点击上方按钮，检测本机已安装的 AI 应用
         </div>
       )}
@@ -444,7 +446,7 @@ function AppsView({
 
               {app.dataPath && (
                 <p className="text-[10px] text-fg-muted truncate" title={app.dataPath}>
-                  📂 {app.dataPath}
+                  {app.dataPath}
                 </p>
               )}
 
@@ -565,7 +567,7 @@ function SessionsView({
                           />
                         ) : (
                           <div className="text-[10px] text-fg-muted truncate" title={it.source}>
-                            📄 {it.source}
+                            {it.source}
                           </div>
                         )}
                       </div>

@@ -144,7 +144,9 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
             <h3 className="text-sm font-semibold">记忆智能体</h3>
             <p className="text-[10px] text-fg-muted mt-0.5">主动发现知识缺口 · 间隔重复提醒</p>
           </div>
-          <button onClick={onClose} className="text-fg-muted hover:text-fg-primary text-sm">✕</button>
+          <button onClick={onClose} className="text-fg-muted hover:text-fg-primary text-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
         </div>
 
         {/* 状态栏 + 操作 */}
@@ -172,13 +174,13 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
                 disabled={scanning}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                {scanning ? '⏳ 扫描中…' : '🔍 立即扫描'}
+                {scanning ? '扫描中…' : '立即扫描'}
               </button>
               <button
                 onClick={handleToggleAgent}
                 className={`Memora-btn text-xs ${status?.running ? 'Memora-btn-ghost' : 'Memora-btn-primary'}`}
               >
-                {status?.running ? '⏹ 停止' : '▶ 启动定期扫描'}
+                {status?.running ? '停止' : '启动定期扫描'}
               </button>
             </div>
           </div>
@@ -221,7 +223,9 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
             <div className="p-4">
               {gaps.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="text-3xl mb-2 opacity-30">✅</div>
+                  <div className="mb-2 opacity-30 text-emerald-500">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>
+                  </div>
                   <p className="text-sm text-fg-muted">未发现知识缺口</p>
                   <p className="text-xs text-fg-muted mt-1">知识库状态良好</p>
                 </div>
@@ -255,7 +259,9 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
             <div className="p-4">
               {reviewQueue.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="text-3xl mb-2 opacity-30">📚</div>
+                  <div className="mb-2 opacity-30 text-accent">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>
+                  </div>
                   <p className="text-sm text-fg-muted">暂无待复习条目</p>
                   <p className="text-xs text-fg-muted mt-1">所有知识条目都较新，无需复习</p>
                 </div>
