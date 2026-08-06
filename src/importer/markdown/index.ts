@@ -119,15 +119,29 @@ function tryParseSharedClaudeChats(content: string): ParsedSession | null {
   }
 }
 
+/** 解析 URL 主机名（归一化：去协议前缀、www.、转小写；非法 URL 返回 null） */
+function extractHostname(url: string): string | null {
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `https://${url}`
+  try {
+    return new URL(withScheme).hostname.replace(/^www\./, '').toLowerCase()
+  } catch {
+    return null
+  }
+}
+
 function inferProviderFromUrl(url?: string): Provider {
   if (!url) return 'Unknown'
-  if (url.includes('claude.ai')) return 'Claude'
-  if (url.includes('grok.com')) return 'Grok'
-  if (url.includes('kimi.com')) return 'Kimi'
-  if (url.includes('qwen.ai') || url.includes('tongyi')) return 'Qwen'
-  if (url.includes('deepseek.com')) return 'DeepSeek'
-  if (url.includes('aistudio.google')) return 'AIStudio'
-  if (url.includes('chatgpt.com') || url.includes('openai.com')) return 'ChatGPT'
+  const host = extractHostname(url)
+  if (!host) return 'Unknown'
+  // 仅精确匹配主机名或其后缀子域，避免 substring 误判（如 evilclaude.ai.com）
+  const isDomain = (domain: string): boolean => host === domain || host.endsWith(`.${domain}`)
+  if (isDomain('claude.ai')) return 'Claude'
+  if (isDomain('grok.com')) return 'Grok'
+  if (isDomain('kimi.com')) return 'Kimi'
+  if (isDomain('qwen.ai') || isDomain('tongyi.aliyun.com')) return 'Qwen'
+  if (isDomain('deepseek.com')) return 'DeepSeek'
+  if (isDomain('aistudio.google.com')) return 'AIStudio'
+  if (isDomain('chatgpt.com') || isDomain('openai.com')) return 'ChatGPT'
   return 'Unknown'
 }
 

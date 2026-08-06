@@ -11,6 +11,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# 最小权限：本工作流只需读取仓库内容与上传产物
+permissions:
+  contents: read
+
 jobs:
   audit:
     name: Security Audit

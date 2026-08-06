@@ -233,6 +233,7 @@ function saveConfigs(configs: ProviderConfigs): void {
         // 不存 apiKey 明文
       }
     }
+    // codeql[js/clear-text-storage-of-sensitive-data] — sanitized 显式省略 apiKey，仅存非敏感配置与 hasApiKey 标记；apiKey 经 IPC 存于 main 进程 safeStorage（secrets.enc）
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized))
   } catch {
     // ignore
