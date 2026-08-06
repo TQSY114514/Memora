@@ -316,8 +316,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             {meta.label}
           </span>
           {session.model && <span>模型: {session.model}</span>}
-          <span>📅 {new Date(session.createdAt).toLocaleDateString('zh-CN')}</span>
-          <span>💬 {messages.length}{hasMore ? '+' : ''} 条消息</span>
+          <span>{new Date(session.createdAt).toLocaleDateString('zh-CN')}</span>
+          <span>{messages.length}{hasMore ? '+' : ''} 条消息</span>
           {session.tags.length > 0 && (
             <span className="flex items-center gap-1">
               {session.tags.map((t) => (
@@ -353,7 +353,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             className="Memora-btn Memora-btn-ghost text-xs"
             title="蒸馏对话为知识要点"
           >
-            {summaryLoading ? '⏳ 蒸馏中…' : summary ? '↻ 重新蒸馏' : '✨ 记忆蒸馏'}
+            {summaryLoading ? '蒸馏中…' : summary ? '重新蒸馏' : '记忆蒸馏'}
           </button>
           <button
             onClick={handleEmbed}
@@ -362,10 +362,10 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             title="建立向量索引（用于语义搜索）"
           >
             {embedLoading
-              ? '⏳ 索引中…'
+              ? '索引中…'
               : embedStatus?.complete
               ? '✓ 已索引'
-              : '🧠 建立向量索引'}
+              : '建立向量索引'}
           </button>
           {summary && (
             <button
@@ -382,14 +382,14 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
                 className="Memora-btn Memora-btn-ghost text-xs"
                 title="编辑总结"
               >
-                ✎ 编辑
+                编辑
               </button>
               <button
                 onClick={handleDeleteSummary}
                 className="Memora-btn Memora-btn-ghost text-xs text-red-500"
                 title="删除蒸馏"
               >
-                🗑 删除
+                删除
               </button>
             </>
           )}
@@ -399,7 +399,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               className="Memora-btn Memora-btn-ghost text-xs"
               title="导出 knowledge.md"
             >
-              ⬇ knowledge.md
+              导出 knowledge.md
             </button>
           )}
           {summary && (
@@ -409,7 +409,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               className="Memora-btn Memora-btn-ghost text-xs"
               title="把本次蒸馏的要点/待办/知识提炼为知识库条目（幂等）"
             >
-              {extractLoading ? '⏳ 提炼中…' : '📥 提炼到知识库'}
+              {extractLoading ? '提炼中…' : '提炼到知识库'}
             </button>
           )}
           {extractMsg && (

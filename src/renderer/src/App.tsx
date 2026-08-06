@@ -184,7 +184,9 @@ export default function App() {
       {isDragging && (
         <div className="absolute inset-0 z-50 bg-accent-muted backdrop-blur-sm flex items-center justify-center pointer-events-none">
           <div className="border-2 border-dashed border-accent rounded-2xl p-12 text-center bg-bg-primary/80">
-            <div className="text-5xl mb-4">📥</div>
+            <div className="mb-4 flex justify-center text-accent">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            </div>
             <p className="text-lg font-semibold text-fg-primary mb-1">松开以导入</p>
             <p className="text-sm text-fg-muted">支持 ChatGPT / Claude / DeepSeek / Kimi / 通义 / Markdown / JSON</p>
           </div>
