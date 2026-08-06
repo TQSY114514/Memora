@@ -193,14 +193,16 @@ export function AiSettings({ onClose }: AiSettingsProps) {
             </p>
           </div>
           <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="M6 6l12 12" /></svg>
           </button>
         </div>
 
         {/* 明文降级警告：safeStorage 不可用时 API Key 将明文存储 */}
         {!encryptionAvailable && (
           <div className="px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
-            <span className="mt-0.5">⚠️</span>
+            <span className="mt-0.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+            </span>
             <span>
               当前系统不支持加密存储（safeStorage 不可用），API Key 将以<b>明文</b>保存在本地 <code>secrets.enc</code> 文件中。建议安装 libsecret / gnome-keyring 以启用加密存储。
             </span>
@@ -232,7 +234,9 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     <div className="flex items-center justify-between gap-1">
                       <span className="truncate">{cfg.label}</span>
                       {isConfigured && (
-                        <span className={activeProvider === p ? 'text-white' : 'text-green-500'}>✓</span>
+                        <span className={activeProvider === p ? 'text-white' : 'text-green-500'}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                        </span>
                       )}
                     </div>
                     <div className={`text-[10px] mt-0.5 ${activeProvider === p ? 'text-white/70' : 'text-fg-muted'}`}>
@@ -282,14 +286,14 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     {config.label}
                   </span>
                   <button onClick={handleStartRename} className="Memora-btn Memora-btn-ghost text-xs" title="重命名">
-                    ✎
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
                   </button>
                   <button
                     onClick={handleRemoveProvider}
                     className="Memora-btn Memora-btn-ghost text-xs text-red-500"
                     title="删除此供应商"
                   >
-                    🗑
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                   </button>
                 </div>
               )}

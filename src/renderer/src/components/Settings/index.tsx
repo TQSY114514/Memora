@@ -172,7 +172,7 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             <p className="text-xs text-fg-muted mt-0.5">{t('settings.subtitle')}</p>
           </div>
           <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
 
@@ -304,7 +304,7 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
               onClick={() => setShowDistillTemplates(true)}
               className="Memora-btn Memora-btn-ghost text-xs"
             >
-              📝 管理蒸馏模板
+              管理蒸馏模板
             </button>
           </div>
 
@@ -320,14 +320,14 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
                 disabled={backupLoading}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                {backupLoading ? '⏳ 处理中…' : '⬇ 导出备份'}
+                {backupLoading ? '处理中…' : '导出备份'}
               </button>
               <button
                 onClick={handleImportBackup}
                 disabled={backupLoading}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                ⬆ 恢复备份
+                恢复备份
               </button>
             </div>
             {backupMsg && (
@@ -351,14 +351,14 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
                 disabled={migrateLoading}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                {migrateLoading ? '⏳ 处理中…' : '⬇ 导出数据'}
+                {migrateLoading ? '处理中…' : '导出数据'}
               </button>
               <button
                 onClick={handleImportData}
                 disabled={migrateLoading}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                ⬆ 导入数据
+                导入数据
               </button>
             </div>
             {migrateMsg && (
@@ -384,14 +384,14 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
                 disabled={maintLoading}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                {maintLoading ? '⏳ 处理中…' : '🗜 压缩数据库'}
+                {maintLoading ? '处理中…' : '压缩数据库'}
               </button>
               <button
                 onClick={handleCleanOrphans}
                 disabled={maintLoading}
                 className="Memora-btn Memora-btn-ghost text-xs"
               >
-                🧹 清理孤儿数据
+                清理孤儿数据
               </button>
             </div>
             {maintMsg && (
@@ -539,7 +539,7 @@ function BackgroundImportSection() {
             disabled={running || !targetFolderId}
             className="Memora-btn Memora-btn-ghost text-xs"
           >
-            {running ? '⏳ 执行中…' : '▶ 立即执行一次'}
+            {running ? '执行中…' : '立即执行一次'}
           </button>
           {enabled && !targetFolderId && (
             <span className="text-[10px] text-red-500">请先选择目标文件夹</span>

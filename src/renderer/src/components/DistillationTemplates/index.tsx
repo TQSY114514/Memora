@@ -168,8 +168,8 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
             <button onClick={openCreate} className="Memora-btn Memora-btn-primary text-xs">
               + 新建模板
             </button>
-            <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-              ✕
+            <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm" title="关闭">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
             </button>
           </div>
         </div>
@@ -217,7 +217,7 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
                         className="Memora-btn Memora-btn-ghost text-xs"
                         title={tpl.isBuiltin ? '查看 / 另存为副本' : '编辑'}
                       >
-                        {tpl.isBuiltin ? '👁 查看' : '✎ 编辑'}
+                        {tpl.isBuiltin ? '查看' : '编辑'}
                       </button>
                       {!tpl.isBuiltin && (
                         <button
@@ -225,7 +225,7 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
                           className="Memora-btn Memora-btn-ghost text-xs text-red-500"
                           title="删除"
                         >
-                          🗑 删除
+                          删除
                         </button>
                       )}
                     </div>
@@ -304,8 +304,8 @@ function EditorModal({
         {/* 头部 */}
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-semibold">{title}</h3>
-          <button onClick={onCancel} className="Memora-btn Memora-btn-ghost text-xs">
-            ✕
+          <button onClick={onCancel} className="Memora-btn Memora-btn-ghost text-xs" title="关闭">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
 
@@ -377,7 +377,7 @@ function EditorModal({
           <div className="flex items-center gap-2">
             {isView && (
               <button onClick={onConvertToCopy} className="Memora-btn Memora-btn-ghost text-xs">
-                📋 另存为副本
+                另存为副本
               </button>
             )}
             {!isView && (
@@ -386,7 +386,7 @@ function EditorModal({
                 disabled={saving}
                 className="Memora-btn Memora-btn-primary text-xs"
               >
-                {saving ? '⏳ 保存中…' : '保存'}
+                {saving ? '保存中…' : '保存'}
               </button>
             )}
             <button onClick={onCancel} className="Memora-btn Memora-btn-ghost text-xs">

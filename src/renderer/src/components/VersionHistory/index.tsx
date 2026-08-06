@@ -106,7 +106,9 @@ export function VersionHistory({ entityId, entityType, entityName, onClose }: Ve
               {' · '}{entityName}
             </p>
           </div>
-          <button onClick={onClose} className="text-fg-muted hover:text-fg-primary text-sm">✕</button>
+          <button onClick={onClose} className="text-fg-muted hover:text-fg-primary text-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
         </div>
 
         {/* 内容 */}
@@ -153,7 +155,7 @@ export function VersionHistory({ entityId, entityType, entityName, onClose }: Ve
                             className="text-[10px] text-accent hover:underline disabled:opacity-50"
                             title="回滚到此版本之前的状态"
                           >
-                            {rollingBack ? '回滚中…' : '↩ 回滚'}
+                            {rollingBack ? '回滚中…' : '回滚'}
                           </button>
                         )}
                         <span className="text-fg-muted text-[10px]">{isSelected ? '▲' : '▼'}</span>
