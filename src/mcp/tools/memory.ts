@@ -16,6 +16,14 @@ import {
   feedbackPreference
 } from '../../database/repositories/preferencesRepo'
 import { listAuditLogs } from '../../database/repositories/auditRepo'
+import {
+  listBlocks,
+  getBlock,
+  saveBlock,
+  deleteBlock,
+  listBlockHistory,
+  rollbackBlock
+} from '../../database/repositories/memoryBlocksRepo'
 import { semanticSearch } from '../../search/semantic'
 import { v4 as uuidv4 } from 'uuid'
 import { loadAiConfigForTool } from './shared'
@@ -42,6 +50,29 @@ function buildL1Overview(snippet: string): string {
   const trimmed = snippet.trim()
   if (trimmed.length <= 2000) return trimmed
   return trimmed.slice(0, 1997) + '…'
+}
+
+/**
+ * 把 MemoryBlock 映射为 MCP 返回 DTO（memory_block_* 工具共用，去重字段映射）
+ */
+function toBlockDto(block: {
+  id: string
+  workspaceId: string
+  label: string
+  value: string
+  readOnly: boolean
+  createdAt: string
+  updatedAt: string
+}): Record<string, unknown> {
+  return {
+    id: block.id,
+    workspaceId: block.workspaceId,
+    label: block.label,
+    value: block.value,
+    readOnly: block.readOnly,
+    createdAt: block.createdAt,
+    updatedAt: block.updatedAt
+  }
 }
 
 export async function handleMemoryTool(
@@ -270,6 +301,69 @@ export async function handleMemoryTool(
         reason: l.reason,
         createdAt: l.createdAt
       }))
+    }
+
+// ===== memory blocks 域（v1.15 结构化记忆块）=====
+
+    case 'memory_block_list': {
+      const workspaceId = args.workspaceId ? String(args.workspaceId) : undefined
+      const blocks = listBlocks(workspaceId)
+      return blocks.map((b) => toBlockDto(b))
+    }
+
+    case 'memory_block_get': {
+      const blockId = String(args.blockId ?? '')
+      if (!blockId) throw new Error('blockId 不能为空')
+      const block = getBlock(blockId)
+      if (!block) throw new Error(`[BLOCK] memory block ${blockId} 不存在`)
+      return toBlockDto(block)
+    }
+
+    case 'memory_block_save': {
+      const workspaceId = String(args.workspaceId ?? '')
+      const label = String(args.label ?? '')
+      const value = String(args.value ?? '')
+      if (!workspaceId) throw new Error('workspaceId 不能为空')
+      if (!label) throw new Error('label 不能为空')
+      if (!value) throw new Error('value 不能为空')
+      const block = saveBlock({
+        workspaceId,
+        label,
+        value,
+        readOnly: args.readOnly === true,
+        changedBy: 'mcp',
+        reason: args.reason ? String(args.reason) : undefined
+      })
+      return {
+        ...toBlockDto(block),
+        note: '已通过 MCP 保存记忆块（upsert by label）'
+      }
+    }
+
+    case 'memory_block_delete': {
+      const blockId = String(args.blockId ?? '')
+      if (!blockId) throw new Error('blockId 不能为空')
+      deleteBlock(blockId, 'mcp')
+      return { deleted: true, blockId, note: '记忆块已删除（含级联历史）' }
+    }
+
+    case 'memory_block_history': {
+      const blockId = String(args.blockId ?? '')
+      if (!blockId) throw new Error('blockId 不能为空')
+      const limit = Number(args.limit ?? 10)
+      return listBlockHistory(blockId, limit)
+    }
+
+    case 'memory_block_rollback': {
+      const blockId = String(args.blockId ?? '')
+      const historyId = String(args.historyId ?? '')
+      if (!blockId) throw new Error('blockId 不能为空')
+      if (!historyId) throw new Error('historyId 不能为空')
+      const block = rollbackBlock(blockId, historyId, 'mcp')
+      return {
+        ...toBlockDto(block),
+        note: `已回滚到历史版本 ${historyId}`
+      }
     }
 
     default:

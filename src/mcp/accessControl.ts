@@ -43,14 +43,18 @@ export const WRITE_TOOLS = new Set([
   'knowledge_entry_update',
   'summarize_session',
   'memory_consolidate',
-  'memory_feedback'
+  'memory_feedback',
+  // 结构化记忆块（v1.15）
+  'memory_block_save',
+  'memory_block_rollback'
 ])
 
 /** 破坏性工具列表（需 --destructive 额外开启，默认拒绝） */
 export const DESTRUCTIVE_TOOLS = new Set([
   'delete_session',
   'knowledge_entry_delete',
-  'memory_forget'
+  'memory_forget',
+  'memory_block_delete'
 ])
 
 // ===== 工具白名单模式 =====

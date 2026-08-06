@@ -158,6 +158,15 @@ export async function callTool(name: string, args: Record<string, unknown>, clie
     case 'memory_audit_log':
       return handleMemoryTool(name, validatedArgs)
 
+    // memory blocks 域（v1.15 结构化记忆块）
+    case 'memory_block_list':
+    case 'memory_block_get':
+    case 'memory_block_save':
+    case 'memory_block_delete':
+    case 'memory_block_history':
+    case 'memory_block_rollback':
+      return handleMemoryTool(name, validatedArgs)
+
     // workspace 域
     case 'list_workspaces':
     case 'list_tags':

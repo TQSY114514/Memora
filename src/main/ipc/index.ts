@@ -22,6 +22,7 @@ import { registerTemplateHandlers } from './handlers/templates.ipc'
 import { registerMigrationHandlers } from './handlers/migration.ipc'
 import { registerIdentityHandlers } from './handlers/identity.ipc'
 import { registerSecurityHandlers } from './handlers/security.ipc'
+import { registerMemoryBlocksHandlers } from './handlers/memoryBlocks.ipc'
 
 export function registerIpcHandlers(): void {
   registerSystemHandlers()
@@ -48,4 +49,5 @@ export function registerIpcHandlers(): void {
   registerMigrationHandlers()
   registerIdentityHandlers()
   registerSecurityHandlers()
+  registerMemoryBlocksHandlers()
 }

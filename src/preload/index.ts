@@ -7,7 +7,7 @@ import { session, tag, batch } from './domains/sessions'
 import { importApi, scanner, bgImport } from './domains/imports'
 import { search, semanticSearch, hybridSearch, share } from './domains/search'
 import { ai, secret } from './domains/ai'
-import { memory, stats, backup, preference, memoryLifecycle } from './domains/memory'
+import { memory, stats, backup, preference, memoryLifecycle, memoryBlocks } from './domains/memory'
 import { knowledge, distillation, audit, mcpPermissions } from './domains/knowledge'
 import {
   memoryAgent,
@@ -96,6 +96,7 @@ const api = {
   backup,
   preference,
   memoryLifecycle,
+  memoryBlocks,
   knowledge,
   distillation,
   audit,

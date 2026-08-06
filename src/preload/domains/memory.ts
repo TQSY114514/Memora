@@ -15,7 +15,9 @@ import type {
   AuditLog,
   TieredMemory,
   MemoryHealth,
-  ProfileSummary
+  ProfileSummary,
+  MemoryBlock,
+  MemoryBlockHistory
 } from '@shared/types'
 
 // ===== Project Memory（Phase 3） =====
@@ -87,11 +89,19 @@ export const preference = {
     value: string
     confidence?: number
     source?: PreferenceSource
+    validAt?: string
+    invalidAt?: string
+    temporalType?: 'permanent' | 'temporary' | 'scheduled'
   }): Promise<Preference> => ipcRenderer.invoke(IPC.PREF_CREATE, input),
   update: (
     id: string,
-    patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject'>>
+    patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject' | 'context' | 'validAt' | 'invalidAt' | 'temporalType'>>
   ): Promise<Preference | null> => ipcRenderer.invoke(IPC.PREF_UPDATE, id, patch),
+  /** 时态记忆更新（v1.15）：设置偏好生效/失效时间与类型 */
+  updateTemporal: (
+    id: string,
+    temporal: { validAt?: string; invalidAt?: string; temporalType?: 'permanent' | 'temporary' | 'scheduled' }
+  ): Promise<Preference | null> => ipcRenderer.invoke(IPC.PREF_TEMPORAL_UPDATE, id, temporal),
   delete: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PREF_DELETE, id),
   archive: (id: string): Promise<Preference | null> => ipcRenderer.invoke(IPC.PREF_ARCHIVE, id),
   search: (
@@ -114,6 +124,9 @@ export const preference = {
   /** AI 宪法：返回核心原则条目（source='constitution'） */
   constitution: (workspaceId?: string): Promise<Preference[]> =>
     ipcRenderer.invoke(IPC.PREF_CONSTITUTION, workspaceId),
+  /** 自然语言记忆反馈（v1.15 行动项 5）：修正/补充/替换偏好值，返回更新后的偏好 */
+  feedback: (preferenceId: string, feedback: string, workspaceId: string): Promise<Preference | null> =>
+    ipcRenderer.invoke(IPC.PREF_FEEDBACK, preferenceId, feedback, workspaceId),
   /** Memory Audit Log：查询偏好/知识/会话变更审计日志 */
   auditLogs: (options?: { entityType?: string; entityId?: string; workspaceId?: string; limit?: number; offset?: number }): Promise<AuditLog[]> =>
     ipcRenderer.invoke(IPC.PREF_AUDIT_LOGS, options)
@@ -133,4 +146,26 @@ export const memoryLifecycle = {
   /** 执行一次记忆生命周期维护 */
   run: (workspaceId?: string): Promise<{ maintained: number; archived: number; promoted: number; demoted: number }> =>
     ipcRenderer.invoke(IPC.MEMORY_LIFECYCLE_RUN, workspaceId)
+}
+
+// ===== 结构化记忆块（v1.15 行动项 2：Letta 式 memory blocks） =====
+export const memoryBlocks = {
+  list: (workspaceId?: string): Promise<MemoryBlock[]> =>
+    ipcRenderer.invoke(IPC.MEMORY_BLOCKS_LIST, workspaceId),
+  get: (id: string): Promise<MemoryBlock | null> =>
+    ipcRenderer.invoke(IPC.MEMORY_BLOCKS_GET, id),
+  save: (input: {
+    workspaceId: string
+    label: string
+    value: string
+    readOnly?: boolean
+    changedBy?: string
+    reason?: string
+  }): Promise<MemoryBlock> => ipcRenderer.invoke(IPC.MEMORY_BLOCKS_SAVE, input),
+  remove: (id: string, changedBy?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.MEMORY_BLOCKS_DELETE, id, changedBy),
+  history: (blockId: string, limit?: number): Promise<MemoryBlockHistory[]> =>
+    ipcRenderer.invoke(IPC.MEMORY_BLOCKS_HISTORY, blockId, limit),
+  rollback: (blockId: string, historyId: string, changedBy?: string): Promise<MemoryBlock> =>
+    ipcRenderer.invoke(IPC.MEMORY_BLOCKS_ROLLBACK, blockId, historyId, changedBy)
 }
