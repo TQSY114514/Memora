@@ -29,6 +29,9 @@ interface PreferenceRow {
   updated_at: string
   last_accessed_at: string | null
   access_count: number
+  valid_at: string | null
+  invalid_at: string | null
+  temporal_type: string | null
 }
 
 function rowToPref(row: PreferenceRow): Preference {
@@ -46,8 +49,58 @@ function rowToPref(row: PreferenceRow): Preference {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastAccessedAt: row.last_accessed_at ?? undefined,
-    accessCount: row.access_count
+    accessCount: row.access_count,
+    validAt: row.valid_at ?? undefined,
+    invalidAt: row.invalid_at ?? undefined,
+    temporalType: (row.temporal_type as Preference['temporalType']) ?? 'permanent'
   }
+}
+
+/**
+ * 时态打分（v1.15 时间感知检索）
+ *
+ * 返回值 0~1：
+ * - 窗口外（未生效 / 已过期）→ 0（检索时被过滤）
+ * - 无时间边界（permanent）→ 1.0
+ * - 窗口内 → 靠近窗口中心接近 1.0，靠近边界线性衰减到 0.6
+ *
+ * 检索排序用 confidence × temporalScore，使"当前正生效"的临时/计划偏好
+ * 权重高于边缘偏好，过期偏好完全不出现。
+ */
+export function computeTemporalScore(
+  pref: { validAt?: string; invalidAt?: string },
+  now = new Date()
+): number {
+  const nowMs = now.getTime()
+  const validMs = pref.validAt ? new Date(pref.validAt).getTime() : null
+  const invalidMs = pref.invalidAt ? new Date(pref.invalidAt).getTime() : null
+
+  if (validMs !== null && nowMs < validMs) return 0    // 未生效
+  if (invalidMs !== null && nowMs > invalidMs) return 0 // 已过期
+  if (validMs === null && invalidMs === null) return 1  // permanent 无边界
+
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000
+  const start = validMs ?? nowMs - ONE_WEEK_MS
+  const end = invalidMs ?? nowMs + ONE_WEEK_MS
+  const midpoint = (start + end) / 2
+  const halfSpan = Math.max(1, (end - start) / 2)
+  // 0 = 边界处, 1 = 窗口中心
+  const depth = 1 - Math.min(1, Math.abs(nowMs - midpoint) / halfSpan)
+  return 0.6 + 0.4 * depth
+}
+
+/** 偏好比较器：confidence × 时态分 降序（稳定排序前先用 database order 保底） */
+function compareTemporalPrefs(a: Preference, b: Preference): number {
+  const now = new Date()
+  const sa = a.confidence * computeTemporalScore(a, now)
+  const sb = b.confidence * computeTemporalScore(b, now)
+  if (sb !== sa) return sb - sa
+  return b.confidence - a.confidence
+}
+
+/** 判断偏好当前是否生效（未过期且已生效） */
+export function isPreferenceActive(pref: { validAt?: string; invalidAt?: string }, now = new Date()): boolean {
+  return computeTemporalScore(pref, now) > 0
 }
 
 /** FTS 索引 */
@@ -80,6 +133,10 @@ export function createPreference(input: {
   context?: string
   confidence?: number
   source?: PreferenceSource
+  /** 时态记忆（v1.15）：生效/失效时间与类型 */
+  validAt?: string
+  invalidAt?: string
+  temporalType?: 'permanent' | 'temporary' | 'scheduled'
 }): Preference {
   const db = getDatabase()
   const id = uuidv4()
@@ -87,6 +144,9 @@ export function createPreference(input: {
   const confidence = input.confidence ?? 0.5
   const source = input.source ?? 'manual'
   const ctx = input.context ?? null
+  const validAt = input.validAt ?? null
+  const invalidAt = input.invalidAt ?? null
+  const temporalType = input.temporalType ?? 'permanent'
 
   // 宪法条目（source='constitution'）：跳过冲突检测，直接插入。
   // 宪法条目之间不互相冲突，且始终为 active。
@@ -94,12 +154,12 @@ export function createPreference(input: {
     db.prepare(
       `INSERT INTO preferences
        (id, workspace_id, session_id, subject, value, context, confidence, source, status, superseded_by,
-        created_at, updated_at, last_accessed_at, access_count)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0)`
+        created_at, updated_at, last_accessed_at, access_count, valid_at, invalid_at, temporal_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0, ?, ?, ?)`
     ).run(
       id, input.workspaceId, input.sessionId ?? null,
       input.subject, input.value, ctx, confidence, source,
-      now, now, now
+      now, now, now, validAt, invalidAt, temporalType
     )
     try { indexPrefForSearch(id, input.subject, input.value) } catch (e) {
       console.error('[preferencesRepo] FTS 索引失败:', e)
@@ -161,12 +221,12 @@ export function createPreference(input: {
     db.prepare(
       `INSERT INTO preferences
        (id, workspace_id, session_id, subject, value, context, confidence, source, status, superseded_by,
-        created_at, updated_at, last_accessed_at, access_count)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0)`
+        created_at, updated_at, last_accessed_at, access_count, valid_at, invalid_at, temporal_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, ?, ?, ?, 0, ?, ?, ?)`
     ).run(
       id, input.workspaceId, input.sessionId ?? null,
       input.subject, input.value, ctx, confidence, source,
-      now, now, now
+      now, now, now, validAt, invalidAt, temporalType
     )
   })
   tx()
@@ -369,7 +429,7 @@ export function listPreferences(options?: {
 /** 更新偏好 */
 export function updatePreference(
   id: string,
-  patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject' | 'context'>>
+  patch: Partial<Pick<Preference, 'value' | 'confidence' | 'status' | 'subject' | 'context' | 'validAt' | 'invalidAt' | 'temporalType'>>
 ): Preference | null {
   const db = getDatabase()
   const before = getPreference(id)
@@ -380,7 +440,10 @@ export function updatePreference(
     value: 'value',
     context: 'context',
     confidence: 'confidence',
-    status: 'status'
+    status: 'status',
+    validAt: 'valid_at',
+    invalidAt: 'invalid_at',
+    temporalType: 'temporal_type'
   })
   if (sets.length === 0) return before
 
@@ -550,17 +613,20 @@ export function searchPreferences(
     SELECT p.* FROM preferences p
     JOIN preferences_fts ON p.id = preferences_fts.pref_id
     WHERE preferences_fts MATCH ? AND p.status != 'archived'
+      AND (p.valid_at IS NULL OR p.valid_at <= @nowIso)
+      AND (p.invalid_at IS NULL OR p.invalid_at >= @nowIso)
   `
-  const params: unknown[] = [ftsQuery]
+  const params: Record<string, unknown> = { ftsQuery, nowIso: new Date().toISOString() }
   if (options?.workspaceId) {
-    sql += ' AND p.workspace_id = ?'
-    params.push(options.workspaceId)
+    sql += ' AND p.workspace_id = @workspaceId'
+    params.workspaceId = options.workspaceId
   }
-  sql += ' ORDER BY p.confidence DESC, preferences_fts.rank LIMIT ?'
-  params.push(limit)
-
-  const rows = db.prepare(sql).all(...params) as PreferenceRow[]
-  return rows.map(rowToPref)
+  sql += ' ORDER BY p.confidence DESC LIMIT 200'
+  const rows = db.prepare(sql).all(params) as PreferenceRow[]
+  return rows
+    .map(rowToPref)
+    .sort(compareTemporalPrefs)
+    .slice(0, limit)
 }
 
 /**
@@ -571,7 +637,7 @@ export function searchPreferences(
  * 作为第一个分组（subject='constitution'）置顶返回，以便 AI 工具优先读取。
  */
 export function getUserProfile(workspaceId: string): UserProfile {
-  const active = listPreferences({ workspaceId, status: 'active' })
+  const active = listPreferences({ workspaceId, status: 'active' }).filter((p) => isPreferenceActive(p))
   const total = listPreferences({ workspaceId }).length
 
   // 分离宪法条目与常规偏好

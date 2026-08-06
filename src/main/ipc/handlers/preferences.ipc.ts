@@ -13,7 +13,8 @@ import {
   decayConfidence,
   detectConflicts,
   listAuditLogs,
-  getConstitution
+  getConstitution,
+  feedbackPreference
 } from '@db/repositories'
 
 export function registerPreferenceHandlers(): void {
@@ -31,6 +32,11 @@ export function registerPreferenceHandlers(): void {
 
   safeHandle(IPC.PREF_UPDATE, (_e, id: string, patch: Parameters<typeof updatePreference>[1]) => {
     return updatePreference(assertSafeId(id), patch)
+  })
+
+  // 时态记忆更新（v1.15）：设置偏好生效/失效时间与类型
+  safeHandle(IPC.PREF_TEMPORAL_UPDATE, (_e, id: string, temporal: { validAt?: string; invalidAt?: string; temporalType?: 'permanent' | 'temporary' | 'scheduled' }) => {
+    return updatePreference(assertSafeId(id), temporal)
   })
 
   safeHandle(IPC.PREF_DELETE, (_e, id: string) => {
@@ -71,4 +77,12 @@ export function registerPreferenceHandlers(): void {
   safeHandle(IPC.PREF_CONSTITUTION, (_e, workspaceId?: string) => {
     return getConstitution(workspaceId)
   })
+
+  // 自然语言记忆反馈（v1.15 行动项 5）：修正/补充/替换偏好值
+  safeHandle(
+    IPC.PREF_FEEDBACK,
+    (_e, preferenceId: string, feedback: string, workspaceId: string) => {
+      return feedbackPreference({ preferenceId: assertSafeId(preferenceId), feedback, workspaceId })
+    }
+  )
 }
