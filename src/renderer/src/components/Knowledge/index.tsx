@@ -15,9 +15,9 @@ interface KnowledgePanelProps {
 type FilterType = 'all' | KnowledgeType | 'open-task'
 
 const TYPE_META: Record<KnowledgeType, { label: string; icon: string; color: string; badge: string }> = {
-  knowledge: { label: '知识', icon: '💡', color: '#6d5dfc', badge: 'bg-purple-500/15 text-purple-500' },
-  decision: { label: '决策', icon: '⚖️', color: '#d97757', badge: 'bg-orange-500/15 text-orange-500' },
-  task: { label: '任务', icon: '☐', color: '#10a37f', badge: 'bg-emerald-500/15 text-emerald-500' }
+  knowledge: { label: '知识', icon: '', color: '#6d5dfc', badge: 'bg-purple-500/15 text-purple-500' },
+  decision: { label: '决策', icon: '', color: '#d97757', badge: 'bg-orange-500/15 text-orange-500' },
+  task: { label: '任务', icon: '', color: '#10a37f', badge: 'bg-emerald-500/15 text-emerald-500' }
 }
 
 const SOURCE_META: Record<string, string> = {
@@ -186,7 +186,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
       {/* 顶部 */}
       <header className="px-5 py-3 border-b border-border bg-bg-primary flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-base">📚</span>
+          <svg className="text-fg-secondary" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" /></svg>
           <div>
             <h2 className="text-sm font-semibold">知识库</h2>
             <p className="text-[10px] text-fg-muted">决策 · 任务 · 知识一等公民实体</p>
@@ -207,8 +207,8 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
               ))}
             </select>
           )}
-          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
-            ✕
+          <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm" title="关闭">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         </div>
       </header>
@@ -236,7 +236,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
             className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
             title={activeSessionId ? '把当前对话的 AI 蒸馏提炼为知识条目' : '请先在对话列表选中一个对话'}
           >
-            {extracting ? '⏳ 提炼中…' : '📥 从当前对话提炼'}
+            {extracting ? '提炼中…' : '从当前对话提炼'}
           </button>
         </div>
 
@@ -292,7 +292,9 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
 
           {!loading && filtered.length === 0 && (
             <div className="text-center py-16">
-              <div className="text-4xl mb-3 opacity-30">📚</div>
+              <div className="mb-3 flex justify-center opacity-30 text-accent">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>
+              </div>
               <p className="text-sm text-fg-secondary mb-1">
                 {searchQuery.trim() ? '未找到匹配的知识条目' : '这个工作区还没有知识条目'}
               </p>
@@ -404,14 +406,14 @@ function KnowledgeCard({
                 className="text-fg-muted hover:text-accent text-xs px-1 py-0.5"
                 title="编辑"
               >
-                ✎
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
               </button>
               <button
                 onClick={onDelete}
                 className="text-fg-muted hover:text-red-500 text-xs px-1 py-0.5"
                 title="删除"
               >
-                🗑
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
               </button>
             </div>
           </div>

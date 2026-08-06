@@ -327,7 +327,9 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
     return (
       <div className="flex-1 flex items-center justify-center text-fg-muted">
         <div className="text-center">
-          <div className="text-4xl mb-2 opacity-30">🕸️</div>
+          <div className="mb-2 flex justify-center opacity-30 text-accent">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="6" r="3" /><circle cx="19" cy="6" r="3" /><circle cx="12" cy="18" r="3" /><path d="M7 8l4 7" /><path d="m13 15 4-7" /></svg>
+          </div>
           <p className="text-sm">知识图谱为空</p>
           <p className="text-xs mt-1">先提炼或新建知识条目，图谱将自动展示关联</p>
         </div>
@@ -585,8 +587,9 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
                 <button
                   onClick={() => setSelectedId(null)}
                   className="text-fg-muted hover:text-fg-primary text-xs flex-shrink-0"
+                  title="关闭"
                 >
-                  ✕
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                 </button>
               </div>
               <p className="text-[10px] text-fg-muted mb-2">
