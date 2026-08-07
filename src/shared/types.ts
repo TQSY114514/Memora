@@ -480,6 +480,53 @@ export interface ConflictReport {
   }>
 }
 
+/** 偏好演化时间线事件（v1.15，P2-1 Memory Timeline） */
+export interface PreferenceTimelineEvent {
+  /** 审计日志 ID */
+  id: string
+  /** 操作：create / update / supersede / archive / feedback */
+  action: string
+  /** 偏好类别 */
+  subject: string
+  /** 变更后偏好值（supersede 时为新偏好值） */
+  value: string
+  /** 变更前偏好值（create 时为 undefined） */
+  beforeValue?: string
+  /** 人类可读触发原因 */
+  reason?: string
+  /** 来源会话 ID（可空） */
+  sessionId?: string
+  /** 事件发生时间（ISO） */
+  createdAt: string
+}
+
+/** 偏好演化时间线（P2-1 Memory Timeline） */
+export interface PreferenceTimeline {
+  workspaceId: string
+  /** 按天分组的事件（每天内按时间倒序），天为 'YYYY-MM-DD' */
+  byDay: Array<{
+    date: string
+    events: PreferenceTimelineEvent[]
+  }>
+  /** 事件总数 */
+  total: number
+}
+
+/** 自动记忆合并定时任务状态（v1.15 P2-3） */
+export interface AutoConsolidationStatus {
+  running: boolean
+  /** 每周一次 */
+  intervalMs: number
+  lastRunAt: string | null
+  nextRunAt: string | null
+  /** 每次运行合并的偏好总数 */
+  lastMerged: number
+  /** 每次运行处理的工作区数 */
+  lastWorkspaces: number
+  /** 最近一次运行摘要（供 UI 展示） */
+  lastSummary: string | null
+}
+
 /**
  * 结构化记忆块（v1.15，Letta 式 memory blocks）
  * 比偏好更自由的键值记忆：label 唯一，value 为 markdown 文本

@@ -16,6 +16,7 @@ export function ChatList() {
   const isSearchMode = useStore((s) => s.isSearchMode)
   const searchQuery = useStore((s) => s.searchQuery)
   const searchResults = useStore((s) => s.searchResults)
+  const searchProvider = useStore((s) => s.searchProvider)
   const activeFolderId = useStore((s) => s.activeFolderId)
   const setSessions = useStore((s) => s.setSessions)
   const pinnedIds = useStore((s) => s.pinnedIds)
@@ -31,13 +32,17 @@ export function ChatList() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => {
+    // 非搜索模式下，平台过滤直接作用于当前会话列表（搜索模式由 search 接口按 provider 过滤）
+    const list = !isSearchMode && searchProvider
+      ? sessions.filter((s) => s.provider === searchProvider)
+      : sessions
+    return [...list].sort((a, b) => {
       const aPinned = pinnedIds.has(a.id) ? 1 : 0
       const bPinned = pinnedIds.has(b.id) ? 1 : 0
       if (aPinned !== bPinned) return bPinned - aPinned
       return b.updatedAt.localeCompare(a.updatedAt)
     })
-  }, [sessions, pinnedIds])
+  }, [sessions, pinnedIds, isSearchMode, searchProvider])
 
   const { searchMap, rankRange } = useMemo(() => {
     const map = new Map<string, SearchResult>()
@@ -223,7 +228,7 @@ export function ChatList() {
             </button>
           )}
         </div>
-        <span className="text-xs text-fg-muted">{sessions.length}</span>
+        <span className="text-xs text-fg-muted">{sortedSessions.length}</span>
       </div>
 
       {showBatchBar && (
@@ -245,9 +250,13 @@ export function ChatList() {
       )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {sessions.length === 0 && (
+        {sortedSessions.length === 0 && (
           <div className="px-4 py-12 text-center text-sm text-fg-muted">
-            {isSearchMode ? '没有匹配的对话' : '暂无对话，拖入文件或点击左下角"导入"'}
+            {isSearchMode
+              ? '没有匹配的对话'
+              : searchProvider
+              ? `该平台暂无对话`
+              : '暂无对话，拖入文件或点击左下角"导入"'}
           </div>
         )}
 

@@ -3,8 +3,20 @@ import type {
   MemoryHealth,
   ProfileSummary,
   TieredMemory,
-  MemoryTier
+  MemoryTier,
+  AutoConsolidationStatus
 } from '@shared/types'
+
+/** 格式化 ISO 时间为本地可读字符串 */
+function formatDateTime(iso: string): string {
+  try {
+    const d = new Date(iso)
+    const pad = (n: number): string => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  } catch {
+    return ''
+  }
+}
 
 /** 记忆层级元信息：标签 + 颜色 */
 const TIER_META: Record<
@@ -195,6 +207,9 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
   const [runMsg, setRunMsg] = useState<string | null>(null)
   const [decaying, setDecaying] = useState(false)
   const [decayMsg, setDecayMsg] = useState<string | null>(null)
+  const [consolidation, setConsolidation] = useState<AutoConsolidationStatus | null>(null)
+  const [consolidating, setConsolidating] = useState(false)
+  const [consolidationMsg, setConsolidationMsg] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -217,6 +232,12 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
         conflicts.reduce((sum, r) => sum + r.conflicts.length, 0)
       )
       setConstitutionCount(constitution.length)
+      // 自动记忆合并状态（独立查询，失败不影响主视图）
+      try {
+        setConsolidation(await window.Memora.memoryAgent.consolidationStatus())
+      } catch {
+        setConsolidation(null)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -258,6 +279,20 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
       setDecayMsg(`✗ ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setDecaying(false)
+    }
+  }
+
+  async function handleConsolidate() {
+    setConsolidating(true)
+    setConsolidationMsg(null)
+    try {
+      const result = await window.Memora.memoryAgent.runConsolidation()
+      setConsolidationMsg(`✓ ${result.summary}`)
+      setConsolidation(await window.Memora.memoryAgent.consolidationStatus())
+    } catch (e) {
+      setConsolidationMsg(`✗ ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setConsolidating(false)
     }
   }
 
@@ -616,6 +651,65 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             </div>
           </div>
         )}
+
+        {/* F0. 自动记忆合并 */}
+        <div className="rounded-lg border border-border bg-bg-primary p-4">
+          <div className="mb-2">
+            <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-0.5 flex items-center gap-1.5">
+              自动记忆合并
+            </h3>
+            <p className="text-[11px] text-fg-muted">
+              每周后台自动扫描并合并重复/相似偏好，保持记忆整洁
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <button
+              onClick={handleConsolidate}
+              disabled={consolidating}
+              className="Memora-btn Memora-btn-ghost text-xs whitespace-nowrap"
+              title="立即扫描并合并所有工作区中的重复/相似偏好"
+            >
+              {consolidating ? '合并中…' : '立即合并'}
+            </button>
+            {consolidation && consolidation.running && (
+              <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-500 text-[10px]">
+                定时任务运行中
+              </span>
+            )}
+          </div>
+          {consolidation && (
+            <div className="flex items-center gap-2 flex-wrap text-[11px] text-fg-muted">
+              <span className="px-2 py-1 rounded bg-bg-hover text-fg-secondary">
+                最近合并{' '}
+                <span className="text-fg-primary font-medium">{consolidation.lastMerged}</span> 条
+              </span>
+              <span className="px-2 py-1 rounded bg-bg-hover text-fg-secondary">
+                {consolidation.lastRunAt
+                  ? `上次运行 ${formatDateTime(consolidation.lastRunAt)}`
+                  : '尚未运行'}
+              </span>
+              {consolidation.nextRunAt && (
+                <span className="px-2 py-1 rounded bg-bg-hover text-fg-secondary">
+                  下次 {formatDateTime(consolidation.nextRunAt)}
+                </span>
+              )}
+            </div>
+          )}
+          {consolidation?.lastSummary && (
+            <p className="text-[11px] text-fg-secondary mt-2 break-words">
+              {consolidation.lastSummary}
+            </p>
+          )}
+          {consolidationMsg && (
+            <p
+              className={`text-[11px] mt-1 break-words ${
+                consolidationMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'
+              }`}
+            >
+              {consolidationMsg}
+            </p>
+          )}
+        </div>
 
         {/* F. 记忆维护操作 */}
         <div className="rounded-lg border border-border bg-bg-secondary/40 p-4">

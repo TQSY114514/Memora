@@ -13,6 +13,7 @@ import { cleanupExpiredSessions } from '../database/repositories/sessionRepo'
 import { backupService } from './backup'
 import { logger } from './logger'
 import { initAutoUpdater } from './updater'
+import { startAutoConsolidation, stopAutoConsolidation } from './memoryConsolidationScheduler'
 
 // ===== 全局异常处理器 =====
 // 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
@@ -82,6 +83,7 @@ function startGui(): void {
   let isQuiting = false
   let lifecycleTimer: NodeJS.Timeout | null = null
   let checkpointTimer: NodeJS.Timeout | null = null
+  let autoConsolidationHandle: { stop: () => void } | null = null
 
   /** 创建系统托盘 */
   function createTray(): void {
@@ -347,6 +349,10 @@ function startGui(): void {
     }, 6 * 60 * 60 * 1000)  // 6 小时
     lifecycleTimer = timer
 
+    // 自动记忆合并定时任务（v1.15 P2-3）：每周一次，后台合并重复/相似偏好
+    autoConsolidationHandle = { stop: () => stopAutoConsolidation() }
+    startAutoConsolidation()
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow()
@@ -367,6 +373,8 @@ function startGui(): void {
     // 停止记忆生命周期定时器
     if (lifecycleTimer) clearInterval(lifecycleTimer)
     if (checkpointTimer) clearInterval(checkpointTimer)
+    // 停止自动记忆合并定时器
+    if (autoConsolidationHandle) autoConsolidationHandle.stop()
     // 终止语义搜索 worker 线程，避免阻止 Electron 干净退出
     shutdownSemanticWorker()
     // 释放本地嵌入模型资源（v1.8 #15，best-effort）

@@ -18,12 +18,11 @@ export default defineConfig({
       ],
       reporter: ['text', 'text-summary', 'lcov'],
       thresholds: {
-        // v1.13+: 补充 exporters/summarizer/embedder/indexer/localEmbedder/cloudSync/semantic 测试
-        // 覆盖率提升至 ~30%，门禁设为略低于实际值，留 >1% 余量防止小幅回退阻断 CI
-        statements: 30,
-        branches: 28,
-        functions: 24,
-        lines: 31
+        // v9: 上调门禁紧贴实际（47.2/45.3/39.3），留 >1% 余量防小幅回退
+        statements: 45,
+        branches: 42,
+        functions: 36,
+        lines: 46
       }
     }
   },

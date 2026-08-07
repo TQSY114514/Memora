@@ -95,6 +95,20 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
     setCreating(false)
   }
 
+  /** 统计某客户端可访问的工具数（基于权限级别 + 白名单） */
+  function toolAccessCount(p: McpPermission): number {
+    if (!p.allowedTools) return MCP_TOOLS.length
+    const set = new Set(p.allowedTools.split(',').map((t) => t.trim()).filter(Boolean))
+    return MCP_TOOLS.filter((t) => set.has(t.name)).length
+  }
+
+  const totalClients = permissions.length
+  const countsByLevel = permissions.reduce<Record<string, number>>((acc, p) => {
+    acc[p.level] = (acc[p.level] ?? 0) + 1
+    return acc
+  }, {})
+  const toolCount = MCP_TOOLS.length
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
       <div
@@ -141,8 +155,31 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
             </div>
           )}
           {!loading && !error && permissions.length > 0 && (
-            <div className="space-y-2">
-              {permissions.map((p) => (
+            <>
+              {/* 聚合统计 */}
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                <div className="rounded-lg border border-border border-l-2 border-l-accent bg-bg-secondary p-2.5">
+                  <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{totalClients}</span>
+                  <span className="block text-[10px] text-fg-muted mt-1">客户端</span>
+                </div>
+                <div className="rounded-lg border border-border border-l-2 border-l-blue-500 bg-bg-secondary p-2.5">
+                  <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{countsByLevel.readonly ?? 0}</span>
+                  <span className="block text-[10px] text-fg-muted mt-1">只读</span>
+                </div>
+                <div className="rounded-lg border border-border border-l-2 border-l-green-500 bg-bg-secondary p-2.5">
+                  <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{countsByLevel.write ?? 0}</span>
+                  <span className="block text-[10px] text-fg-muted mt-1">可写</span>
+                </div>
+                <div className="rounded-lg border border-border border-l-2 border-l-red-500 bg-bg-secondary p-2.5">
+                  <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{countsByLevel.full ?? 0}</span>
+                  <span className="block text-[10px] text-fg-muted mt-1">完全</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+              {permissions.map((p) => {
+                const access = toolAccessCount(p)
+                const accessPct = Math.round((access / toolCount) * 100)
+                return (
                 <div key={p.id} className="border border-border rounded-lg bg-bg-secondary p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -170,6 +207,17 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
                       </button>
                     </div>
                   </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-bg-hover overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${p.enabled ? 'bg-accent' : 'bg-gray-500'}`}
+                        style={{ width: `${accessPct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-fg-muted tabular-nums flex-shrink-0">
+                      {access}/{toolCount} 工具
+                    </span>
+                  </div>
                   <div className="mt-1.5 flex items-center gap-2 text-[10px] text-fg-muted">
                     <span>{p.enabled ? '已启用' : '已禁用'}</span>
                     {p.allowedTools && (
@@ -181,8 +229,10 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
                     {!p.allowedTools && <><span>·</span><span>所有工具可用</span></>}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
+            </>
           )}
         </div>
       </div>

@@ -14,7 +14,8 @@ import {
   detectConflicts,
   listAuditLogs,
   getConstitution,
-  feedbackPreference
+  feedbackPreference,
+  getPreferenceTimeline
 } from '@db/repositories'
 
 export function registerPreferenceHandlers(): void {
@@ -85,4 +86,9 @@ export function registerPreferenceHandlers(): void {
       return feedbackPreference({ preferenceId: assertSafeId(preferenceId), feedback, workspaceId })
     }
   )
+
+  // 偏好演化时间线（v1.15 P2-1 Memory Timeline）
+  safeHandle(IPC.PREF_TIMELINE, (_e, workspaceId: string, limit?: number) => {
+    return getPreferenceTimeline(assertSafeId(workspaceId, 'workspaceId'), limit)
+  })
 }

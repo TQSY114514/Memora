@@ -47,7 +47,7 @@ function emptyResult(errors: string[] = []): BackgroundImportRunResult {
   }
 }
 
-class BackgroundImporter {
+export class BackgroundImporter {
   private win: BrowserWindow | null = null
   private timer: NodeJS.Timeout | null = null
   private startupTimer: NodeJS.Timeout | null = null

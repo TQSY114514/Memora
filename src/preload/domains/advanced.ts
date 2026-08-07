@@ -47,7 +47,23 @@ export const memoryAgent = {
     nextScanAt: string | null
     gapsFound: number
     reviewItems: number
-  }> => ipcRenderer.invoke(IPC.MEMORY_AGENT_STOP)
+  }> => ipcRenderer.invoke(IPC.MEMORY_AGENT_STOP),
+  /** 查询自动记忆合并状态（v1.15 P2-3） */
+  consolidationStatus: (): Promise<{
+    running: boolean
+    intervalMs: number
+    lastRunAt: string | null
+    nextRunAt: string | null
+    lastMerged: number
+    lastWorkspaces: number
+    lastSummary: string | null
+  }> => ipcRenderer.invoke(IPC.CONSOLIDATION_STATUS),
+  /** 手动触发一次自动记忆合并（v1.15 P2-3） */
+  runConsolidation: (): Promise<{
+    merged: number
+    workspaces: number
+    summary: string
+  }> => ipcRenderer.invoke(IPC.CONSOLIDATION_RUN)
 }
 
 // ===== 云端同步（v1.11） =====

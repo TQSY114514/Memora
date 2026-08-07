@@ -1,66 +1,97 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import type { DetectedApp, ExtractedSession, ImportResult } from '@shared/types'
 
 interface MigrationWizardPanelProps {
   onClose: () => void
-}
-
-interface Platform {
-  id: string; name: string; icon: string
-  installed: boolean; dataPath: string
-  sessionCount: number; formats: string[]
-  supportsSync: boolean
 }
 
 type Step = 'detect' | 'select' | 'migrate'
 
 export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
   const [step, setStep] = useState<Step>('detect')
-  const [platforms, setPlatforms] = useState<Platform[]>([])
+  const [apps, setApps] = useState<DetectedApp[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set())
-  const [includeArchived, setIncludeArchived] = useState(false)
-  const [enableSync, setEnableSync] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [migrating, setMigrating] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [result, setResult] = useState<string | null>(null)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [resultMsg, setResultMsg] = useState<string | null>(null)
+  const cancelledRef = useRef(false)
 
-  const loadPlatforms = useCallback(async () => {
+  const loadApps = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const list = await window.Memora.migration.platforms()
-      setPlatforms(list)
+      const list = await window.Memora.scanner.detectApps()
+      setApps(list)
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => { loadPlatforms() }, [loadPlatforms])
+  useEffect(() => { loadApps() }, [loadApps])
 
-  function togglePlatform(id: string) {
-    const next = new Set(selectedPlatforms)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setSelectedPlatforms(next)
+  // 迁移结束清理
+  useEffect(() => () => { cancelledRef.current = true }, [])
+
+  const extractable = apps.filter((a) => a.canExtract)
+  const cloudOnly = apps.filter((a) => !a.canExtract)
+
+  function togglePlatform(provider: string) {
+    const next = new Set(selected)
+    if (next.has(provider)) next.delete(provider)
+    else next.add(provider)
+    setSelected(next)
   }
 
-  function handleStartMigration() {
+  async function handleStartMigration() {
+    const targets = apps.filter((a) => a.canExtract && selected.has(a.provider))
+    if (targets.length === 0) return
     setStep('migrate')
     setMigrating(true)
-    // 模拟迁移进度
-    let p = 0
-    const timer = setInterval(() => {
-      p += Math.random() * 20
-      if (p >= 100) {
-        p = 100
-        clearInterval(timer)
-        setMigrating(false)
-        setResult(`迁移完成！共导入 ${Math.floor(Math.random() * 50 + 10)} 条对话`)
+    setError(null)
+    setResult(null)
+    setResultMsg(null)
+    setProgress(0)
+    cancelledRef.current = false
+
+    const agg: ImportResult = { imported: 0, skipped: 0, failed: 0, errors: [], sessionIds: [] }
+    const total = targets.length
+    let done = 0
+
+    for (const app of targets) {
+      if (cancelledRef.current) break
+      try {
+        // 1. 从本地数据源扒取对话（主进程按其自身检测到的路径，安全）
+        const sessions: ExtractedSession[] = await window.Memora.scanner.extractApp(
+          app.provider,
+          app.dataPath || ''
+        )
+        // 2. 导入已扒取的对话
+        if (sessions.length > 0) {
+          const r: ImportResult = await window.Memora.import.extracted(sessions)
+          agg.imported += r.imported
+          agg.skipped += r.skipped
+          agg.failed += r.failed
+          agg.sessionIds.push(...r.sessionIds)
+          if (r.errors.length) agg.errors.push(...r.errors)
+        }
+        setResultMsg(`${app.name}：扒取 ${sessions.length} 条对话`)
+      } catch (e) {
+        agg.failed += 1
+        agg.errors.push(`${app.name}: ${e instanceof Error ? e.message : String(e)}`)
+        setResultMsg(`${app.name}：迁移失败`)
       }
-      setProgress(Math.min(p, 100))
-    }, 500)
+      done++
+      setProgress(Math.round((done / total) * 100))
+    }
+
+    setMigrating(false)
+    setResult(agg)
+    setProgress(100)
   }
 
   const stepLabels: Record<Step, string> = {
@@ -71,7 +102,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
 
   const stepDescs: Record<Step, string> = {
     detect: '正在扫描本机已安装的 AI 工具，检测可导入的对话数据...',
-    select: '选择要导入的平台和数据范围，配置迁移选项...',
+    select: '选择要导入的平台，配置迁移选项...',
     migrate: '正在将对话数据导入 Memora，请耐心等待...'
   }
 
@@ -84,7 +115,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h2 className="text-sm font-semibold">AI 迁移向导</h2>
-            <p className="text-xs text-fg-muted mt-0.5">三步迁移流程 · 多平台双向同步</p>
+            <p className="text-xs text-fg-muted mt-0.5">三步迁移流程 · 本地优先</p>
           </div>
           <button onClick={onClose} className="text-fg-muted hover:text-fg-primary text-lg">&times;</button>
         </div>
@@ -114,27 +145,51 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
               {loading ? (
                 <div className="text-center text-xs text-fg-muted py-8">扫描中...</div>
               ) : (
-                platforms.map((p) => (
-                  <div key={p.id} className="bg-bg-hover rounded-md p-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-bg-primary flex items-center justify-center text-sm font-bold">
-                      {p.icon}
+                <>
+                  {extractable.length > 0 && (
+                    <>
+                      <p className="text-[11px] font-medium text-fg-secondary">可本地扒取</p>
+                      {extractable.map((app) => (
+                        <div key={app.provider} className="bg-bg-hover rounded-md p-4 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-md bg-bg-primary flex items-center justify-center text-sm font-bold">
+                            {app.name[0]}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium">{app.name}</h3>
+                            <p className="text-xs text-fg-muted">
+                              {app.dataPath ? app.dataPath : '已找到本地数据'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/10 text-green-500">
+                            可导入
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {cloudOnly.length > 0 && (
+                    <>
+                      <p className="text-[11px] font-medium text-fg-secondary mt-2">检测到其他工具（对话在云端）</p>
+                      {cloudOnly.map((app) => (
+                        <div key={app.provider} className="bg-bg-hover rounded-md p-4 flex items-center gap-3">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium">{app.name}</h3>
+                            <p className="text-xs text-fg-muted">{app.hint || '对话存储在云端'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {apps.length === 0 && (
+                    <div className="text-center text-xs text-fg-muted py-8">
+                      未检测到本机 AI 工具。可将导出的对话文件通过「导入」功能导入。
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-medium">{p.name}</h3>
-                      <p className="text-xs text-fg-muted">
-                        {p.installed ? `已安装 · ${p.sessionCount} 条对话` : '未检测到'}
-                      </p>
-                    </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded ${
-                      p.installed ? 'bg-green-500/10 text-green-500' : 'bg-fg-muted/10 text-fg-muted'
-                    }`}>
-                      {p.installed ? '可导入' : '未安装'}
-                    </span>
-                  </div>
-                ))
+                  )}
+                </>
               )}
               <button
                 onClick={() => setStep('select')}
+                disabled={extractable.length === 0}
                 className="Memora-btn Memora-btn-primary text-xs px-4 py-1.5 w-full mt-2"
               >
                 下一步：选择数据
@@ -147,42 +202,25 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
               <div>
                 <label className="block text-xs text-fg-secondary mb-2">选择要导入的平台</label>
                 <div className="space-y-2">
-                  {platforms.filter(p => p.installed).map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 bg-bg-hover rounded-md p-3 cursor-pointer">
+                  {extractable.map((app) => (
+                    <label key={app.provider} className="flex items-center gap-2 bg-bg-hover rounded-md p-3 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={selectedPlatforms.has(p.id)}
-                        onChange={() => togglePlatform(p.id)}
+                        checked={selected.has(app.provider)}
+                        onChange={() => togglePlatform(app.provider)}
                         className="w-4 h-4"
                       />
                       <div>
-                        <span className="text-sm">{p.name}</span>
-                        <span className="text-xs text-fg-muted ml-2">{p.sessionCount} 条对话</span>
+                        <span className="text-sm">{app.name}</span>
+                        <span className="text-xs text-fg-muted ml-2">本地扒取</span>
                       </div>
                     </label>
                   ))}
+                  {extractable.length === 0 && (
+                    <p className="text-xs text-fg-muted">没有可导入的平台</p>
+                  )}
                 </div>
               </div>
-
-              <label className="flex items-center gap-2 text-sm bg-bg-hover rounded-md p-3">
-                <input
-                  type="checkbox"
-                  checked={includeArchived}
-                  onChange={(e) => setIncludeArchived(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                包含已归档的对话
-              </label>
-
-              <label className="flex items-center gap-2 text-sm bg-bg-hover rounded-md p-3">
-                <input
-                  type="checkbox"
-                  checked={enableSync}
-                  onChange={(e) => setEnableSync(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                启用双向同步（保持源平台与 Memora 数据一致）
-              </label>
 
               <div className="flex items-center gap-2">
                 <button
@@ -191,7 +229,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                 >上一步</button>
                 <button
                   onClick={handleStartMigration}
-                  disabled={selectedPlatforms.size === 0}
+                  disabled={selected.size === 0}
                   className="Memora-btn Memora-btn-primary text-xs px-4 py-1.5 flex-1"
                 >
                   开始迁移
@@ -211,17 +249,34 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                     />
                   </div>
                   <p className="text-xs text-fg-muted text-center">{Math.round(progress)}%</p>
-                  <p className="text-xs text-fg-muted text-center">
-                    正在导入 {Array.from(selectedPlatforms).length} 个平台的对话数据...
-                  </p>
+                  {resultMsg && <p className="text-xs text-fg-secondary text-center">{resultMsg}</p>}
                 </>
               ) : (
                 <>
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-3">&#x2705;</div>
-                    <p className="text-sm font-medium text-green-500">迁移完成！</p>
-                    {result && <p className="text-xs text-fg-muted mt-2">{result}</p>}
-                  </div>
+                  {result && (
+                    <div className="text-center py-6">
+                      <div className="text-4xl mb-3">&#x2705;</div>
+                      <p className="text-sm font-medium text-green-500">迁移完成！</p>
+                      <div className="mt-3 flex items-center justify-center gap-2 flex-wrap text-[11px]">
+                        <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-500">
+                          导入 <span className="font-medium">{result.imported}</span>
+                        </span>
+                        <span className="px-2 py-1 rounded bg-amber-500/15 text-amber-500">
+                          跳过 <span className="font-medium">{result.skipped}</span>
+                        </span>
+                        <span className="px-2 py-1 rounded bg-red-500/15 text-red-500">
+                          失败 <span className="font-medium">{result.failed}</span>
+                        </span>
+                      </div>
+                      {result.errors.length > 0 && (
+                        <div className="mt-3 text-left space-y-1">
+                          {result.errors.slice(0, 5).map((err, i) => (
+                            <p key={i} className="text-[10px] text-red-500/80 break-words">✗ {err}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <button
                     onClick={onClose}
                     className="Memora-btn Memora-btn-primary text-xs px-4 py-1.5 w-full"

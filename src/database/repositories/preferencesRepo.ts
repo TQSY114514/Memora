@@ -12,7 +12,7 @@ import { buildUpdateSets } from './sqlHelpers'
 import { segment } from '@search/segmenter'
 import { buildFtsQuery } from '../../search/query'
 import { addAuditLog } from './auditRepo'
-import type { Preference, PreferenceStatus, PreferenceSource, UserProfile, ConflictReport } from '@shared/types'
+import type { Preference, PreferenceStatus, PreferenceSource, UserProfile, ConflictReport, PreferenceTimeline, PreferenceTimelineEvent } from '@shared/types'
 
 interface PreferenceRow {
   id: string
@@ -785,4 +785,77 @@ export function detectConflicts(workspaceId?: string): ConflictReport[] {
   }
 
   return reports
+}
+
+/* ===== 偏好演化时间线（v1.15，P2-1 Memory Timeline） ===== */
+
+/** 从审计日志的 before/after JSON 中解析偏好字段（损坏时安全回退） */
+function parsePrefValue(raw: string | null | undefined): { subject?: string; value?: string } | null {
+  if (!raw) return null
+  try {
+    const v = JSON.parse(raw)
+    if (!v || typeof v !== 'object') return null
+    return {
+      subject: typeof v.subject === 'string' ? v.subject : undefined,
+      value: typeof v.value === 'string' ? v.value : undefined
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 获取偏好演化时间线（P2-1 Memory Timeline）
+ *
+ * 基于审计日志（entity_type='preference'）构建"记忆是演化的"视图：
+ * 每条 create/update/supersede/archive/feedback 视为一个时间点事件，
+ * 按天分组（每天内按时间倒序），供 UI 呈现偏好随时间的变化轨迹。
+ */
+export function getPreferenceTimeline(workspaceId: string, limit = 500): PreferenceTimeline {
+  const db = getDatabase()
+  const rows = db
+    .prepare(
+      `SELECT * FROM audit_logs
+       WHERE entity_type = 'preference' AND workspace_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?`
+    )
+    .all(workspaceId, limit) as Array<{
+    id: string
+    action: string
+    before_value: string | null
+    after_value: string | null
+    session_id: string | null
+    reason: string | null
+    created_at: string
+  }>
+
+  const events: PreferenceTimelineEvent[] = rows.map((row) => {
+    const after = parsePrefValue(row.after_value)
+    const before = parsePrefValue(row.before_value)
+    return {
+      id: row.id,
+      action: row.action,
+      subject: after?.subject ?? before?.subject ?? '未知',
+      value: after?.value ?? '',
+      beforeValue: before?.value,
+      reason: row.reason ?? undefined,
+      sessionId: row.session_id ?? undefined,
+      createdAt: row.created_at
+    }
+  })
+
+  // 按天分组（保留时间倒序）
+  const byDayMap = new Map<string, PreferenceTimelineEvent[]>()
+  for (const ev of events) {
+    const date = ev.createdAt.slice(0, 10)
+    const group = byDayMap.get(date) || []
+    group.push(ev)
+    byDayMap.set(date, group)
+  }
+  const byDay = Array.from(byDayMap.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, evs]) => ({ date, events: evs }))
+
+  return { workspaceId, byDay, total: events.length }
 }

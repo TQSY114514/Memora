@@ -17,7 +17,8 @@ import type {
   MemoryHealth,
   ProfileSummary,
   MemoryBlock,
-  MemoryBlockHistory
+  MemoryBlockHistory,
+  PreferenceTimeline
 } from '@shared/types'
 
 // ===== Project Memory（Phase 3） =====
@@ -129,7 +130,10 @@ export const preference = {
     ipcRenderer.invoke(IPC.PREF_FEEDBACK, preferenceId, feedback, workspaceId),
   /** Memory Audit Log：查询偏好/知识/会话变更审计日志 */
   auditLogs: (options?: { entityType?: string; entityId?: string; workspaceId?: string; limit?: number; offset?: number }): Promise<AuditLog[]> =>
-    ipcRenderer.invoke(IPC.PREF_AUDIT_LOGS, options)
+    ipcRenderer.invoke(IPC.PREF_AUDIT_LOGS, options),
+  /** 偏好演化时间线（v1.15 P2-1 Memory Timeline）：返回偏好随时间的变化轨迹 */
+  timeline: (workspaceId: string, limit?: number): Promise<PreferenceTimeline> =>
+    ipcRenderer.invoke(IPC.PREF_TIMELINE, workspaceId, limit)
 }
 
 // ===== 记忆生命周期（v1.7.0） =====

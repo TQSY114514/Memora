@@ -250,6 +250,9 @@ export const IPC = {
   MEMORY_AGENT_STOP: 'memory-agent:stop',
   MEMORY_AGENT_GAPS: 'memory-agent:gaps',
   MEMORY_AGENT_REVIEW_QUEUE: 'memory-agent:review-queue',
+  // 自动记忆合并（v1.15 P2-3）—— 每周后台合并 + 状态查询
+  CONSOLIDATION_STATUS: 'consolidation:status',
+  CONSOLIDATION_RUN: 'consolidation:run',
 
   // ===== 云端同步（v1.11） =====
   SYNC_CONFIG_GET: 'sync:config:get',
@@ -308,6 +311,8 @@ export const IPC = {
   PREF_TEMPORAL_UPDATE: 'pref:temporal-update',
   // 自然语言记忆反馈（v1.15 行动项 5：UI 版 memory_feedback）
   PREF_FEEDBACK: 'pref:feedback',
+  // 偏好演化时间线（v1.15 P2-1 Memory Timeline）
+  PREF_TIMELINE: 'pref:timeline',
 
   // ===== 结构化记忆块（v1.15 Letta 式 memory blocks） =====
   MEMORY_BLOCKS_LIST: 'memory-blocks:list',

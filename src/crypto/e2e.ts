@@ -26,9 +26,9 @@ export interface EncryptedPackage {
   encryptedAt: string
 }
 
-/** 从密码派生加密密钥 */
-export function deriveKey(password: string, salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LENGTH, 'sha512')
+/** 从密码派生加密密钥（iterations 可注入，测试可传小值避免超时；生产走默认 600k） */
+export function deriveKey(password: string, salt: Buffer, iterations: number = PBKDF2_ITERATIONS): Buffer {
+  return crypto.pbkdf2Sync(password, salt, iterations, KEY_LENGTH, 'sha512')
 }
 
 /** 生成随机盐值 */
@@ -37,9 +37,9 @@ export function generateSalt(): Buffer {
 }
 
 /** 加密数据 */
-export function encrypt(data: string, password: string): EncryptedPackage {
+export function encrypt(data: string, password: string, iterations: number = PBKDF2_ITERATIONS): EncryptedPackage {
   const salt = generateSalt()
-  const key = deriveKey(password, salt)
+  const key = deriveKey(password, salt, iterations)
   const iv = crypto.randomBytes(IV_LENGTH)
 
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
@@ -55,10 +55,10 @@ export function encrypt(data: string, password: string): EncryptedPackage {
   }
 }
 
-/** 解密数据 */
-export function decrypt(pkg: EncryptedPackage, password: string): string {
+/** 解密数据（iterations 需与加密时一致，测试传小值避免超时） */
+export function decrypt(pkg: EncryptedPackage, password: string, iterations: number = PBKDF2_ITERATIONS): string {
   const salt = Buffer.from(pkg.salt, 'base64')
-  const key = deriveKey(password, salt)
+  const key = deriveKey(password, salt, iterations)
   const iv = Buffer.from(pkg.iv, 'base64')
   const authTag = Buffer.from(pkg.authTag, 'base64')
   const ciphertext = Buffer.from(pkg.ciphertext, 'base64')
@@ -71,9 +71,9 @@ export function decrypt(pkg: EncryptedPackage, password: string): string {
 }
 
 /** 验证密码是否正确（尝试解密验证） */
-export function verifyPassword(pkg: EncryptedPackage, password: string): boolean {
+export function verifyPassword(pkg: EncryptedPackage, password: string, iterations: number = PBKDF2_ITERATIONS): boolean {
   try {
-    decrypt(pkg, password)
+    decrypt(pkg, password, iterations)
     return true
   } catch {
     return false

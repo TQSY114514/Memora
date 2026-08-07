@@ -25,6 +25,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:ci": "vitest run --retry=2",
+    "test:coverage:ci": "vitest run --coverage --retry=2",
     "test:watch": "vitest",
     "benchmark": "node scripts/run-benchmark.js",
     "clean": "node scripts/clean.js all",

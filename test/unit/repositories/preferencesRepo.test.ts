@@ -18,7 +18,8 @@ import {
   detectConflicts,
   feedbackPreference,
   computeTemporalScore,
-  isPreferenceActive
+  isPreferenceActive,
+  getPreferenceTimeline
 } from '../../../src/database/repositories/preferencesRepo'
 
 vi.mock('../../../src/database/connection', () => ({ getDatabase: vi.fn() }))
@@ -489,6 +490,56 @@ describe('preferencesRepo', () => {
       const results = searchPreferences('lang', { workspaceId: 'ws1', limit: 2 })
       expect(results).toHaveLength(2)
       expect(results[0].id).toBe('p-high')
+    })
+  })
+
+  describe('getPreferenceTimeline', () => {
+    const auditRow = (over: Partial<any> = {}) => ({
+      id: 'a1',
+      action: 'create',
+      before_value: null,
+      after_value: JSON.stringify({ id: 'p1', subject: 'editor', value: 'Neovim', status: 'active' }),
+      session_id: 's1',
+      reason: 'conflict: same subject different value',
+      created_at: '2024-01-01T08:30:00.000Z',
+      ...over
+    })
+
+    it('通过审计日志构建按天分组的时间线（时间倒序）', () => {
+      stmtResults.set('WHERE entity_type =', {
+        all: [
+          auditRow({ id: 'a1', created_at: '2024-01-02T10:00:00.000Z', action: 'update', before_value: JSON.stringify({ subject: 'editor', value: 'Vim' }), after_value: JSON.stringify({ subject: 'editor', value: 'Neovim' }) }),
+          auditRow({ id: 'a2', created_at: '2024-01-01T08:30:00.000Z', action: 'create' })
+        ]
+      })
+      const tl = getPreferenceTimeline('ws1')
+      expect(tl.workspaceId).toBe('ws1')
+      expect(tl.total).toBe(2)
+      expect(tl.byDay).toHaveLength(2)
+      expect(tl.byDay[0].date).toBe('2024-01-02')
+      expect(tl.byDay[0].events[0].action).toBe('update')
+      expect(tl.byDay[0].events[0].subject).toBe('editor')
+      expect(tl.byDay[0].events[0].value).toBe('Neovim')
+      expect(tl.byDay[0].events[0].beforeValue).toBe('Vim')
+      expect(tl.byDay[1].date).toBe('2024-01-01')
+      expect(tl.byDay[1].events[0].action).toBe('create')
+    })
+
+    it('损坏的 before/after JSON 安全回退为默认值（不崩溃）', () => {
+      stmtResults.set('WHERE entity_type =', {
+        all: [auditRow({ id: 'a1', after_value: '{bad json', before_value: null })]
+      })
+      const tl = getPreferenceTimeline('ws1')
+      expect(tl.total).toBe(1)
+      expect(tl.byDay[0].events[0].subject).toBe('未知')
+      expect(tl.byDay[0].events[0].value).toBe('')
+    })
+
+    it('无审计日志时返回空时间线', () => {
+      stmtResults.set('WHERE entity_type =', { all: [] })
+      const tl = getPreferenceTimeline('ws1')
+      expect(tl.total).toBe(0)
+      expect(tl.byDay).toHaveLength(0)
     })
   })
 })

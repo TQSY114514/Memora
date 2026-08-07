@@ -10,6 +10,7 @@ import { ConflictResolutionView } from './ConflictResolutionView'
 import { MemoryExplainDrawer } from './MemoryExplainDrawer'
 import { ConstitutionView } from './ConstitutionView'
 import { FeedbackDialog } from './FeedbackDialog'
+import { TimelineView } from './TimelineView'
 
 interface PreferenceExplorerProps {
   onClose: () => void
@@ -32,7 +33,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
   } | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
   const [subjectFilter, setSubjectFilter] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'list' | 'profile' | 'health' | 'conflicts' | 'constitution'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'profile' | 'health' | 'conflicts' | 'constitution' | 'timeline'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -349,6 +350,17 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             >
               宪法
             </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
+                viewMode === 'timeline'
+                  ? 'bg-accent text-white'
+                  : 'text-fg-muted hover:bg-bg-hover'
+              }`}
+              title="时间线（偏好随时间的演化轨迹）"
+            >
+              时间线
+            </button>
           </div>
           {workspaces.length > 1 && (
             <select
@@ -509,6 +521,8 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
         />
       ) : viewMode === 'constitution' ? (
         <ConstitutionView workspaceId={currentWsId} />
+      ) : viewMode === 'timeline' ? (
+        <TimelineView workspaceId={currentWsId} />
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">

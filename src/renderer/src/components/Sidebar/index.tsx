@@ -397,6 +397,9 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
       return
     }
 
+    // 实时读取最新平台过滤，避免闭包中的 searchProvider 过期
+    const provider = useStore.getState().searchProvider ?? undefined
+
     setSearching(true)
     setSearchError(null)
     try {
@@ -414,7 +417,7 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
         setSearch(q, adapted)
         setSessions(results.map((r) => r.session))
       } else {
-        const results = await window.Memora.search(q, { provider: searchProvider ?? undefined })
+        const results = await window.Memora.search(q, { provider })
         setSearch(q, results)
         setSessions(results.map((r) => r.session))
       }
@@ -422,6 +425,14 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
       setSearchError(err instanceof Error ? err.message : String(err))
     } finally {
       setSearching(false)
+    }
+  }
+
+  // 切换平台过滤：更新状态；若有搜索词则立即重搜，否则由 ChatList 对当前列表生效
+  function handleProviderFilter(p: string | null) {
+    setSearchProvider(p)
+    if (query.trim()) {
+      doSearch(query.trim())
     }
   }
 
@@ -506,7 +517,7 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
       <div className="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar">
         <span className="text-[10px] text-fg-muted shrink-0 opacity-60">平台</span>
         <button
-          onClick={() => setSearchProvider(null)}
+          onClick={() => handleProviderFilter(null)}
           className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 transition-colors ${
             searchProvider === null ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
           }`}
@@ -516,7 +527,7 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
         {Object.entries(PROVIDER_META).filter(([k]) => k !== 'Unknown' && k !== 'Markdown' && k !== 'JSON' && k !== 'HTML').map(([key, meta]) => (
           <button
             key={key}
-            onClick={() => setSearchProvider(searchProvider === key ? null : key)}
+            onClick={() => handleProviderFilter(searchProvider === key ? null : key)}
             className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 transition-colors ${
               searchProvider === key ? 'text-white' : 'text-fg-muted hover:text-fg-secondary hover:bg-bg-hover'
             }`}

@@ -196,3 +196,40 @@ console.log('- 实际应用中受磁盘 I/O 和并发影响，延迟会有波动
 const jsonPath = join(process.cwd(), 'test', 'benchmark', 'results.json')
 writeFileSync(jsonPath, JSON.stringify({ timestamp: new Date().toISOString(), results }, null, 2))
 console.log(`\nJSON 结果已写入：${jsonPath}`)
+
+// ===== 阈值断言（CI 门禁，默认开启；本地可用 MEMORA_BENCH_SKIP_ASSERT=1 跳过） =====
+const thresholds = {
+  // 10k 条：索引构建 < 1500ms（留 80% 余量，当前基线 ~837ms）
+  indexMaxMs: 1500,
+  // AND 平均延迟 < 1ms（当前基线 ~0.21ms）
+  andAvgMaxMs: 1,
+  // OR/AND 召回率 ≥ 80%（宽松上界校验，防召回退化）
+  minRecallRate: 80
+}
+
+const big = results.find((r) => r.count === 10000)
+const failures = []
+if (big) {
+  if (Number(big.indexMs) > thresholds.indexMaxMs) {
+    failures.push(`索引构建 ${big.indexMs}ms 超过阈值 ${thresholds.indexMaxMs}ms`)
+  }
+  if (Number(big.andAvgMs) > thresholds.andAvgMaxMs) {
+    failures.push(`AND 平均延迟 ${big.andAvgMs}ms 超过阈值 ${thresholds.andAvgMaxMs}ms`)
+  }
+  if (Number(big.recallRate) < thresholds.minRecallRate) {
+    failures.push(`OR/AND 召回率 ${big.recallRate}% 低于阈值 ${thresholds.minRecallRate}%`)
+  }
+} else {
+  failures.push('未找到 10000 条基准结果，无法断言')
+}
+
+if (failures.length > 0) {
+  console.error('\n❌ 性能门禁失败：')
+  for (const f of failures) console.error(`  - ${f}`)
+  if (process.env.MEMORA_BENCH_SKIP_ASSERT === '1') {
+    console.log('\n（MEMORA_BENCH_SKIP_ASSERT=1，跳过断言，仍以非零退出）')
+    process.exit(1)
+  }
+  process.exit(1)
+}
+console.log('\n✅ 性能门禁通过：索引构建 / AND 延迟 / 召回率均达标')

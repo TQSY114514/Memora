@@ -1,5 +1,5 @@
-import { useState, useEffect, type ReactNode } from 'react'
-import type { Preference, PreferenceStatus, ChatSession } from '@shared/types'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import type { Preference, PreferenceStatus, ChatSession, Message, AuditLog } from '@shared/types'
 import { STATUS_META, SOURCE_META, formatDate, confidenceColor } from './types'
 
 /** 状态变迁说明（记忆溯源用） */
@@ -38,6 +38,48 @@ function ExplainRow({
   )
 }
 
+/** 在会话消息中定位命中片段：返回包含 subject 或 value 的原文片段 */
+function findHitSnippet(
+  messages: Message[],
+  subject: string,
+  value: string
+): { message: Message; snippet: string } | null {
+  const keywords = [subject, value].filter((k) => k.length > 0)
+  if (keywords.length === 0) return null
+  // 优先找同时命中 subject+value 的消息；否则退回仅命中任一关键词
+  for (const msg of [...messages].reverse()) {
+    const hits = keywords.filter((k) => msg.content.includes(k))
+    if (hits.length === keywords.length) {
+      return { message: msg, snippet: excerptAround(msg.content, keywords[0]) }
+    }
+  }
+  for (const msg of [...messages].reverse()) {
+    if (keywords.some((k) => msg.content.includes(k))) {
+      return { message: msg, snippet: excerptAround(msg.content, keywords.find((k) => msg.content.includes(k))!) }
+    }
+  }
+  return null
+}
+
+/** 截取关键词前后约 60 字作为原文片段 */
+function excerptAround(content: string, keyword: string): string {
+  const idx = content.indexOf(keyword)
+  if (idx < 0) return content.length > 120 ? content.slice(0, 120) + '…' : content
+  const start = Math.max(0, idx - 40)
+  const end = Math.min(content.length, idx + Math.max(keyword.length, 60))
+  return (start > 0 ? '…' : '') + content.slice(start, end) + (end < content.length ? '…' : '')
+}
+
+/** 证据链操作文案 */
+const CHAIN_ACTION_META: Record<string, { label: string; color: string }> = {
+  create: { label: '新增', color: 'text-emerald-500' },
+  update: { label: '更新', color: 'text-sky-500' },
+  supersede: { label: '取代', color: 'text-amber-500' },
+  archive: { label: '归档', color: 'text-fg-muted' },
+  feedback: { label: '反馈修正', color: 'text-violet-500' },
+  delete: { label: '删除', color: 'text-red-500' }
+}
+
 /** 记忆溯源抽屉：展示单条偏好的完整来源与生命周期信息 */
 export function MemoryExplainDrawer({
   pref,
@@ -50,6 +92,9 @@ export function MemoryExplainDrawer({
   const [sessionLoading, setSessionLoading] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
+  // 证据链（v1.15 P2-2）：该偏好的完整审计历史
+  const [chain, setChain] = useState<AuditLog[]>([])
+  const [chainLoading, setChainLoading] = useState(false)
 
   useEffect(() => {
     if (!pref.sessionId) return
@@ -58,7 +103,7 @@ export function MemoryExplainDrawer({
     setSessionError(null)
     setNotFound(false)
     window.Memora.session
-      .get(pref.sessionId, false)
+      .get(pref.sessionId, true)
       .then((s) => {
         if (cancelled) return
         if (!s) setNotFound(true)
@@ -75,6 +120,32 @@ export function MemoryExplainDrawer({
       cancelled = true
     }
   }, [pref.sessionId])
+
+  // 加载证据链（v1.15 P2-2）：该偏好的审计历史（create/update/supersede/archive/feedback/delete）
+  useEffect(() => {
+    let cancelled = false
+    setChainLoading(true)
+    window.Memora.preference
+      .auditLogs({ entityType: 'preference', entityId: pref.id, limit: 100 })
+      .then((logs) => {
+        if (!cancelled) setChain(logs)
+      })
+      .catch(() => {
+        if (!cancelled) setChain([])
+      })
+      .finally(() => {
+        if (!cancelled) setChainLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [pref.id, pref.createdAt])
+
+  // 原文命中片段
+  const hit = useMemo(() => {
+    if (!pref.sessionId || !session?.messages || session.messages.length === 0) return null
+    return findHitSnippet(session.messages, pref.subject, pref.value)
+  }, [session, pref.subject, pref.value, pref.sessionId])
 
   const conf = Math.max(0, Math.min(1, pref.confidence ?? 0))
   const meta = STATUS_META[pref.status]
@@ -237,6 +308,73 @@ export function MemoryExplainDrawer({
                     {session.description}
                   </p>
                 )}
+              </div>
+            )}
+          </section>
+
+          {/* 原文命中片段（v1.15 P2-2） */}
+          <section>
+            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+              原文命中片段
+            </h4>
+            {!pref.sessionId ? (
+              <p className="text-[11px] text-fg-muted">手动创建的偏好，无原文来源</p>
+            ) : sessionLoading ? (
+              <p className="text-[11px] text-fg-muted">加载中…</p>
+            ) : !hit ? (
+              <p className="text-[11px] text-fg-muted break-all">
+                未在来源对话中找到包含「{pref.subject} / {pref.value}」的原文片段
+              </p>
+            ) : (
+              <div className="rounded-lg border border-border bg-bg-secondary/40 p-3">
+                <div className="flex items-center gap-1.5 text-[10px] text-fg-muted mb-1.5">
+                  <span
+                    className={`px-1.5 py-0.5 rounded ${
+                      hit.message.role === 'user'
+                        ? 'bg-accent-muted text-accent'
+                        : 'bg-bg-hover text-fg-secondary'
+                    }`}
+                  >
+                    {hit.message.role === 'user' ? '用户' : 'AI'}
+                  </span>
+                  <span>消息 #{hit.message.order}</span>
+                  {hit.message.createdAt && <span>{formatDate(hit.message.createdAt)}</span>}
+                </div>
+                <blockquote className="text-[11px] text-fg-secondary leading-relaxed break-words font-mono">
+                  {hit.snippet}
+                </blockquote>
+              </div>
+            )}
+          </section>
+
+          {/* 证据链（v1.15 P2-2）：完整审计历史 */}
+          <section>
+            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+              证据链{!chainLoading && chain.length > 0 && `（${chain.length} 次变更）`}
+            </h4>
+            {chainLoading ? (
+              <p className="text-[11px] text-fg-muted">加载证据链…</p>
+            ) : chain.length === 0 ? (
+              <p className="text-[11px] text-fg-muted">暂无审计记录</p>
+            ) : (
+              <div className="rounded-lg border border-border bg-bg-secondary/40 px-3 py-1">
+                {chain.map((log) => {
+                  const meta = CHAIN_ACTION_META[log.action] ?? {
+                    label: log.action,
+                    color: 'text-fg-muted'
+                  }
+                  return (
+                    <div key={log.id} className="py-1.5 border-b border-border/50 last:border-b-0">
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className={`font-medium ${meta.color}`}>{meta.label}</span>
+                        <span className="text-fg-muted">{formatDateTime(log.createdAt)}</span>
+                      </div>
+                      {log.reason && (
+                        <p className="text-[10px] text-fg-muted mt-0.5 break-all">「{log.reason}」</p>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </section>
