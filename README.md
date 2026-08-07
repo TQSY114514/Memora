@@ -4,7 +4,7 @@
 <img src="assets/banner.svg" width="600" alt="Memora - Personal AI Knowledge Vault"/>
 
 <p>
-  <strong>Your AI remembers you forever. Switch models, keep yourself.</strong><br/>
+  <strong>Your memory, not your tools. Switch AI, keep your accumulated life.</strong><br/>
   <sub>换 AI，不换人生积累 — 无论你换多少次模型、多少个平台</sub>
 </p>
 
@@ -128,7 +128,33 @@ $ node out/main/index.js --mcp
 }
 ```
 
-> Regenerate this demo anytime with `npm run build && node scripts/demo-mcp.js` — outputs land in `demo/output/memory-demo.json`.
+> Regenerate this demo anytime with `npm run build && npm run demo` — outputs land in `demo/output/memory-demo.json`.
+
+### One-command "switch AI" loop — your memory follows you
+
+Import conversations → distill preferences → export a portable memory package → **switch to a new AI** → inject memory → the new AI instantly knows you. All real MCP output.
+
+```bash
+# ① Before switching: a fresh new AI has NO memory of you
+> memory_profile({ workspaceId: "5806..." })          # new AI workspace
+{ "workspaceId": "5806...", "totalPreferences": 0, "activePreferences": 0, "bySubject": [] }
+
+# ② Export the portable memory package (old AI's profile)
+> memory_profile({ workspaceId: "36db..." })         # old AI workspace
+{ "workspaceId": "36db...", "totalPreferences": 5, "activePreferences": 4, ... }
+
+# ③ Inject memory into the new AI
+> memory_save_preference({ workspaceId: "5806...", subject: "tech stack", value: "Electron + React + TypeScript，本地优先架构", confidence: 0.92 })
+{ "preferenceId": "b516...", "subject": "tech stack", "status": "active", "note": "新偏好已保存" }
+
+# ④ After switching: the new AI instantly knows you
+> memory_profile({ workspaceId: "5806..." })
+{ "workspaceId": "5806...", "totalPreferences": 5, "activePreferences": 4, ... }
+
+# ⑤ The new AI can also recall your preferences
+> preference_search({ query: "tech stack", workspaceId: "5806..." })
+[ { "subject": "tech stack", "value": "Electron + React + TypeScript，本地优先架构", "confidence": 0.92, "status": "active" } ]
+```
 
 ### AI Identity Profile: One-click portable persona
 
@@ -375,13 +401,33 @@ export MEMORA_FIELD_RESTRICTIONS="claude:tech,project;cursor:tech,communication,
 
 ## Core Principles
 
-> **Your data belongs to you. Tools serve you.**
-> **Switch AI, keep your accumulated knowledge.**
+> **Your memory, not your tools.**
+> **Switch AI, keep your accumulated life.**
 
 - **Local-First** — Data stored locally, works offline
 - **Privacy-First** — Data never leaves your device unless you choose to share
 - **AI Native** — Data model designed specifically for AI memory
 - **Open Source** — MIT license, transparent and auditable
+
+---
+
+## Security
+
+Memora ships with **16 implemented hardening measures** and a **reproducible local self-test** so trust is verifiable, not just claimed.
+
+```bash
+# Local, no network: verify your data encryption in seconds
+npm run self-test
+```
+
+- **Encryption** — AES-256-GCM + PBKDF2 (600K iterations); API keys secured via OS safeStorage; backups and sync payloads encrypted at-rest.
+- **Isolation** — Sandboxed renderer + `contextIsolation` + strict CSP; all IPC file access gated by a path whitelist.
+- **Atomicity** — Backups/recovery use atomic rename + SHA-256 sidecar verification; tampering is detected.
+- **XSS defense** — Import sanitizer + HTML-exporter URL sanitization (blocks `javascript:`).
+
+See the full, auditable checklist (each item with code location & tests) in [docs/security/THREAT_MODEL.md](docs/security/THREAT_MODEL.md).
+
+> **Honest disclosure:** the on-disk SQLite database is **not encrypted at-rest by default** (only backups, secrets, and sync payloads are), and Memora has not yet undergone an external third-party security audit. We lower the trust bar via the reproducible self-test and this public checklist.
 
 ---
 

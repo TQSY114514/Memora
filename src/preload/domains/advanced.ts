@@ -367,5 +367,12 @@ export const security = {
       backupCount: number
     }
     recommendations: string[]
-  }> => ipcRenderer.invoke(IPC.SECURITY_REPORT)
+  }> => ipcRenderer.invoke(IPC.SECURITY_REPORT),
+  // 可复现加密自检（v10 P0-C1）：设置页「安全自检」按钮触发
+  selfTest: (): Promise<{
+    ok: boolean
+    ranAt: string
+    checks: Array<{ name: string; pass: boolean; detail?: string }>
+    summary: string
+  }> => ipcRenderer.invoke(IPC.SECURITY_SELF_TEST)
 }

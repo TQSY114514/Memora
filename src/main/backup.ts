@@ -501,4 +501,22 @@ class BackupService {
   }
 }
 
-export const backupService = new BackupService()
+let _backupService: BackupService | null = null
+
+/**
+ * 懒加载单例（v10 / P0-C1）：
+ * 避免纯 Node 环境（`--self-test` / `ELECTRON_RUN_AS_NODE`）下模块加载时
+ * 调用 `app.getPath('userData')` 崩溃。仅在 GUI / MCP / IPC 真正使用时才实例化。
+ */
+export const backupService: BackupService = new Proxy<BackupService>(
+  {} as BackupService,
+  {
+    get(_target, prop) {
+      if (!_backupService) {
+        _backupService = new BackupService()
+      }
+      const value = Reflect.get(_backupService, prop, _backupService)
+      return typeof value === 'function' ? value.bind(_backupService) : value
+    }
+  }
+)

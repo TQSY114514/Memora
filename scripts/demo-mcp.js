@@ -38,7 +38,21 @@ Module._load = function (request, parent, isMain) {
 }
 
 async function main() {
-  const { callTool } = require('${n(root, 'out', 'main', 'chunks', 'server-C37wdW_n.js')}')
+  // 动态发现导出 callTool 的服务 chunk：chunk 文件名带内容哈希，每次 build 会变，
+  // 不能硬编码；扫描 out/main/chunks 中定义了 exports.callTool 的文件。
+  const fsChunks = require('fs')
+  const pathChunks = require('path')
+  const chunksDir = '${n(root, 'out', 'main', 'chunks')}'
+  let serverPath = null
+  for (const f of fsChunks.readdirSync(chunksDir)) {
+    if (!f.endsWith('.js')) continue
+    if (fsChunks.readFileSync(pathChunks.join(chunksDir, f), 'utf8').includes('exports.callTool')) {
+      serverPath = pathChunks.join(chunksDir, f)
+      break
+    }
+  }
+  if (!serverPath) throw new Error('未找到导出 callTool 的 chunk（先执行 npm run build）')
+  const { callTool } = require(serverPath)
   const { initDatabase } = require('${n(root, 'out', 'main', 'index.js')}')
   initDatabase()
 
@@ -93,6 +107,41 @@ async function main() {
   out.profile = await callTool('memory_profile', { workspaceId })
   out.search = await callTool('preference_search', { query: 'tech stack', workspaceId })
   out.explain = await callTool('memory_explain', { query: 'tech stack', workspaceId })
+
+  // ===== 端到端「一键换 AI」闭环（P0-V1） =====
+  // 链条：导入对话 → 沉淀偏好（上文已完成）→ 导出可移植记忆 → 换到新 AI → 注入记忆 → 新 AI 立即认识你
+  // 1) 新建一个空工作区，代表「换到的新 AI」（初始无任何记忆）
+  const { randomUUID } = require('crypto')
+  const { getDatabase } = require('${n(root, 'out', 'main', 'index.js')}')
+  const db2 = getDatabase()
+  const newWsId = randomUUID()
+  const now2 = new Date().toISOString()
+  db2.prepare(
+    'INSERT INTO workspaces (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+  ).run(newWsId, '新 AI（导入后）', '模拟换到的新 AI，初始无记忆', now2, now2)
+  out.newWorkspaceId = newWsId
+
+  // 2) 换 AI 前：新 AI 不认识你（空画像）
+  out.switchBefore = await callTool('memory_profile', { workspaceId: newWsId })
+
+  // 3) 导出可移植记忆包：旧 AI 的记忆画像（= 可迁移的 MMF）
+  out.exportedMemory = await callTool('memory_profile', { workspaceId })
+
+  // 4) 注入记忆：把旧 AI 记住的偏好迁移到新 AI
+  const injected = []
+  for (const p of prefs) {
+    injected.push(await callTool('memory_save_preference', {
+      workspaceId: newWsId,
+      subject: p.subject,
+      value: p.value,
+      confidence: p.confidence
+    }))
+  }
+  out.injected = injected
+
+  // 5) 换 AI 后：新 AI 立即认识你（画像非空 + 可检索）
+  out.switchAfter = await callTool('memory_profile', { workspaceId: newWsId })
+  out.switchRecall = await callTool('preference_search', { query: 'tech stack', workspaceId: newWsId })
 
   // 结果写入文件，避免 stdout 被 [db]/审计日志污染导致 JSON 解析失败
   const fs = require('fs')
@@ -167,6 +216,19 @@ console.log('\n>>> preference_search { query: "tech stack" }')
 console.log(JSON.stringify(report.search, null, 2))
 console.log('\n>>> memory_explain { query: "tech stack" }')
 console.log(JSON.stringify(report.explain, null, 2))
+
+console.log('\n===== 端到端「一键换 AI」闭环 =====')
+console.log('\n① 换 AI 前 — 新 AI 不认识你（空画像）:')
+console.log(JSON.stringify(report.switchBefore, null, 2))
+console.log('\n② 导出可移植记忆包（旧 AI 的记忆画像）:')
+console.log(JSON.stringify(report.exportedMemory, null, 2))
+console.log('\n③ 注入记忆 — 把偏好迁移到新 AI（前 2 条）:')
+console.log(JSON.stringify(report.injected.slice(0, 2), null, 2))
+console.log('\n④ 换 AI 后 — 新 AI 立即认识你（画像非空）:')
+console.log(JSON.stringify(report.switchAfter, null, 2))
+console.log('\n⑤ 新 AI 也能检索到你的偏好:')
+console.log(JSON.stringify(report.switchRecall, null, 2))
+
 console.log('\n结果已写入:', join(outDir, 'memory-demo.json'))
 
 cleanup()

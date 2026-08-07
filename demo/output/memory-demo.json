@@ -1,19 +1,19 @@
 {
-  "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+  "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
   "s1": {
-    "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+    "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
     "title": "Memora 架构设计讨论",
     "sessionType": "persistent",
     "expiresAt": null
   },
   "s2": {
-    "sessionId": "36525a2c-83ee-439d-814d-623f6abb4797",
+    "sessionId": "67e3c402-4f05-4adc-b4df-22f5f3da4de0",
     "title": "Rust 学习计划",
     "sessionType": "persistent",
     "expiresAt": null
   },
   "profile": {
-    "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+    "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
     "totalPreferences": 5,
     "activePreferences": 4,
     "bySubject": [
@@ -21,17 +21,17 @@
         "subject": "architecture",
         "preferences": [
           {
-            "id": "20575947-a173-4ff7-96b5-4fb0a11a20c9",
-            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
-            "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+            "id": "083e7bc5-f624-44d3-8579-f748237ccbb8",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
             "subject": "architecture",
             "value": "Local-First，数据留在本地设备",
             "confidence": 0.95,
             "source": "mcp",
             "status": "active",
-            "createdAt": "2026-08-07T09:48:53.447Z",
-            "updatedAt": "2026-08-07T09:48:53.447Z",
-            "lastAccessedAt": "2026-08-07T09:48:53.447Z",
+            "createdAt": "2026-08-07T11:09:47.641Z",
+            "updatedAt": "2026-08-07T11:09:47.641Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.641Z",
             "accessCount": 0,
             "temporalType": "permanent"
           }
@@ -41,17 +41,17 @@
         "subject": "editor",
         "preferences": [
           {
-            "id": "aeb8d096-7877-4c9a-8a38-fa4683f92a17",
-            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
-            "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+            "id": "25378e73-c0e2-4742-b637-82845700ea43",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
             "subject": "editor",
             "value": "VSCode + Cursor",
             "confidence": 0.85,
             "source": "mcp",
             "status": "active",
-            "createdAt": "2026-08-07T09:48:53.443Z",
-            "updatedAt": "2026-08-07T09:48:53.443Z",
-            "lastAccessedAt": "2026-08-07T09:48:53.443Z",
+            "createdAt": "2026-08-07T11:09:47.633Z",
+            "updatedAt": "2026-08-07T11:09:47.633Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.633Z",
             "accessCount": 0,
             "temporalType": "permanent"
           }
@@ -61,17 +61,17 @@
         "subject": "language",
         "preferences": [
           {
-            "id": "958a2f81-82ea-40d0-b373-24594f37c2b7",
-            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
-            "sessionId": "36525a2c-83ee-439d-814d-623f6abb4797",
+            "id": "c8a933db-8567-4651-8ca3-fc73944fe486",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "67e3c402-4f05-4adc-b4df-22f5f3da4de0",
             "subject": "language",
             "value": "Rust，最近在学系统编程",
             "confidence": 0.68,
             "source": "mcp",
             "status": "active",
-            "createdAt": "2026-08-07T09:48:53.407Z",
-            "updatedAt": "2026-08-07T09:48:53.407Z",
-            "lastAccessedAt": "2026-08-07T09:48:53.407Z",
+            "createdAt": "2026-08-07T11:09:47.627Z",
+            "updatedAt": "2026-08-07T11:09:47.627Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.627Z",
             "accessCount": 0,
             "temporalType": "permanent"
           }
@@ -81,17 +81,17 @@
         "subject": "tech stack",
         "preferences": [
           {
-            "id": "8888f0a5-e26f-4c6b-bf50-d9ad44db4dfb",
-            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
-            "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+            "id": "5b7064c1-fa50-4b18-92e7-ccdceb320914",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
             "subject": "tech stack",
             "value": "Electron + React + TypeScript，本地优先架构",
             "confidence": 0.92,
             "source": "mcp",
             "status": "active",
-            "createdAt": "2026-08-07T09:48:53.395Z",
-            "updatedAt": "2026-08-07T09:48:53.395Z",
-            "lastAccessedAt": "2026-08-07T09:48:53.395Z",
+            "createdAt": "2026-08-07T11:09:47.616Z",
+            "updatedAt": "2026-08-07T11:09:47.616Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.616Z",
             "accessCount": 0,
             "temporalType": "permanent"
           }
@@ -101,14 +101,14 @@
   },
   "search": [
     {
-      "id": "8888f0a5-e26f-4c6b-bf50-d9ad44db4dfb",
+      "id": "5b7064c1-fa50-4b18-92e7-ccdceb320914",
       "subject": "tech stack",
       "value": "Electron + React + TypeScript，本地优先架构",
       "confidence": 0.92,
       "status": "active",
       "source": "mcp",
-      "createdAt": "2026-08-07T09:48:53.395Z",
-      "lastAccessedAt": "2026-08-07T09:48:53.395Z",
+      "createdAt": "2026-08-07T11:09:47.616Z",
+      "lastAccessedAt": "2026-08-07T11:09:47.616Z",
       "accessCount": 0
     }
   ],
@@ -127,10 +127,242 @@
         "source": "mcp",
         "sourceSession": null,
         "status": "active",
-        "firstSeen": "2026-08-07T09:48:53.397Z",
-        "lastUpdated": "2026-08-07T09:48:53.395Z"
+        "firstSeen": "2026-08-07T11:09:47.618Z",
+        "lastUpdated": "2026-08-07T11:09:47.616Z"
       }
     ],
     "summary": "找到 1 条相关记忆。高置信度（多次确认）；最初记录于 2026/8/7"
-  }
+  },
+  "newWorkspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+  "switchBefore": {
+    "workspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+    "totalPreferences": 0,
+    "activePreferences": 0,
+    "bySubject": []
+  },
+  "exportedMemory": {
+    "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+    "totalPreferences": 5,
+    "activePreferences": 4,
+    "bySubject": [
+      {
+        "subject": "architecture",
+        "preferences": [
+          {
+            "id": "083e7bc5-f624-44d3-8579-f748237ccbb8",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
+            "subject": "architecture",
+            "value": "Local-First，数据留在本地设备",
+            "confidence": 0.95,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.641Z",
+            "updatedAt": "2026-08-07T11:09:47.641Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.641Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "editor",
+        "preferences": [
+          {
+            "id": "25378e73-c0e2-4742-b637-82845700ea43",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
+            "subject": "editor",
+            "value": "VSCode + Cursor",
+            "confidence": 0.85,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.633Z",
+            "updatedAt": "2026-08-07T11:09:47.633Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.633Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "language",
+        "preferences": [
+          {
+            "id": "c8a933db-8567-4651-8ca3-fc73944fe486",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "67e3c402-4f05-4adc-b4df-22f5f3da4de0",
+            "subject": "language",
+            "value": "Rust，最近在学系统编程",
+            "confidence": 0.68,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.627Z",
+            "updatedAt": "2026-08-07T11:09:47.627Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.627Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "tech stack",
+        "preferences": [
+          {
+            "id": "5b7064c1-fa50-4b18-92e7-ccdceb320914",
+            "workspaceId": "75fb5faf-ef81-4564-b640-54c8271c5e7e",
+            "sessionId": "e450066c-9fea-453e-9b15-cdbc6a727a1a",
+            "subject": "tech stack",
+            "value": "Electron + React + TypeScript，本地优先架构",
+            "confidence": 0.92,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.616Z",
+            "updatedAt": "2026-08-07T11:09:47.616Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.616Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      }
+    ]
+  },
+  "injected": [
+    {
+      "preferenceId": "a7035923-27ef-498a-a624-eadf10cb7d0a",
+      "subject": "tech stack",
+      "value": "Electron + React + TypeScript，本地优先架构",
+      "confidence": 0.92,
+      "status": "active",
+      "note": "新偏好已保存"
+    },
+    {
+      "preferenceId": "8654a827-b942-4f92-84f4-4685b4802996",
+      "subject": "language",
+      "value": "TypeScript",
+      "confidence": 0.9,
+      "status": "active",
+      "note": "新偏好已保存"
+    },
+    {
+      "preferenceId": "4ebd3bea-2694-4c4f-82c1-60d1170a9fd2",
+      "subject": "language",
+      "value": "Rust，最近在学系统编程",
+      "confidence": 0.68,
+      "status": "active",
+      "note": "新偏好已保存"
+    },
+    {
+      "preferenceId": "f51e9648-a4bf-44c5-b00e-a5be9848e66b",
+      "subject": "editor",
+      "value": "VSCode + Cursor",
+      "confidence": 0.85,
+      "status": "active",
+      "note": "新偏好已保存"
+    },
+    {
+      "preferenceId": "2910f4d1-3b35-49e3-b350-346f495c8395",
+      "subject": "architecture",
+      "value": "Local-First，数据留在本地设备",
+      "confidence": 0.95,
+      "status": "active",
+      "note": "新偏好已保存"
+    }
+  ],
+  "switchAfter": {
+    "workspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+    "totalPreferences": 5,
+    "activePreferences": 4,
+    "bySubject": [
+      {
+        "subject": "architecture",
+        "preferences": [
+          {
+            "id": "2910f4d1-3b35-49e3-b350-346f495c8395",
+            "workspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+            "subject": "architecture",
+            "value": "Local-First，数据留在本地设备",
+            "confidence": 0.95,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.698Z",
+            "updatedAt": "2026-08-07T11:09:47.698Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.698Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "editor",
+        "preferences": [
+          {
+            "id": "f51e9648-a4bf-44c5-b00e-a5be9848e66b",
+            "workspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+            "subject": "editor",
+            "value": "VSCode + Cursor",
+            "confidence": 0.85,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.694Z",
+            "updatedAt": "2026-08-07T11:09:47.694Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.694Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "language",
+        "preferences": [
+          {
+            "id": "4ebd3bea-2694-4c4f-82c1-60d1170a9fd2",
+            "workspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+            "subject": "language",
+            "value": "Rust，最近在学系统编程",
+            "confidence": 0.68,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.686Z",
+            "updatedAt": "2026-08-07T11:09:47.686Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.686Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "tech stack",
+        "preferences": [
+          {
+            "id": "a7035923-27ef-498a-a624-eadf10cb7d0a",
+            "workspaceId": "15b1647e-d7e2-4c66-a02a-22dd5d56d4e4",
+            "subject": "tech stack",
+            "value": "Electron + React + TypeScript，本地优先架构",
+            "confidence": 0.92,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T11:09:47.663Z",
+            "updatedAt": "2026-08-07T11:09:47.663Z",
+            "lastAccessedAt": "2026-08-07T11:09:47.663Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      }
+    ]
+  },
+  "switchRecall": [
+    {
+      "id": "a7035923-27ef-498a-a624-eadf10cb7d0a",
+      "subject": "tech stack",
+      "value": "Electron + React + TypeScript，本地优先架构",
+      "confidence": 0.92,
+      "status": "active",
+      "source": "mcp",
+      "createdAt": "2026-08-07T11:09:47.663Z",
+      "lastAccessedAt": "2026-08-07T11:09:47.663Z",
+      "accessCount": 0
+    }
+  ]
 }

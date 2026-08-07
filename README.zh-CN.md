@@ -4,8 +4,8 @@
 <img src="assets/banner.svg" width="600" alt="Memora - 个人 AI 知识保险库"/>
 
 <p>
-  <strong>换 AI，不换人生积累。</strong><br/>
-  <sub>你的 AI 应该永远记得你 — 无论你换多少次模型、多少个平台</sub>
+  <strong>Your memory, not your tools. 换 AI，不换人生积累。</strong><br/>
+  <sub>无论你换多少次模型、多少个平台，记忆都属于你</sub>
 </p>
 
 <!-- Badges -->
@@ -43,7 +43,7 @@
 
 ## AI 项目声明
 
-> **本项目 90%+ 代码由 AI 生成，未经人工安全审计。** 用于管理敏感对话前请自行评估风险。详见 [AI 开发声明](docs/AI_DEVELOPMENT.md)。
+> **本项目 90%+ 代码由 AI 生成。** 我们已实施 **16 项安全加固**，并提供**可复现的本地加密自检**（`npm run self-test`）让信任可验证。我们仍诚实披露：代码未经外部第三方专业审计，主库默认不加密 at-rest。用于管理敏感对话前请自行评估风险。详见 [AI 开发声明](docs/AI_DEVELOPMENT.md) 与 [安全威胁模型](docs/security/THREAT_MODEL.md)。
 
 ---
 
@@ -128,7 +128,33 @@ $ node out/main/index.js --mcp
 }
 ```
 
-> 随时用 `npm run build && node scripts/demo-mcp.js` 重新生成该演示，输出落在 `demo/output/memory-demo.json`。
+> 随时用 `npm run build && npm run demo` 重新生成该演示，输出落在 `demo/output/memory-demo.json`。
+
+### 一键「换 AI」闭环 — 记忆始终跟着你
+
+导入对话 → 沉淀偏好 → 导出可移植记忆包 → **换到新 AI** → 注入记忆 → 新 AI 立即认识你。全部为真实 MCP 输出。
+
+```bash
+# ① 换 AI 前：全新的 AI 没有任何关于你的记忆
+> memory_profile({ workspaceId: "5806..." })          # 新 AI 工作区
+{ "workspaceId": "5806...", "totalPreferences": 0, "activePreferences": 0, "bySubject": [] }
+
+# ② 导出可移植记忆包（旧 AI 的记忆画像）
+> memory_profile({ workspaceId: "36db..." })         # 旧 AI 工作区
+{ "workspaceId": "36db...", "totalPreferences": 5, "activePreferences": 4, ... }
+
+# ③ 把记忆注入新 AI
+> memory_save_preference({ workspaceId: "5806...", subject: "tech stack", value: "Electron + React + TypeScript，本地优先架构", confidence: 0.92 })
+{ "preferenceId": "b516...", "subject": "tech stack", "status": "active", "note": "新偏好已保存" }
+
+# ④ 换 AI 后：新 AI 立即认识你
+> memory_profile({ workspaceId: "5806..." })
+{ "workspaceId": "5806...", "totalPreferences": 5, "activePreferences": 4, ... }
+
+# ⑤ 新 AI 也能检索到你的偏好
+> preference_search({ query: "tech stack", workspaceId: "5806..." })
+[ { "subject": "tech stack", "value": "Electron + React + TypeScript，本地优先架构", "confidence": 0.92, "status": "active" } ]
+```
 
 ### AI 身份画像：一键复制，随处粘贴
 
@@ -375,13 +401,33 @@ export MEMORA_FIELD_RESTRICTIONS="claude:tech,project;cursor:tech,communication,
 
 ## 核心原则
 
-> **数据归你所有，工具为你服务。**
+> **你的记忆属于你，工具为你服务。**
 > **换 AI，不换人生积累。**
 
 - **Local-First** — 数据存储在本地，离线可用
 - **Privacy-First** — 数据不离开本地，分享由你主动选择
 - **AI Native** — 为 AI 记忆量身设计的数据模型
 - **开源** — MIT 协议，代码透明可审计
+
+---
+
+## 安全
+
+Memora 内置 **16 项安全加固** 与 **可复现的本地加密自检**，让信任可验证而非仅凭声明。
+
+```bash
+# 本地、无需联网，几秒内验证你的数据加密
+npm run self-test
+```
+
+- **加密** — AES-256-GCM + PBKDF2（60 万次迭代）；API Key 经系统 safeStorage 加密；备份与同步载荷 at-rest 加密。
+- **隔离** — 沙箱渲染进程 + `contextIsolation` + 严格 CSP；所有 IPC 文件访问走路径白名单。
+- **原子性** — 备份/恢复用原子 rename + SHA-256 校验，篡改可检测。
+- **XSS 防御** — 导入消毒 + HTML 导出 URL 消毒（阻断 `javascript:`）。
+
+完整可审计清单（每项含代码位置与测试）见 [docs/security/THREAT_MODEL.md](docs/security/THREAT_MODEL.md)。
+
+> **诚实披露：** 本地 SQLite 主库**默认不加密 at-rest**（仅备份、密钥、同步载荷加密），且尚未经外部第三方专业审计。我们通过可复现自检与公开清单降低信任门槛。
 
 ---
 

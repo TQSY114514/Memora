@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-08-07T11:09:35.866Z",
+  "recallRate": "100.0",
+  "temporalRate": "100.0",
+  "dedupRate": "100.0",
+  "recallHits": 10,
+  "knownCount": 10,
+  "dedupedCount": 1
+}

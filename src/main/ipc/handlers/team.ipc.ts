@@ -28,8 +28,14 @@ import {
   listAuditLogs
 } from '@db/repositories'
 
-const teamDir = join(app.getPath('userData'), 'team')
-const storePath = join(teamDir, 'workspaces.json')
+// 懒加载路径：避免纯 Node 环境（`--self-test` / `ELECTRON_RUN_AS_NODE`）下
+// 模块加载时 `app.getPath('userData')` 崩溃
+function getTeamDir(): string {
+  return join(app.getPath('userData'), 'team')
+}
+function getStorePath(): string {
+  return join(getTeamDir(), 'workspaces.json')
+}
 
 interface TeamStore {
   workspaces: SharedWorkspace[]
@@ -39,16 +45,16 @@ interface TeamStore {
 
 /** 原子写入持久化文件：先写 .tmp，全部完成后 rename 覆盖，避免中途崩溃留下损坏数据 */
 function persistStore(store: TeamStore): void {
-  if (!existsSync(teamDir)) mkdirSync(teamDir, { recursive: true })
-  const tmpPath = storePath + '.tmp'
+  if (!existsSync(getTeamDir())) mkdirSync(getTeamDir(), { recursive: true })
+  const tmpPath = getStorePath() + '.tmp'
   writeFileSync(tmpPath, JSON.stringify(store, null, 2), 'utf-8')
-  renameSync(tmpPath, storePath)
+  renameSync(tmpPath, getStorePath())
 }
 
 function loadStore(): TeamStore {
   try {
-    if (!existsSync(storePath)) return { workspaces: [], comments: [], visibilities: [] }
-    const raw = readFileSync(storePath, 'utf-8')
+    if (!existsSync(getStorePath())) return { workspaces: [], comments: [], visibilities: [] }
+    const raw = readFileSync(getStorePath(), 'utf-8')
     const parsed = JSON.parse(raw) as Partial<TeamStore>
     return {
       workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],

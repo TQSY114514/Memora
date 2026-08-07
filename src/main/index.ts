@@ -14,6 +14,7 @@ import { backupService } from './backup'
 import { logger } from './logger'
 import { initAutoUpdater } from './updater'
 import { startAutoConsolidation, stopAutoConsolidation } from './memoryConsolidationScheduler'
+import { runSelfTest, printSelfTestReport } from '../crypto/selfTest'
 
 // ===== 全局异常处理器 =====
 // 防止未捕获的异步/同步错误导致进程静默崩溃，记录日志后保持进程存活
@@ -25,6 +26,16 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception', { error: err.stack })
 })
+
+// ===== 加密自检模式（P0-C1 | v10） =====
+// `node out/main/index.js --self-test`（或 ELECTRON_RUN_AS_NODE）下运行加密自检，
+// 输出可复现的 PASS/FAIL 报告后立即退出，不进入 GUI / MCP。
+const isSelfTestMode = process.argv.includes('--self-test')
+if (isSelfTestMode) {
+  const result = runSelfTest()
+  console.log(printSelfTestReport(result))
+  process.exit(result.ok ? 0 : 1)
+}
 
 // ===== 自定义协议注册（必须在 app.ready 之前） =====
 // 用 app:// 协议替代 file:// 加载渲染进程：

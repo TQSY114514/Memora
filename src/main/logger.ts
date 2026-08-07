@@ -9,6 +9,7 @@
  */
 import { app } from 'electron'
 import { join } from 'path'
+import { tmpdir } from 'os'
 import { mkdirSync, existsSync, statSync, renameSync, appendFileSync } from 'fs'
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -43,7 +44,10 @@ class Logger {
   private logFile: string
 
   constructor() {
-    this.logDir = join(app.getPath('userData'), 'logs')
+    // 纯 node 环境（如 --self-test / ELECTRON_RUN_AS_NODE）下 electron.app 不可用，
+    // 回退到系统临时目录，保证日志模块可独立加载。
+    const baseDir = app?.getPath ? app.getPath('userData') : tmpdir()
+    this.logDir = join(baseDir, 'logs')
     this.logFile = join(this.logDir, 'memora.log')
     this.ensureDir()
   }

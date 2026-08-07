@@ -41,6 +41,13 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
   const [report, setReport] = useState<SecurityReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selfTest, setSelfTest] = useState<{
+    ok: boolean
+    ranAt: string
+    checks: Array<{ name: string; pass: boolean; detail?: string }>
+    summary: string
+  } | null>(null)
+  const [selfTesting, setSelfTesting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,6 +63,19 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const runSelfTest = useCallback(async () => {
+    setSelfTesting(true)
+    setSelfTest(null)
+    try {
+      const r = await window.Memora.security.selfTest()
+      setSelfTest(r)
+    } catch (e) {
+      setSelfTest({ ok: false, ranAt: new Date().toISOString(), checks: [], summary: `自检执行失败：${String(e)}` })
+    } finally {
+      setSelfTesting(false)
+    }
+  }, [])
 
   function statusBadge(status: string) {
     const map: Record<string, { label: string; color: string }> = {
@@ -84,6 +104,13 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={runSelfTest}
+              className="Memora-btn Memora-btn-primary text-xs"
+              disabled={selfTesting}
+            >
+              {selfTesting ? '自检中...' : '安全自检'}
+            </button>
+            <button
               onClick={load}
               className="Memora-btn Memora-btn-ghost text-xs"
               disabled={loading}
@@ -104,6 +131,32 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
             <div className="text-red-400 text-sm text-center py-8">{error}</div>
           ) : report ? (
             <>
+              {/* 可复现加密自检（v10 P0-C1） */}
+              {selfTest && (
+                <div className={`bg-bg-secondary rounded-lg p-4 ${selfTest.ok ? 'border border-green-500/30' : 'border border-red-500/30'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold">加密自检</h3>
+                    <span className={`text-xs font-bold ${selfTest.ok ? 'text-green-400' : 'text-red-400'}`}>
+                      {selfTest.ok ? '通过' : '未通过'}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {selfTest.checks.map((c, i) => (
+                      <div key={i} className="flex items-start justify-between text-xs">
+                        <span className="text-fg-muted">{c.name}</span>
+                        <span className={c.pass ? 'text-green-400' : 'text-red-400'}>{c.pass ? 'PASS' : 'FAIL'}</span>
+                      </div>
+                    ))}
+                    {selfTest.checks.length === 0 && (
+                      <p className="text-xs text-red-400">{selfTest.summary}</p>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-fg-muted mt-2">
+                    {selfTest.summary} · 运行于 {new Date(selfTest.ranAt).toLocaleString()} · CLI: <code>npm run self-test</code>
+                  </p>
+                </div>
+              )}
+
               {/* Encryption Status */}
               <div className="bg-bg-secondary rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">

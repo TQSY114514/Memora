@@ -614,7 +614,7 @@ export function searchPreferences(
   let sql = `
     SELECT p.* FROM preferences p
     JOIN preferences_fts ON p.id = preferences_fts.pref_id
-    WHERE preferences_fts MATCH @ftsQuery AND p.status != 'archived'
+    WHERE preferences_fts MATCH @ftsQuery AND p.status = 'active'
       AND (p.valid_at IS NULL OR p.valid_at <= @nowIso)
       AND (p.invalid_at IS NULL OR p.invalid_at >= @nowIso)
   `

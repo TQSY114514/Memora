@@ -247,6 +247,20 @@ describe('preferencesRepo', () => {
     expect(bound).toHaveProperty('workspaceId')
   })
 
+  it('searchPreferences 只返回 active 记忆（过滤 superseded/archived，P0-V2 时态正确率）', () => {
+    // 回归：此前 WHERE 用 `status != 'archived'`，会把被取代（superseded）的旧版本也返回，
+    // 导致「同一主题多次更新后检索到旧值」。现必须过滤为 `status = 'active'`。
+    stmtResults.set('JOIN preferences_fts', { all: [prefRow] })
+    searchPreferences('lang', { workspaceId: 'ws1' })
+
+    const sqls = db.prepare.mock.calls.map((c: any[]) => String(c[0]))
+    const ftsIdx = sqls.findIndex((s) => s.includes('JOIN preferences_fts'))
+    expect(ftsIdx).toBeGreaterThanOrEqual(0)
+    const ftsSql = sqls[ftsIdx]
+    expect(ftsSql).toContain("p.status = 'active'")
+    expect(ftsSql).not.toContain("p.status != 'archived'")
+  })
+
   it('getUserProfile aggregates preferences with constitution on top', () => {
     stmtResults.set('WHERE workspace_id = @workspaceId AND status = @status', {
       all: [

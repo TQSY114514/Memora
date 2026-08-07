@@ -306,6 +306,8 @@ export const IPC = {
 
   // ===== 安全中心（v1.12） =====
   SECURITY_REPORT: 'security:report',
+  // 可复现加密自检（v10 P0-C1）
+  SECURITY_SELF_TEST: 'security:self-test',
 
   // ===== 时态记忆（v1.15） =====
   PREF_TEMPORAL_UPDATE: 'pref:temporal-update',
