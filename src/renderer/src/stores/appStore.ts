@@ -43,6 +43,9 @@ interface AppState {
   loading: boolean
   error: string | null
 
+  // 数据版本号：会话/消息增删后递增，供 Dashboard 等订阅刷新
+  dataVersion: number
+
   // 置顶（localStorage 持久化）
   pinnedIds: Set<string>
 
@@ -63,6 +66,8 @@ interface AppState {
   isPinned: (id: string) => boolean
   /** 批量取消置顶（会话删除后清理 localStorage 残留） */
   unpinIds: (ids: string[]) => void
+  /** 数据变更后递增版本号，订阅方（如 Dashboard 统计）据此重新拉取 */
+  bumpDataVersion: () => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -80,6 +85,7 @@ export const useStore = create<AppState>((set, get) => ({
   loading: false,
   error: null,
   pinnedIds: loadPinnedIds(),
+  dataVersion: 0,
 
   setActiveWorkspace: (id) => set({ activeWorkspaceId: id, activeFolderId: null }),
   setActiveFolder: (id) => set({ activeFolderId: id }),
@@ -114,5 +120,6 @@ export const useStore = create<AppState>((set, get) => ({
       savePinnedIds(next)
       set({ pinnedIds: next })
     }
-  }
+  },
+  bumpDataVersion: () => set((s) => ({ dataVersion: s.dataVersion + 1 }))
 }))

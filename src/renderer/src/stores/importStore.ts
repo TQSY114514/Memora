@@ -95,6 +95,9 @@ export const useImportStore = create<ImportState>((set, get) => ({
         const tree = await window.Memora.workspace.tree(store.activeWorkspaceId)
         if (tree) store.setSessions(tree.sessions)
       }
+      // 数据已变更（导入新会话），通知 Dashboard 统计刷新
+      useStore.getState().bumpDataVersion()
+
     } finally {
       off()
       set({ isImporting: false })

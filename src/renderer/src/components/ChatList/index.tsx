@@ -141,6 +141,8 @@ export function ChatList() {
     if (!ok) return
     try {
       await window.Memora.session.delete(sessionId)
+      const { bumpDataVersion } = useStore.getState()
+      bumpDataVersion()
       clearDeletedState([sessionId])
       refreshList()
     } catch (e) {
@@ -157,6 +159,8 @@ export function ChatList() {
       setSelectedIds(new Set())
       setShowBatchBar(false)
       lastSelectedRef.current = null
+      const { bumpDataVersion } = useStore.getState()
+      bumpDataVersion()
       clearDeletedState(ids)
       refreshList()
     } catch (e) {
