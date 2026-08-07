@@ -74,31 +74,61 @@ Before:                               After Memora:
 
 ### MCP: AI instantly knows your preferences
 
+Every result below is **real output** captured by driving Memora's actual MCP tools against a fresh local database (`scripts/demo-mcp.js`).
+
 ```bash
 # 1. Start Memora with MCP server
 $ node out/main/index.js --mcp
 
-# 2. In Claude Code / Cursor / OpenCode, AI calls memory_recall:
-
-> memory_recall({ query: "user tech stack preferences" })
+# 2. In Claude Code / Cursor / OpenCode, AI calls memory_profile:
+> memory_profile({ workspaceId: "3a15..." })
 
 {
-  "preferences": [
+  "workspaceId": "3a15b8e1-da21-4a5f-a83b-18b74d0419ef",
+  "totalPreferences": 5,
+  "activePreferences": 4,
+  "bySubject": [
+    { "subject": "architecture", "value": "Local-First，数据留在本地设备", "confidence": 0.95 },
+    { "subject": "editor",       "value": "VSCode + Cursor", "confidence": 0.85 },
+    { "subject": "language",     "value": "Rust，最近在学系统编程", "confidence": 0.68 },
+    { "subject": "tech stack",   "value": "Electron + React + TypeScript，本地优先架构", "confidence": 0.92 }
+  ]
+}
+
+# 3. Search a specific preference:
+> preference_search({ query: "tech stack", workspaceId: "3a15..." })
+
+[
+  {
+    "subject": "tech stack",
+    "value": "Electron + React + TypeScript，本地优先架构",
+    "confidence": 0.92,
+    "status": "active",
+    "source": "mcp"
+  }
+]
+
+# 4. Explain WHY Memora holds this memory (source tracing + evidence chain):
+> memory_explain({ query: "tech stack", workspaceId: "3a15..." })
+
+{
+  "query": "tech stack",
+  "matchCount": 1,
+  "explanations": [
     {
-      "subject": "技术栈偏好",
-      "value": "首选 Electron + React + TypeScript，偏好本地优先架构",
+      "subject": "tech stack",
+      "value": "Electron + React + TypeScript，本地优先架构",
       "confidence": 0.92,
-      "reasons": ["高置信度（多次确认）", "频繁访问（23 次）"],
-      "sourceSession": {
-        "title": "Memora 架构设计讨论",
-        "provider": "Claude Code",
-        "createdAt": "2026-07-21"
-      }
+      "reasons": ["高置信度（多次确认）", "最初记录于 2026/8/7"],
+      "source": "mcp",
+      "status": "active"
     }
   ],
-  "explanation": "Why this memory? Confidence 92%, confirmed 7 times across 3 conversations"
+  "summary": "找到 1 条相关记忆。高置信度（多次确认）；最初记录于 2026/8/7"
 }
 ```
+
+> Regenerate this demo anytime with `npm run build && node scripts/demo-mcp.js` — outputs land in `demo/output/memory-demo.json`.
 
 ### AI Identity Profile: One-click portable persona
 

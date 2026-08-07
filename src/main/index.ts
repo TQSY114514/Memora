@@ -59,6 +59,10 @@ function cleanupTemporarySessions(): void {
 
 if (isMcpMode) {
   app.disableHardwareAcceleration()
+  // MEMORA_USER_DATA：允许隔离数据目录（用于可复现的 demo / 测试环境）
+  if (process.env['MEMORA_USER_DATA']) {
+    app.setPath('userData', process.env['MEMORA_USER_DATA'])
+  }
   app.whenReady().then(async () => {
     if (app.dock) app.dock.hide()
     initDatabase()

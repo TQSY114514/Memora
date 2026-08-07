@@ -1,0 +1,136 @@
+{
+  "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+  "s1": {
+    "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+    "title": "Memora 架构设计讨论",
+    "sessionType": "persistent",
+    "expiresAt": null
+  },
+  "s2": {
+    "sessionId": "36525a2c-83ee-439d-814d-623f6abb4797",
+    "title": "Rust 学习计划",
+    "sessionType": "persistent",
+    "expiresAt": null
+  },
+  "profile": {
+    "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+    "totalPreferences": 5,
+    "activePreferences": 4,
+    "bySubject": [
+      {
+        "subject": "architecture",
+        "preferences": [
+          {
+            "id": "20575947-a173-4ff7-96b5-4fb0a11a20c9",
+            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+            "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+            "subject": "architecture",
+            "value": "Local-First，数据留在本地设备",
+            "confidence": 0.95,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T09:48:53.447Z",
+            "updatedAt": "2026-08-07T09:48:53.447Z",
+            "lastAccessedAt": "2026-08-07T09:48:53.447Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "editor",
+        "preferences": [
+          {
+            "id": "aeb8d096-7877-4c9a-8a38-fa4683f92a17",
+            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+            "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+            "subject": "editor",
+            "value": "VSCode + Cursor",
+            "confidence": 0.85,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T09:48:53.443Z",
+            "updatedAt": "2026-08-07T09:48:53.443Z",
+            "lastAccessedAt": "2026-08-07T09:48:53.443Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "language",
+        "preferences": [
+          {
+            "id": "958a2f81-82ea-40d0-b373-24594f37c2b7",
+            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+            "sessionId": "36525a2c-83ee-439d-814d-623f6abb4797",
+            "subject": "language",
+            "value": "Rust，最近在学系统编程",
+            "confidence": 0.68,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T09:48:53.407Z",
+            "updatedAt": "2026-08-07T09:48:53.407Z",
+            "lastAccessedAt": "2026-08-07T09:48:53.407Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      },
+      {
+        "subject": "tech stack",
+        "preferences": [
+          {
+            "id": "8888f0a5-e26f-4c6b-bf50-d9ad44db4dfb",
+            "workspaceId": "74cf439b-a023-4a89-9eeb-86822e6863d9",
+            "sessionId": "d30c708e-6867-4420-b6b7-4020c5736bca",
+            "subject": "tech stack",
+            "value": "Electron + React + TypeScript，本地优先架构",
+            "confidence": 0.92,
+            "source": "mcp",
+            "status": "active",
+            "createdAt": "2026-08-07T09:48:53.395Z",
+            "updatedAt": "2026-08-07T09:48:53.395Z",
+            "lastAccessedAt": "2026-08-07T09:48:53.395Z",
+            "accessCount": 0,
+            "temporalType": "permanent"
+          }
+        ]
+      }
+    ]
+  },
+  "search": [
+    {
+      "id": "8888f0a5-e26f-4c6b-bf50-d9ad44db4dfb",
+      "subject": "tech stack",
+      "value": "Electron + React + TypeScript，本地优先架构",
+      "confidence": 0.92,
+      "status": "active",
+      "source": "mcp",
+      "createdAt": "2026-08-07T09:48:53.395Z",
+      "lastAccessedAt": "2026-08-07T09:48:53.395Z",
+      "accessCount": 0
+    }
+  ],
+  "explain": {
+    "query": "tech stack",
+    "matchCount": 1,
+    "explanations": [
+      {
+        "subject": "tech stack",
+        "value": "Electron + React + TypeScript，本地优先架构",
+        "confidence": 0.92,
+        "reasons": [
+          "高置信度（多次确认）",
+          "最初记录于 2026/8/7"
+        ],
+        "source": "mcp",
+        "sourceSession": null,
+        "status": "active",
+        "firstSeen": "2026-08-07T09:48:53.397Z",
+        "lastUpdated": "2026-08-07T09:48:53.395Z"
+      }
+    ],
+    "summary": "找到 1 条相关记忆。高置信度（多次确认）；最初记录于 2026/8/7"
+  }
+}

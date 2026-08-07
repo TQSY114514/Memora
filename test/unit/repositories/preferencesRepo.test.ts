@@ -95,6 +95,28 @@ describe('preferencesRepo', () => {
       expect(addAuditLog).toHaveBeenCalledTimes(2)
     })
 
+    it('不同 value 时先 INSERT 新记录再 UPDATE 旧记忆 superseded_by（满足外键约束）', () => {
+      // 回归：此前先在事务内 UPDATE 旧记录的 superseded_by 指向尚未插入的新 id，
+      // 触发外键约束失败。现必须保证 INSERT 的 prepare 调用先于 UPDATE 旧记忆的调用。
+      stmtResults.set('SELECT * FROM preferences WHERE id = ?', { get: prefRow })
+      stmtResults.set('(context IS ? OR (context IS NOT NULL AND context = ?))', {
+        all: [{ ...prefRow, value: 'JavaScript', id: 'p-old' }]
+      })
+      createPreference({ workspaceId: 'ws1', subject: 'language', value: 'TypeScript' })
+
+      const sqls = db.prepare.mock.calls.map((c: any[]) => String(c[0]))
+      const insertIdx = sqls.findIndex((s) => s.includes('INSERT INTO preferences'))
+      const updateIdx = sqls.findIndex((s) => s.includes("SET status = 'superseded'"))
+      expect(insertIdx).toBeGreaterThanOrEqual(0)
+      expect(updateIdx).toBeGreaterThanOrEqual(0)
+      // INSERT 必须先于 UPDATE（否则 superseded_by 引用未插入的行 → 外键失败）
+      expect(insertIdx).toBeLessThan(updateIdx)
+      // 旧记忆的 UPDATE 把新 id 作为 superseded_by 传入（列含 superseded_by 且按 id 定位）
+      const updateSql = sqls[updateIdx]
+      expect(updateSql).toContain('superseded_by = ?')
+      expect(updateSql).toContain('WHERE id = ?')
+    })
+
     it('handles non-null context matching', () => {
       stmtResults.set('SELECT * FROM preferences WHERE id = ?', { get: prefRow })
       stmtResults.set('(context IS ? OR (context IS NOT NULL AND context = ?))', { all: [] })
@@ -202,6 +224,27 @@ describe('preferencesRepo', () => {
     stmtResults.set('JOIN preferences_fts', { all: [prefRow] })
     const results = searchPreferences('lang', { workspaceId: 'ws1' })
     expect(results).toHaveLength(1)
+  })
+
+  it('searchPreferences 使用命名参数 @ftsQuery（不混用位置/命名参数）', () => {
+    // 回归：此前 MATCH ? 使用位置参数，与其他 @nowIso/@workspaceId 命名参数混用，
+    // 触发 "Too few parameter values" 错误。现 MATCH 必须改用 @ftsQuery 并统一命名参数绑定。
+    stmtResults.set('JOIN preferences_fts', { all: [prefRow] })
+    searchPreferences('lang', { workspaceId: 'ws1' })
+
+    const sqls = db.prepare.mock.calls.map((c: any[]) => String(c[0]))
+    const ftsIdx = sqls.findIndex((s) => s.includes('JOIN preferences_fts'))
+    expect(ftsIdx).toBeGreaterThanOrEqual(0)
+    const ftsSql = sqls[ftsIdx]
+    // 不再使用位置参数 '?' 做 FTS 匹配
+    expect(ftsSql).not.toMatch(/MATCH\s+\?/)
+    expect(ftsSql).toContain('MATCH @ftsQuery')
+    // 绑定参数必须包含 @ftsQuery 命名键（从 prepare 返回的 statement 上取 .all 调用）
+    const stmt = db.prepare.mock.results[ftsIdx]?.value as any
+    const bound = stmt?.all?.mock?.calls?.[0]?.[0] ?? {}
+    expect(bound).toHaveProperty('ftsQuery')
+    expect(bound).toHaveProperty('nowIso')
+    expect(bound).toHaveProperty('workspaceId')
   })
 
   it('getUserProfile aggregates preferences with constitution on top', () => {

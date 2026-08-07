@@ -193,31 +193,23 @@ export function createPreference(input: {
       )
       .all(input.workspaceId, input.subject, ctx, ctx) as PreferenceRow[]
 
-    for (const old of existing) {
-      if (old.value.toLowerCase() === input.value.toLowerCase()) {
-        // 相同 value → 增加置信度（复现增强），不创建新记录
-        const newConfidence = Math.min(1.0, old.confidence + 0.15)
-        db.prepare(
-          `UPDATE preferences
-           SET confidence = ?, access_count = access_count + 1,
-               last_accessed_at = ?, updated_at = ?
-           WHERE id = ?`
-        ).run(newConfidence, now, now, old.id)
-        existingId = old.id
-        boostedOld = old
-        return
-      }
-
-      // 不同 value → 旧记忆标记 superseded
+    // 同 value 复现增强：不创建新记录，直接增强已有偏好置信度
+    const boosted = existing.find((o) => o.value.toLowerCase() === input.value.toLowerCase())
+    if (boosted) {
+      const newConfidence = Math.min(1.0, boosted.confidence + 0.15)
       db.prepare(
         `UPDATE preferences
-         SET status = 'superseded', superseded_by = ?, updated_at = ?
+         SET confidence = ?, access_count = access_count + 1,
+             last_accessed_at = ?, updated_at = ?
          WHERE id = ?`
-      ).run(id, now, old.id)
-      supersededOlds.push(old)
+      ).run(newConfidence, now, now, boosted.id)
+      existingId = boosted.id
+      boostedOld = boosted
+      return
     }
 
-    // 创建新偏好
+    // 不同 value → 先创建新记录，再标记旧记忆 superseded。
+    // 必须先 INSERT 新 id，否则 superseded_by 引用尚不存在的行会触发外键失败。
     db.prepare(
       `INSERT INTO preferences
        (id, workspace_id, session_id, subject, value, context, confidence, source, status, superseded_by,
@@ -228,6 +220,16 @@ export function createPreference(input: {
       input.subject, input.value, ctx, confidence, source,
       now, now, now, validAt, invalidAt, temporalType
     )
+
+    for (const old of existing) {
+      // 不同 value → 旧记忆标记 superseded（新 id 已存在，外键可满足）
+      db.prepare(
+        `UPDATE preferences
+         SET status = 'superseded', superseded_by = ?, updated_at = ?
+         WHERE id = ?`
+      ).run(id, now, old.id)
+      supersededOlds.push(old)
+    }
   })
   tx()
 
@@ -612,7 +614,7 @@ export function searchPreferences(
   let sql = `
     SELECT p.* FROM preferences p
     JOIN preferences_fts ON p.id = preferences_fts.pref_id
-    WHERE preferences_fts MATCH ? AND p.status != 'archived'
+    WHERE preferences_fts MATCH @ftsQuery AND p.status != 'archived'
       AND (p.valid_at IS NULL OR p.valid_at <= @nowIso)
       AND (p.invalid_at IS NULL OR p.invalid_at >= @nowIso)
   `

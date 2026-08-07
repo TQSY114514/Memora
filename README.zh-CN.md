@@ -74,31 +74,61 @@ Before:                               After Memora:
 
 ### MCP：AI 瞬间了解你的偏好
 
+以下输出均为**真实结果**——通过 `scripts/demo-mcp.js` 驱动 Memora 真实的 MCP 工具、在全新本地数据库中捕获得到。
+
 ```bash
 # 1. 启动 Memora 的 MCP 服务
 $ node out/main/index.js --mcp
 
-# 2. 在 Claude Code / Cursor / OpenCode 中，AI 调用 memory_recall：
-
-> memory_recall({ query: "用户技术栈偏好" })
+# 2. 在 Claude Code / Cursor / OpenCode 中，AI 调用 memory_profile：
+> memory_profile({ workspaceId: "3a15..." })
 
 {
-  "preferences": [
+  "workspaceId": "3a15b8e1-da21-4a5f-a83b-18b74d0419ef",
+  "totalPreferences": 5,
+  "activePreferences": 4,
+  "bySubject": [
+    { "subject": "architecture", "value": "Local-First，数据留在本地设备", "confidence": 0.95 },
+    { "subject": "editor",       "value": "VSCode + Cursor", "confidence": 0.85 },
+    { "subject": "language",     "value": "Rust，最近在学系统编程", "confidence": 0.68 },
+    { "subject": "tech stack",   "value": "Electron + React + TypeScript，本地优先架构", "confidence": 0.92 }
+  ]
+}
+
+# 3. 检索某条具体偏好：
+> preference_search({ query: "tech stack", workspaceId: "3a15..." })
+
+[
+  {
+    "subject": "tech stack",
+    "value": "Electron + React + TypeScript，本地优先架构",
+    "confidence": 0.92,
+    "status": "active",
+    "source": "mcp"
+  }
+]
+
+# 4. 解释 Memora 为何持有这条记忆（来源追溯 + 证据链）：
+> memory_explain({ query: "tech stack", workspaceId: "3a15..." })
+
+{
+  "query": "tech stack",
+  "matchCount": 1,
+  "explanations": [
     {
-      "subject": "技术栈偏好",
-      "value": "首选 Electron + React + TypeScript，偏好本地优先架构",
+      "subject": "tech stack",
+      "value": "Electron + React + TypeScript，本地优先架构",
       "confidence": 0.92,
-      "reasons": ["高置信度（多次确认）", "频繁访问（23 次）"],
-      "sourceSession": {
-        "title": "Memora 架构设计讨论",
-        "provider": "Claude Code",
-        "createdAt": "2026-07-21"
-      }
+      "reasons": ["高置信度（多次确认）", "最初记录于 2026/8/7"],
+      "source": "mcp",
+      "status": "active"
     }
   ],
-  "explanation": "为什么是这条记忆？置信度 92%，在 3 段对话中被确认 7 次"
+  "summary": "找到 1 条相关记忆。高置信度（多次确认）；最初记录于 2026/8/7"
 }
 ```
+
+> 随时用 `npm run build && node scripts/demo-mcp.js` 重新生成该演示，输出落在 `demo/output/memory-demo.json`。
 
 ### AI 身份画像：一键复制，随处粘贴
 
