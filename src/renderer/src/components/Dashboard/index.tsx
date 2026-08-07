@@ -9,13 +9,25 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardProps = {}) {
-  const { setActiveSession, setActiveSessionData } = useStore()
+  const { setActiveSession, setActiveSessionData, dataVersion } = useStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    window.Memora.stats.get().then(setStats).catch(console.error).finally(() => setLoading(false))
-  }, [])
+    let cancelled = false
+    window.Memora.stats
+      .get()
+      .then((s) => {
+        if (!cancelled) setStats(s)
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [dataVersion])
 
   const hour = new Date().getHours()
   const greeting = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好'
@@ -24,6 +36,27 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
     setActiveSession(id)
     const session = await window.Memora.session.get(id, false)
     setActiveSessionData(session)
+  }
+
+  async function handleManualImport() {
+    const filePaths = await window.Memora.openFileDialog({
+      multiple: true,
+      filters: [
+        { name: 'AI 对话文件', extensions: ['json', 'md', 'markdown', 'txt'] }
+      ]
+    })
+    if (!filePaths || filePaths.length === 0) return
+
+    let errorCount = 0
+    for (const path of filePaths) {
+      const result = await window.Memora.import.file(path, {})
+      errorCount += result.errors.length
+    }
+    if (errorCount > 0) {
+      alert(`导入完成，但有 ${errorCount} 处错误，请在导入中心查看详情`)
+    }
+    // 刷新统计
+    window.Memora.stats.get().then(setStats).catch(console.error)
   }
 
   if (loading) {
@@ -74,15 +107,28 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
           </div>
         )}
 
+        {/* 快捷入口 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <QuickAction
+            icon={<IconImport />}
+            title="导入中心"
+            desc="检测本地 AI 应用，一键导入对话记录"
+            onClick={onOpenImportCenter}
+          />
+          <QuickAction
+            icon={<IconUpload />}
+            title="手动导入"
+            desc="选择 JSON / Markdown 文件导入对话"
+            onClick={handleManualImport}
+          />
+        </div>
+
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<IconMessage />} label="消息总数" value={stats.messageCount} color="text-blue-500" />
           <StatCard icon={<IconFile />} label="对话数" value={stats.sessionCount} color="text-green-500" />
           <StatCard icon={<IconPlug />} label="AI 平台" value={stats.providerCount} color="text-purple-500" />
-          <StatCard icon={<IconIndex />} label="已索引" value={stats.indexedCount} color="text-orange-500" />
           <StatCard icon={<IconBrain />} label="偏好记忆" value={stats.preferenceCount} color="text-pink-500" />
-          <StatCard icon={<IconPin />} label="决策" value={stats.decisionCount} color="text-indigo-500" />
-          <StatCard icon={<IconCheck />} label="任务" value={stats.taskCount} color="text-teal-500" />
         </div>
 
         {/* 平台分布 */}
@@ -156,6 +202,21 @@ function StatCard({ icon, label, value, color }: { icon: ReactNode; label: strin
   )
 }
 
+function QuickAction({ icon, title, desc, onClick }: { icon: ReactNode; title: string; desc: string; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 p-4 rounded-lg border border-border bg-bg-primary hover:bg-bg-hover transition-colors text-left"
+    >
+      <span className="text-accent flex-shrink-0">{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-fg-primary">{title}</span>
+        <span className="block text-xs text-fg-muted truncate">{desc}</span>
+      </span>
+    </button>
+  )
+}
+
 function IconBase({ children }: { children: ReactNode }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -192,19 +253,22 @@ function IconPlug() {
   )
 }
 
-function IconIndex() {
+function IconImport() {
   return (
     <IconBase>
-      <path d="M12 2v4" />
-      <path d="M12 8v4" />
-      <path d="M12 14v4" />
-      <path d="M12 20v2" />
-      <path d="M4.93 4.93l2.83 2.83" />
-      <path d="M16.24 16.24l2.83 2.83" />
-      <path d="M2 12h2" />
-      <path d="M8 12h2" />
-      <path d="M14 12h2" />
-      <path d="M20 12h2" />
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </IconBase>
+  )
+}
+
+function IconUpload() {
+  return (
+    <IconBase>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
     </IconBase>
   )
 }
@@ -215,23 +279,6 @@ function IconBrain() {
       <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
       <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
       <path d="M12 5v14" />
-    </IconBase>
-  )
-}
-
-function IconPin() {
-  return (
-    <IconBase>
-      <path d="M12 17v5" />
-      <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1Z" />
-    </IconBase>
-  )
-}
-
-function IconCheck() {
-  return (
-    <IconBase>
-      <path d="M20 6 9 17l-5-5" />
     </IconBase>
   )
 }

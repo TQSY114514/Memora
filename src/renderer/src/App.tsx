@@ -158,17 +158,7 @@ export default function App() {
         onOpenMemory={() => setActivePanel('memory')}
         onOpenKnowledge={() => setActivePanel('knowledge')}
         onOpenPreferences={() => setActivePanel('preferences')}
-        onOpenImportCenter={() => setOverlayPanel('importCenter')}
         onOpenSettings={() => setOverlayPanel('settings')}
-        onOpenMcpPermissions={() => setActivePanel('mcpPermissions')}
-        onOpenMemoryAgent={() => setActivePanel('memoryAgent')}
-        onOpenCloudSync={() => setActivePanel('cloudSync')}
-        onOpenTimeCapsule={() => setActivePanel('timeCapsule')}
-        onOpenTeamWorkspace={() => setActivePanel('teamWorkspace')}
-        onOpenTemplateMarket={() => setActivePanel('templateMarket')}
-        onOpenMigrationWizard={() => setActivePanel('migrationWizard')}
-        onOpenIdentityProfile={() => setActivePanel('identityProfile')}
-        onOpenSecurityCenter={() => setActivePanel('securityCenter')}
       />
       {ActivePanel ? (
         <Suspense fallback={<PanelSkeleton />}>
@@ -216,6 +206,15 @@ export default function App() {
           <Settings
             onClose={() => setOverlayPanel(null)}
             onOpenAiSettings={() => setOverlayPanel('aiSettings')}
+            onOpenMcpPermissions={() => { setOverlayPanel(null); setActivePanel('mcpPermissions') }}
+            onOpenMemoryAgent={() => { setOverlayPanel(null); setActivePanel('memoryAgent') }}
+            onOpenCloudSync={() => { setOverlayPanel(null); setActivePanel('cloudSync') }}
+            onOpenTimeCapsule={() => { setOverlayPanel(null); setActivePanel('timeCapsule') }}
+            onOpenTeamWorkspace={() => { setOverlayPanel(null); setActivePanel('teamWorkspace') }}
+            onOpenTemplateMarket={() => { setOverlayPanel(null); setActivePanel('templateMarket') }}
+            onOpenMigrationWizard={() => { setOverlayPanel(null); setActivePanel('migrationWizard') }}
+            onOpenIdentityProfile={() => { setOverlayPanel(null); setActivePanel('identityProfile') }}
+            onOpenSecurityCenter={() => { setOverlayPanel(null); setActivePanel('securityCenter') }}
           />
         </Suspense>
       )}

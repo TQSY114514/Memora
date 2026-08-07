@@ -9,14 +9,35 @@ import { DistillationTemplates } from '../DistillationTemplates'
 interface SettingsProps {
   onClose: () => void
   onOpenAiSettings: () => void
+  onOpenMcpPermissions: () => void
+  onOpenMemoryAgent: () => void
+  onOpenCloudSync: () => void
+  onOpenTimeCapsule: () => void
+  onOpenTeamWorkspace: () => void
+  onOpenTemplateMarket: () => void
+  onOpenMigrationWizard: () => void
+  onOpenIdentityProfile: () => void
+  onOpenSecurityCenter: () => void
 }
 
 /**
  * 设置面板
  * - 核心功能：界面语言切换、主题切换、背景图片
- * - 入口：打开 AI 配置弹窗
+ * - 入口：打开 AI 配置弹窗、收纳其他功能面板入口
  */
-export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
+export function Settings({
+  onClose,
+  onOpenAiSettings,
+  onOpenMcpPermissions,
+  onOpenMemoryAgent,
+  onOpenCloudSync,
+  onOpenTimeCapsule,
+  onOpenTeamWorkspace,
+  onOpenTemplateMarket,
+  onOpenMigrationWizard,
+  onOpenIdentityProfile,
+  onOpenSecurityCenter
+}: SettingsProps) {
   const t = useT()
   const { lang, setLang } = useI18nStore()
   const { mode, setMode, backgroundImage, setBackgroundImage, blur, setBlur, opacity, setOpacity } = useThemeStore()
@@ -24,6 +45,11 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
   function handleOpenAiSettings() {
     onClose()
     onOpenAiSettings()
+  }
+
+  function openPanel(open: () => void) {
+    onClose()
+    open()
   }
 
   async function handleBgUpload() {
@@ -292,6 +318,27 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
             </button>
           </div>
 
+          {/* 其他功能 */}
+          <div>
+            <label className="block text-xs font-medium text-fg-secondary mb-1.5">
+              其他功能
+            </label>
+            <p className="text-[11px] text-fg-muted mb-2.5">
+              记忆管理、同步与安全等高级功能。
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <FeatureButton title="MCP 权限" tip="MCP 工具权限管理" onClick={() => openPanel(onOpenMcpPermissions)} />
+              <FeatureButton title="记忆智能体" tip="记忆智能体 - 知识缺口扫描 & 复习提醒" onClick={() => openPanel(onOpenMemoryAgent)} />
+              <FeatureButton title="云端同步" tip="端到端加密云端同步" onClick={() => openPanel(onOpenCloudSync)} />
+              <FeatureButton title="时间胶囊" tip="记忆时间胶囊 - 封存记忆，未来开启" onClick={() => openPanel(onOpenTimeCapsule)} />
+              <FeatureButton title="团队共享" tip="团队记忆共享 - 协作工作区" onClick={() => openPanel(onOpenTeamWorkspace)} />
+              <FeatureButton title="模板市场" tip="记忆模板市场 - 社区专家记忆包" onClick={() => openPanel(onOpenTemplateMarket)} />
+              <FeatureButton title="迁移向导" tip="AI 迁移向导 - 从其他平台迁移" onClick={() => openPanel(onOpenMigrationWizard)} />
+              <FeatureButton title="身份画像" tip="AI 身份画像 - 一键生成你的 AI 人格" onClick={() => openPanel(onOpenIdentityProfile)} />
+              <FeatureButton title="安全中心" tip="安全中心 - 加密状态 + 敏感信息扫描" onClick={() => openPanel(onOpenSecurityCenter)} />
+            </div>
+          </div>
+
           {/* 蒸馏模板 */}
           <div>
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
@@ -418,6 +465,19 @@ export function Settings({ onClose, onOpenAiSettings }: SettingsProps) {
         )}
       </div>
     </div>
+  )
+}
+
+/** 其他功能入口按钮 */
+function FeatureButton({ title, tip, onClick }: { title: string; tip: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="Memora-btn Memora-btn-ghost text-xs text-left px-2 py-1.5"
+      title={tip}
+    >
+      {title}
+    </button>
   )
 }
 

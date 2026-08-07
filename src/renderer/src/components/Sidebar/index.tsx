@@ -10,24 +10,12 @@ interface SidebarProps {
   searchInputRef: React.RefObject<HTMLInputElement>
   onOpenAiSettings: () => void
   onOpenMemory: () => void
-  onOpenImportCenter: () => void
   onOpenSettings: () => void
   onOpenKnowledge: () => void
   onOpenPreferences: () => void
-  onOpenMcpPermissions: () => void
-  onOpenMemoryAgent: () => void
-  onOpenCloudSync: () => void
-  onOpenTimeCapsule: () => void
-  onOpenTeamWorkspace: () => void
-  onOpenTemplateMarket: () => void
-  onOpenMigrationWizard: () => void
-  onOpenIdentityProfile: () => void
-  onOpenSecurityCenter: () => void
 }
 
-export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenImportCenter, onOpenSettings, onOpenKnowledge, onOpenPreferences, onOpenMcpPermissions, onOpenMemoryAgent, onOpenCloudSync, onOpenTimeCapsule, onOpenTeamWorkspace, onOpenTemplateMarket, onOpenMigrationWizard,
-  onOpenIdentityProfile,
-  onOpenSecurityCenter
+export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenSettings, onOpenKnowledge, onOpenPreferences
 }: SidebarProps) {
   const {
     workspaces,
@@ -45,7 +33,6 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
 
   const [folders, setLocalFolders] = useState<Folder[]>([])
   const [showSmartFolderDialog, setShowSmartFolderDialog] = useState(false)
-  const [showMoreTools, setShowMoreTools] = useState(false)
   const [smartName, setSmartName] = useState('')
   const [smartKeywords, setSmartKeywords] = useState('')
   const [smartProviders, setSmartProviders] = useState('')
@@ -168,34 +155,6 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
     if (!name || name === oldName) return
     await window.Memora.folder.update(id, { name })
     setLocalFolders(folders.map((f) => (f.id === id ? { ...f, name } : f)))
-  }
-
-  async function handleImport() {
-    const filePaths = await window.Memora.openFileDialog({
-      multiple: true,
-      filters: [
-        { name: 'AI 对话文件', extensions: ['json', 'md', 'markdown', 'txt'] }
-      ]
-    })
-    if (!filePaths) return
-
-    if (!activeFolderId) {
-      await dialog.alert('请先选择一个文件夹再导入，以便对话能正确归类。')
-      return
-    }
-    const folderId = activeFolderId
-    for (const path of filePaths) {
-      const result = await window.Memora.import.file(path, { folderId })
-      if (result.errors.length > 0) {
-        await dialog.alert(`导入完成，但有错误：\n${result.errors.join('\n')}`)
-      }
-    }
-    // 刷新列表
-    if (activeFolderId) {
-      handleSelectFolder(activeFolderId)
-    } else if (activeWorkspaceId) {
-      handleSelectWorkspace(activeWorkspaceId)
-    }
   }
 
   const aiConfigured = isAiConfigured(config)
@@ -356,107 +315,13 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
           {t('sidebar.preferences')}
         </button>
         </div>
-        <div className="flex items-center gap-1 mt-1.5">
-          <button
-            onClick={onOpenSettings}
-            className="Memora-btn Memora-btn-ghost flex-1 text-xs flex items-center justify-center gap-1.5"
-            title={t('sidebar.settings')}
-          >
-            {t('sidebar.settings')}
-          </button>
-          <button
-            onClick={() => setShowMoreTools(!showMoreTools)}
-            className={`Memora-btn Memora-btn-ghost text-xs px-2 transition-colors ${showMoreTools ? 'text-accent' : ''}`}
-            title={showMoreTools ? '收起' : '更多工具'}
-          >
-            {showMoreTools ? '▾' : '⋯'}
-          </button>
-        </div>
-
-        {showMoreTools && (
-          <div className="pt-2 mt-1.5 border-t border-border">
-            <div className="px-2 pb-1 text-[10px] font-medium text-fg-muted uppercase tracking-wider">工具</div>
-            <div className="grid grid-cols-2 gap-0.5">
-            <button
-              onClick={onOpenMcpPermissions}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="MCP 工具权限管理"
-            >
-              MCP 权限
-            </button>
-            <button
-              onClick={onOpenMemoryAgent}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="记忆智能体 - 知识缺口扫描 & 复习提醒"
-            >
-              记忆智能体
-            </button>
-            <button
-              onClick={onOpenCloudSync}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="端到端加密云端同步"
-            >
-              云端同步
-            </button>
-            <button
-              onClick={onOpenTimeCapsule}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="记忆时间胶囊 - 封存记忆，未来开启"
-            >
-              时间胶囊
-            </button>
-            <button
-              onClick={onOpenTeamWorkspace}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="团队记忆共享 - 协作工作区"
-            >
-              团队共享
-            </button>
-            <button
-              onClick={onOpenTemplateMarket}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="记忆模板市场 - 社区专家记忆包"
-            >
-              模板市场
-            </button>
-            <button
-              onClick={onOpenMigrationWizard}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="AI 迁移向导 - 从其他平台迁移"
-            >
-              迁移向导
-            </button>
-            <button
-              onClick={onOpenIdentityProfile}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="AI 身份画像 - 一键生成你的 AI 人格"
-            >
-              身份画像
-            </button>
-            <button
-              onClick={onOpenSecurityCenter}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title="安全中心 - 加密状态 + 敏感信息扫描"
-            >
-              安全中心
-            </button>
-            <button
-              onClick={onOpenImportCenter}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title={t('sidebar.importCenterTip')}
-            >
-              {t('sidebar.importCenter')}
-            </button>
-            <button
-              onClick={handleImport}
-              className="Memora-btn Memora-btn-ghost text-xs flex items-center gap-1.5 px-2 py-1.5"
-              title={t('sidebar.manualImportTip')}
-            >
-              {t('sidebar.manualImport')}
-            </button>
-            </div>
-          </div>
-        )}
+        <button
+          onClick={onOpenSettings}
+          className="Memora-btn Memora-btn-ghost w-full mt-1.5 text-xs flex items-center justify-center gap-1.5"
+          title={t('sidebar.settings')}
+        >
+          {t('sidebar.settings')}
+        </button>
       </div>
 
       {showSmartFolderDialog && (
