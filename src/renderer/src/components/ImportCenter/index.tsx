@@ -20,7 +20,7 @@ type View = 'apps' | 'sessions'
  * 2. 对话列表：扒取/扫描结果按 AI 分组，每条可编辑标题和来源标注
  */
 export function ImportCenter({ onClose }: ImportCenterProps) {
-  const { activeFolderId, activeWorkspaceId, setSessions } = useStore()
+  const { activeFolderId, activeWorkspaceId, setSessions, setActiveSession, setActiveSessionData } = useStore()
   const [view, setView] = useState<View>('apps')
   const [apps, setApps] = useState<DetectedApp[]>([])
   const [detecting, setDetecting] = useState(false)
@@ -227,6 +227,9 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
 
       // 有错误时不关闭弹窗，让用户看到失败原因
       if (!hasError) {
+        // 导入成功：关闭弹窗并返回主页（清空当前选中会话）
+        setActiveSession(null)
+        setActiveSessionData(null)
         onClose()
       }
     } catch (e) {

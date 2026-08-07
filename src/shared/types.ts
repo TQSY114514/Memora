@@ -203,8 +203,10 @@ export interface ImportResult {
   skipped: number
   /** 失败的对话数 */
   failed: number
-  /** 错误信息列表 */
+  /** 错误信息列表（仅真实失败/异常，不含统计信息） */
   errors: string[]
+  /** 非错误提示信息（如平台导入统计），用于成功后的绿色/普通提示 */
+  summary?: string[]
   /** 导入的对话 ID 列表 */
   sessionIds: string[]
   /** 检测到的 PII 命中数（仅告警，不自动脱敏用户数据） */

@@ -397,7 +397,7 @@ export function persistSessions(
     const breakdown = Array.from(platformStats.entries())
       .map(([p, c]) => `${p}: ${c} 条`)
       .join(' | ')
-    result.errors.push(`📊 导入统计: ${breakdown}`)
+    result.summary = [...(result.summary ?? []), `📊 导入统计: ${breakdown}`]
   }
 
   return result
