@@ -26,13 +26,15 @@ export function registerImportHandlers(): void {
     IPC.IMPORT_FILE,
     (e, filePath: string, options?: { folderId?: string }) => {
       const safePath = assertSafePath(filePath, 'filePath')
-      return importFile(safePath, {
+      const result = importFile(safePath, {
         folderId: options?.folderId,
         onProgress: (loaded, total) => {
           // 推送进度到渲染进程（非阻塞）
           e.sender.send(IPC.IMPORT_PROGRESS, { filePath: safePath, loaded, total })
         }
       })
+      if (result.imported > 0) e.sender.send(IPC.DATA_CHANGED)
+      return result
     }
   )
   safeHandle(
@@ -53,14 +55,17 @@ export function registerImportHandlers(): void {
         aggregated.sessionIds.push(...r.sessionIds)
         if (r.errors.length) aggregated.errors.push(`${p}: ${r.errors.join('; ')}`)
       }
+      if (aggregated.imported > 0) e.sender.send(IPC.DATA_CHANGED)
       return aggregated
     }
   )
   safeHandle(
     IPC.IMPORT_DIRECTORY,
-    (_e, dirPath: string, options?: { folderId?: string }) => {
+    (e, dirPath: string, options?: { folderId?: string }) => {
       const safeDir = assertSafePath(dirPath, 'dirPath')
-      return importDirectory(safeDir, options)
+      const result = importDirectory(safeDir, options)
+      if (result.imported > 0) e.sender.send(IPC.DATA_CHANGED)
+      return result
     }
   )
 
@@ -129,7 +134,7 @@ export function registerImportHandlers(): void {
 
   safeHandle(
     IPC.IMPORT_EXTRACTED,
-    (_e, sessions: unknown[], options?: { folderId?: string }) => {
+    (e, sessions: unknown[], options?: { folderId?: string }) => {
       const parsed = z.array(extractedSessionSchema).max(1000).parse(sessions)
       const folderId = options?.folderId ? assertSafeId(options.folderId, 'folderId') : undefined
       const extracted: Parameters<typeof importExtractedSessions>[0] = parsed.map((s) => ({
@@ -146,7 +151,9 @@ export function registerImportHandlers(): void {
           createdAt: m.createdAt ?? new Date().toISOString()
         }))
       }))
-      return importExtractedSessions(extracted, { folderId })
+      const result = importExtractedSessions(extracted, { folderId })
+      if (result.imported > 0) e.sender.send(IPC.DATA_CHANGED)
+      return result
     }
   )
 }

@@ -235,6 +235,10 @@ class BackgroundImporter {
   private emitDone(r: BackgroundImportRunResult): void {
     if (this.win && !this.win.isDestroyed()) {
       this.win.webContents.send(IPC.IMPORT_BG_DONE, r)
+      // 后台自动导入成功后广播数据变更，渲染进程据此刷新 Dashboard 统计等
+      if (r.imported > 0) {
+        this.win.webContents.send(IPC.DATA_CHANGED)
+      }
     }
   }
 }

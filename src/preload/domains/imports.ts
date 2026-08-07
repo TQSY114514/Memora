@@ -32,6 +32,12 @@ export const importApi = {
       cb(p)
     ipcRenderer.on(IPC.IMPORT_PROGRESS, h)
     return () => ipcRenderer.removeListener(IPC.IMPORT_PROGRESS, h)
+  },
+  /** 监听数据变更广播（import 等写库后 main 推送，常用于刷新统计） */
+  onDataChanged: (cb: () => void): (() => void) => {
+    const h = (): void => cb()
+    ipcRenderer.on(IPC.DATA_CHANGED, h)
+    return () => ipcRenderer.removeListener(IPC.DATA_CHANGED, h)
   }
 }
 

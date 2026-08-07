@@ -51,7 +51,7 @@ function PanelSkeleton() {
 }
 
 export default function App() {
-  const { error } = useStore()
+  const { error, bumpDataVersion } = useStore()
   const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
   const { backgroundImage, blur, opacity } = useThemeStore()
   const { loadApiKeys } = useAiConfigStore()
@@ -80,6 +80,14 @@ export default function App() {
     loadApiKeys().catch(console.error)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首次启动时执行一次
   }, [])
+
+  // 订阅主进程数据变更广播（导入等写库后推送），递增版本号驱动 Dashboard 统计等重新拉取
+  useEffect(() => {
+    const off = window.Memora.import.onDataChanged(() => {
+      bumpDataVersion()
+    })
+    return off
+  }, [bumpDataVersion])
 
   // 全局快捷键：Ctrl/Cmd+K 聚焦搜索框
   useEffect(() => {

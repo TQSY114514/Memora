@@ -97,6 +97,8 @@ export const IPC = {
 
   // 大文件流式导入进度（P3）
   IMPORT_PROGRESS: 'import:progress',          // event: main -> renderer
+  // 数据变更广播（会话/消息/统计相关数据被写入后由 main 广播，renderer 据此刷新统计等）
+  DATA_CHANGED: 'data:changed',                // event: main -> renderer
 
   // Search
   SEARCH_QUERY: 'search:query',
