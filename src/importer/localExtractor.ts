@@ -17,6 +17,8 @@ import type { Provider, ExtractedSession } from '@shared/types'
 import type { ParsedMessage } from './types'
 import { registerBuiltins } from './index'
 import { normalizeRole, toIsoTimestamp, fallbackTitle } from './common'
+import { assembleOpenCodeMessages } from './opencode/parts'
+import type { OpenCodeMessage, OpenCodePart, OpenCodeSession } from './opencode/parts'
 
 /**
  * 动态加载 better-sqlite3（仅 Cursor 扒取需要）
@@ -316,114 +318,193 @@ function extractClaudeCodeContent(content: unknown): string {
 }
 
 // ============================================================
-// OpenCode 扒取：读取 ~/.opencode 下的对话 JSON 文件
+// OpenCode 扒取
+// 新版（v1.2.0+）：数据在 opencode.db（SQLite），message 正文拆到 part 表
+// 旧版（v1.2.0 之前）：JSON 文件存储 storage/session|message|part
 // ============================================================
 
-interface OpenCodeMessage {
-  role?: string
-  content?: string | Array<{ type: string; text?: string }>
+/** opencode.db 候选文件名（channel 变体） */
+const OPENCODE_DB_NAMES = ['opencode.db', 'opencode-dev.db', 'opencode-preview.db', 'opencode-beta.db']
+
+/** 单条会话的最大消息数（防超大会话拖垮整次扒取） */
+const MAX_MESSAGES_PER_SESSION = 2000
+
+interface OpenCodeSessionRow {
+  id: string
+  project_id: string | null
+  title: string | null
+  agent: string | null
+  model: string | null
+  time_created: number | null
+  time_updated: number | null
 }
 
-interface OpenCodeSession {
-  id?: string
-  title?: string
-  name?: string
-  messages?: OpenCodeMessage[]
-  createdAt?: string | number
-  updatedAt?: string | number
+interface OpenCodeMessageRow {
+  id: string
+  time_created: number | null
+  data: string
+}
+
+interface OpenCodePartRow {
+  id: string
+  data: string
+}
+
+/** 定位 opencode.db（优先 OPENCODE_DB 环境变量，其次按 channel 变体探测） */
+function findOpenCodeDb(dir: string): string | null {
+  if (process.env.OPENCODE_DB && existsSync(process.env.OPENCODE_DB)) {
+    return process.env.OPENCODE_DB
+  }
+  for (const name of OPENCODE_DB_NAMES) {
+    const p = join(dir, name)
+    if (existsSync(p) && statSync(p).isFile()) return p
+  }
+  return null
+}
+
+/** Path 1（优先）：从 opencode.db（SQLite，只读）扒取会话 */
+function extractOpenCodeFromDb(dbPath: string): ExtractedSession[] {
+  console.log('[extractor] OpenCode sqlite db:', dbPath)
+  const Database = loadSqlite()
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true })
+  try {
+    const sessions: ExtractedSession[] = []
+    // 预编译语句 + 只选必要列：opencode.db 可能 1GB+（1w+ parts），绝不用 SELECT *
+    const sessionStmt = db.prepare(
+      'SELECT id, project_id, title, agent, model, time_created, time_updated FROM session ORDER BY time_updated DESC'
+    )
+    const msgStmt = db.prepare(
+      'SELECT id, time_created, data FROM message WHERE session_id = ? ORDER BY time_created ASC, id ASC LIMIT ' +
+        MAX_MESSAGES_PER_SESSION
+    )
+    const partStmt = db.prepare('SELECT id, data FROM part WHERE message_id = ? ORDER BY id ASC')
+
+    const rows = sessionStmt.all() as OpenCodeSessionRow[]
+    for (const row of rows) {
+      // 无时间戳的会话直接跳过
+      if (row.time_created == null) continue
+      const msgRows = msgStmt.all(row.id) as OpenCodeMessageRow[]
+      const rawMessages: OpenCodeMessage[] = []
+      for (const mr of msgRows) {
+        const data = tryParse<OpenCodeMessage>(mr.data)
+        if (!data || typeof data !== 'object') continue
+        // 正文在 part 表，按消息取出后挂到 parts 上（与 importer 共用同一套拼装逻辑）
+        const partRows = partStmt.all(mr.id) as OpenCodePartRow[]
+        data.parts = partRows
+          .map((pr) => tryParse<OpenCodePart>(pr.data))
+          .filter((p): p is OpenCodePart => !!p && typeof p === 'object')
+        if (data.time?.created == null && mr.time_created != null) {
+          data.time = { created: mr.time_created }
+        }
+        rawMessages.push(data)
+      }
+      const messages = assembleOpenCodeMessages(rawMessages)
+      if (messages.length === 0) continue
+
+      sessions.push({
+        id: tmpId(),
+        provider: 'OpenCode' as Provider,
+        title: row.title?.trim() || fallbackTitle(messages),
+        source: 'OpenCode 本地扒取',
+        messageCount: messages.length,
+        createdAt: toIsoTimestamp(row.time_created) ?? new Date().toISOString(),
+        updatedAt: toIsoTimestamp(row.time_updated || row.time_created) ?? new Date().toISOString(),
+        messages
+      })
+    }
+    console.log('[extractor] OpenCode sqlite done:', sessions.length, 'sessions')
+    return sessions
+  } finally {
+    db.close()
+  }
+}
+
+/** Path 2（兜底）：旧版 JSON 文件存储扒取（v1.2.0 之前） */
+function extractOpenCodeLegacy(dir: string): ExtractedSession[] {
+  console.log('[extractor] OpenCode legacy json storage:', dir)
+  // storage 可能在 <dir>/storage，也可能直接在 <dir> 根
+  const storageRoot = existsSync(join(dir, 'storage')) ? join(dir, 'storage') : dir
+  const sessionRoot = join(storageRoot, 'session')
+  if (!isDir(sessionRoot)) return []
+
+  // 递归收集 *.json，排除旧式布局里的 session/message 与 session/part 子目录
+  const sessionFiles = collectJsonFiles(sessionRoot, (rel) => {
+    const seg = rel.split(/[\\/]/)[0]
+    return seg === 'message' || seg === 'part'
+  })
+  const sessions: ExtractedSession[] = []
+
+  for (const sf of sessionFiles) {
+    try {
+      const parsed = tryParse<OpenCodeSession>(tryReadFile(sf))
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue
+      const sessionId = String(parsed.id || basenameOf(sf) || '')
+      if (!sessionId) continue
+
+      // 消息：扁平布局 storage/message/<sid>/，旧式布局 storage/session/message/<sid>/
+      const msgFiles = collectJsonFiles(join(storageRoot, 'message', sessionId)).concat(
+        collectJsonFiles(join(sessionRoot, 'message', sessionId))
+      )
+      const rawMessages: OpenCodeMessage[] = []
+      for (const mf of msgFiles) {
+        const m = tryParse<OpenCodeMessage>(tryReadFile(mf))
+        if (!m || typeof m !== 'object') continue
+        // parts 可能内联在消息 JSON，也可能在 part 目录
+        if (!Array.isArray(m.parts)) {
+          const messageId = String(m.id || basenameOf(mf) || '')
+          const partFiles = collectJsonFiles(join(storageRoot, 'part', messageId)).concat(
+            collectJsonFiles(join(sessionRoot, 'part', sessionId, messageId))
+          )
+          m.parts = partFiles
+            .map((pf) => tryParse<OpenCodePart>(tryReadFile(pf)))
+            .filter((p): p is OpenCodePart => !!p && typeof p === 'object')
+        }
+        rawMessages.push(m)
+      }
+      // 按 time.created 升序，id 兜底（与 SQLite 路径的排序一致）
+      rawMessages.sort(
+        (a, b) =>
+          (a.time?.created ?? 0) - (b.time?.created ?? 0) || String(a.id || '').localeCompare(String(b.id || ''))
+      )
+      const messages = assembleOpenCodeMessages(rawMessages)
+      if (messages.length === 0) continue
+
+      const title = String(parsed.title || '').trim() || fallbackTitle(messages)
+      sessions.push({
+        id: tmpId(),
+        provider: 'OpenCode' as Provider,
+        title,
+        source: 'OpenCode 本地扒取',
+        messageCount: messages.length,
+        createdAt: toIsoTimestamp(parsed.time?.created) ?? messages[0]?.createdAt ?? new Date().toISOString(),
+        updatedAt:
+          toIsoTimestamp(parsed.time?.updated ?? parsed.time?.created) ??
+          messages[messages.length - 1]?.createdAt ??
+          new Date().toISOString(),
+        messages
+      })
+    } catch {
+      // 单个会话失败不阻断整批
+    }
+  }
+  console.log('[extractor] OpenCode legacy done:', sessions.length, 'sessions')
+  return sessions
 }
 
 function extractOpenCode(dir: string): ExtractedSession[] {
   console.log('[extractor] extractOpenCode dir:', dir)
-  const sessions: ExtractedSession[] = []
-
-  // OpenCode 数据可能在多个子目录中
-  function scanDir(currentDir: string, depth: number = 0): void {
-    if (depth > 3) return
-    const entries = safeReaddir(currentDir)
-    for (const entry of entries) {
-      const fullPath = join(currentDir, entry)
-      if (isDir(fullPath)) {
-        scanDir(fullPath, depth + 1)
-      } else if (entry.endsWith('.json')) {
-        const session = parseOpenCodeJson(fullPath)
-        if (session) sessions.push(session)
-      }
+  const dbPath = findOpenCodeDb(dir)
+  if (dbPath) {
+    try {
+      const sessions = extractOpenCodeFromDb(dbPath)
+      if (sessions.length > 0) return sessions
+      // DB 存在但没扒到会话（可能是旧 schema 空表），退回 JSON 兜底
+      console.log('[extractor] OpenCode sqlite 无会话，回退 JSON 存储')
+    } catch (e) {
+      console.warn('[extractor] OpenCode sqlite 读取失败，回退 JSON 存储：', (e as Error).message)
     }
   }
-
-  scanDir(dir)
-  console.log('[extractor] extractOpenCode done:', sessions.length, 'sessions')
-  return sessions
-}
-
-function parseOpenCodeJson(filePath: string): ExtractedSession | null {
-  let content: string
-  try {
-    content = safeReadFileSync(filePath)
-  } catch {
-    return null
-  }
-
-  const parsed = tryParse<OpenCodeSession | OpenCodeMessage[]>(content)
-  if (!parsed) return null
-
-  let messages: ParsedMessage[] = []
-  let title = ''
-  let createdAt = ''
-  let updatedAt = ''
-
-  if (Array.isArray(parsed)) {
-    // 直接是消息数组
-    messages = extractOpenCodeMessages(parsed)
-  } else {
-    // 对象格式：{ messages: [...], title: "...", ... }
-    const obj = parsed as OpenCodeSession & Record<string, unknown>
-    const rawMsgs = obj.messages || (obj as any).conversation || (obj as any).history || []
-    messages = extractOpenCodeMessages(Array.isArray(rawMsgs) ? rawMsgs : [])
-    title = obj.title || obj.name || (obj as any).name || ''
-    createdAt = toIsoTimestamp(obj.createdAt) ?? new Date().toISOString()
-    updatedAt = toIsoTimestamp(obj.updatedAt || obj.createdAt) ?? new Date().toISOString()
-  }
-
-  if (messages.length === 0) return null
-
-  return {
-    id: tmpId(),
-    provider: 'OpenCode' as Provider,
-    title: title || fallbackTitle(messages),
-    source: 'OpenCode 本地扒取',
-    messageCount: messages.length,
-    createdAt: createdAt || messages[0]?.createdAt || new Date().toISOString(),
-    updatedAt: updatedAt || messages[messages.length - 1]?.createdAt || new Date().toISOString(),
-    messages
-  }
-}
-
-function extractOpenCodeMessages(raw: OpenCodeMessage[]): ParsedMessage[] {
-  const msgs: ParsedMessage[] = []
-  for (const m of raw) {
-    if (!m) continue
-    const role = normalizeRole(m.role)
-    const content = extractOpenCodeContent(m.content)
-    if (!content.trim()) continue
-    msgs.push({ role, content, createdAt: new Date().toISOString() })
-  }
-  return msgs
-}
-
-function extractOpenCodeContent(content: unknown): string {
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    return content
-      .map((c) => {
-        if (typeof c === 'string') return c
-        if (c && typeof c === 'object' && 'text' in c) return String(c.text)
-        return ''
-      })
-      .join('\n')
-  }
-  return ''
+  return extractOpenCodeLegacy(dir)
 }
 
 // ============================================================
@@ -487,4 +568,40 @@ function isDir(p: string): boolean {
   } catch {
     return false
   }
+}
+
+/** 递归收集目录下所有 *.json 文件（可按相对路径过滤，用于旧版 OpenCode storage） */
+function collectJsonFiles(root: string, exclude?: (rel: string) => boolean): string[] {
+  if (!isDir(root)) return []
+  const files: string[] = []
+  const walk = (dir: string): void => {
+    for (const entry of safeReaddir(dir)) {
+      const full = join(dir, entry)
+      if (isDir(full)) {
+        const rel = full.slice(root.length + 1)
+        if (exclude && exclude(rel)) continue
+        walk(full)
+      } else if (entry.endsWith('.json')) {
+        files.push(full)
+      }
+    }
+  }
+  walk(root)
+  return files
+}
+
+/** 安全读取文件，失败返回空串（旧版 storage 文件可能损坏/超限） */
+function tryReadFile(p: string): string {
+  try {
+    return safeReadFileSync(p)
+  } catch {
+    return ''
+  }
+}
+
+/** 取文件名（不含 .json 扩展名） */
+function basenameOf(p: string): string {
+  const segs = p.split(/[\\/]/)
+  const name = segs[segs.length - 1] || ''
+  return name.endsWith('.json') ? name.slice(0, -5) : name
 }
