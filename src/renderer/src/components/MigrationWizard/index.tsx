@@ -125,8 +125,8 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
           {(['detect', 'select', 'migrate'] as Step[]).map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`flex items-center gap-1.5 ${step === s ? 'text-accent' : 'text-fg-muted'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  step === s ? 'bg-accent text-white' : 'bg-bg-hover text-fg-muted'
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                  step === s ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-muted'
                 }`}>
                   {i + 1}
                 </div>
@@ -148,7 +148,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                 <>
                   {extractable.length > 0 && (
                     <>
-                      <p className="text-[11px] font-medium text-fg-secondary">可本地扒取</p>
+                      <p className="text-xs font-medium text-fg-secondary">可本地扒取</p>
                       {extractable.map((app) => (
                         <div key={app.provider} className="bg-bg-hover rounded-md p-4 flex items-center gap-3">
                           <div className="w-8 h-8 rounded-md bg-bg-primary flex items-center justify-center text-sm font-bold">
@@ -160,7 +160,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                               {app.dataPath ? app.dataPath : '已找到本地数据'}
                             </p>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/10 text-green-500">
+                          <span className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-500">
                             可导入
                           </span>
                         </div>
@@ -169,7 +169,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                   )}
                   {cloudOnly.length > 0 && (
                     <>
-                      <p className="text-[11px] font-medium text-fg-secondary mt-2">检测到其他工具（对话在云端）</p>
+                      <p className="text-xs font-medium text-fg-secondary mt-2">检测到其他工具（对话在云端）</p>
                       {cloudOnly.map((app) => (
                         <div key={app.provider} className="bg-bg-hover rounded-md p-4 flex items-center gap-3">
                           <div className="flex-1">
@@ -257,7 +257,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                     <div className="text-center py-6">
                       <div className="text-4xl mb-3">&#x2705;</div>
                       <p className="text-sm font-medium text-green-500">迁移完成！</p>
-                      <div className="mt-3 flex items-center justify-center gap-2 flex-wrap text-[11px]">
+                      <div className="mt-3 flex items-center justify-center gap-2 flex-wrap text-xs">
                         <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-500">
                           导入 <span className="font-medium">{result.imported}</span>
                         </span>
@@ -271,7 +271,7 @@ export function MigrationWizardPanel({ onClose }: MigrationWizardPanelProps) {
                       {result.errors.length > 0 && (
                         <div className="mt-3 text-left space-y-1">
                           {result.errors.slice(0, 5).map((err, i) => (
-                            <p key={i} className="text-[10px] text-red-500/80 break-words">✗ {err}</p>
+                            <p key={i} className="text-xs text-red-500/80 break-words">✗ {err}</p>
                           ))}
                         </div>
                       )}

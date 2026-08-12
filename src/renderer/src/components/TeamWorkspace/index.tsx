@@ -200,18 +200,18 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
                       <h3 className="text-sm font-medium">{ws.name}</h3>
                       {ws.description && <p className="text-xs text-fg-muted mt-0.5">{ws.description}</p>}
                     </div>
-                    <span className="text-[10px] text-fg-muted bg-bg-primary px-2 py-0.5 rounded">
+                    <span className="text-xs text-fg-muted bg-bg-primary px-2 py-0.5 rounded">
                       邀请码：{ws.inviteCode}
                     </span>
                   </div>
 
                   <div className="mt-3">
-                    <p className="text-[10px] text-fg-muted mb-1">
+                    <p className="text-xs text-fg-muted mb-1">
                       {ws.members.length} 名成员
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {ws.members.map((m) => (
-                        <span key={m.id} className="text-[10px] bg-bg-primary px-2 py-0.5 rounded">
+                        <span key={m.id} className="text-xs bg-bg-primary px-2 py-0.5 rounded">
                           {m.name} ({m.role === 'admin' ? '管理员' : m.role === 'editor' ? '编辑' : '只读'})
                         </span>
                       ))}
@@ -268,10 +268,10 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
                     <div key={c.id} className="bg-bg-hover rounded-md p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-medium">{c.author}</span>
-                        <span className="text-[10px] text-fg-muted">
+                        <span className="text-xs text-fg-muted">
                           {new Date(c.createdAt).toLocaleString('zh-CN')}
                         </span>
-                        {c.resolved && <span className="text-[10px] text-green-500">已解决</span>}
+                        {c.resolved && <span className="text-xs text-green-500">已解决</span>}
                       </div>
                       <p className="text-xs">{c.content}</p>
                     </div>
@@ -301,7 +301,7 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
             <div className="space-y-4">
               <div className="bg-bg-hover rounded-md p-4 space-y-3">
                 <p className="text-xs font-medium">导出加密工作区</p>
-                <p className="text-[10px] text-fg-muted">选择工作区并设置密码，将记忆打包为 AES-256-GCM 加密载荷，只有持有正确密码的接收方才能解密。可为 Claude Code / Cursor / OpenCode 等共享。</p>
+                <p className="text-xs text-fg-muted">选择工作区并设置密码，将记忆打包为 AES-256-GCM 加密载荷，只有持有正确密码的接收方才能解密。可为 Claude Code / Cursor / OpenCode 等共享。</p>
                 <select
                   value={importTargetId}
                   onChange={(e) => setImportTargetId(e.target.value)}
@@ -331,7 +331,7 @@ export function TeamWorkspacePanel({ onClose }: TeamWorkspacePanelProps) {
                   <textarea
                     readOnly
                     value={sharePayload}
-                    className="Memora-input w-full text-[10px] font-mono h-32"
+                    className="Memora-input w-full text-xs font-mono h-32"
                     onFocus={(e) => e.target.select()}
                   />
                 )}

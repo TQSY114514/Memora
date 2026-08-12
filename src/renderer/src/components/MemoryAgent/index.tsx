@@ -42,13 +42,13 @@ const GAP_TYPE_LABELS: Record<string, string> = {
 const SEVERITY_COLORS: Record<string, string> = {
   high: 'bg-red-500/15 text-red-500',
   medium: 'bg-orange-500/15 text-orange-500',
-  low: 'bg-blue-500/15 text-blue-500'
+  low: 'bg-bg-hover text-fg-secondary'
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
   high: 'text-red-500',
   medium: 'text-orange-500',
-  low: 'text-blue-500'
+  low: 'text-fg-secondary'
 }
 
 export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
@@ -142,7 +142,7 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <div>
             <h3 className="text-sm font-semibold">记忆智能体</h3>
-            <p className="text-[10px] text-fg-muted mt-0.5">主动发现知识缺口 · 间隔重复提醒</p>
+            <p className="text-xs text-fg-muted mt-0.5">主动发现知识缺口 · 间隔重复提醒</p>
           </div>
           <button onClick={onClose} className="text-fg-muted hover:text-fg-primary text-sm">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
@@ -153,17 +153,17 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
         <div className="px-5 py-3 border-b border-border bg-bg-secondary/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className={`w-2 h-2 rounded-full ${status?.running ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
+              <span className={`w-2 h-2 rounded-full ${status?.running ? 'bg-green-500 Memora-pulse' : 'bg-gray-500'}`} />
               <span className="text-xs text-fg-secondary">
                 {status?.running ? '运行中' : '已停止'}
               </span>
               {status?.running && status.nextScanAt && (
-                <span className="text-[10px] text-fg-muted">
+                <span className="text-xs text-fg-muted">
                   下次扫描: {new Date(status.nextScanAt).toLocaleTimeString('zh-CN')}
                 </span>
               )}
               {status?.lastScanAt && (
-                <span className="text-[10px] text-fg-muted">
+                <span className="text-xs text-fg-muted">
                   上次扫描: {new Date(status.lastScanAt).toLocaleTimeString('zh-CN')}
                 </span>
               )}
@@ -237,15 +237,15 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-medium">{gap.entryTitle || '全局'}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${SEVERITY_COLORS[gap.severity] ?? ''}`}>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${SEVERITY_COLORS[gap.severity] ?? ''}`}>
                               {gap.severity === 'high' ? '高' : gap.severity === 'medium' ? '中' : '低'}
                             </span>
-                            <span className="text-[10px] text-fg-muted">
+                            <span className="text-xs text-fg-muted">
                               {GAP_TYPE_LABELS[gap.gapType] ?? gap.gapType}
                             </span>
                           </div>
                           <p className="text-xs text-fg-secondary">{gap.description}</p>
-                          <p className="text-[10px] text-accent mt-1">{gap.suggestion}</p>
+                          <p className="text-xs text-accent mt-1">{gap.suggestion}</p>
                         </div>
                       </div>
                     </div>
@@ -270,19 +270,19 @@ export function MemoryAgentPanel({ onClose }: MemoryAgentPanelProps) {
                   {reviewQueue.slice(0, 30).map((item) => (
                     <div key={item.entryId} className="flex items-center justify-between px-3 py-2 rounded-lg bg-bg-secondary border border-border">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className={`text-[10px] font-medium ${PRIORITY_COLORS[item.priority] ?? ''}`}>
+                        <span className={`text-xs font-medium ${PRIORITY_COLORS[item.priority] ?? ''}`}>
                           {item.priority === 'high' ? '!!' : item.priority === 'medium' ? '!' : '·'}
                         </span>
                         <span className="text-xs truncate">{item.entryTitle}</span>
-                        <span className="text-[10px] text-fg-muted flex-shrink-0">
+                        <span className="text-xs text-fg-muted flex-shrink-0">
                           {item.daysSinceLastReview}天前
                         </span>
                       </div>
-                      <span className="text-[10px] text-fg-muted ml-2 flex-shrink-0">{item.reason}</span>
+                      <span className="text-xs text-fg-muted ml-2 flex-shrink-0">{item.reason}</span>
                     </div>
                   ))}
                   {reviewQueue.length > 30 && (
-                    <p className="text-center text-[10px] text-fg-muted py-2">
+                    <p className="text-center text-xs text-fg-muted py-2">
                       还有 {reviewQueue.length - 30} 条待复习...
                     </p>
                   )}

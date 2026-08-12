@@ -119,7 +119,7 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <div>
             <h3 className="text-sm font-semibold">MCP 工具权限</h3>
-            <p className="text-[10px] text-fg-muted mt-0.5">按客户端粒度控制 MCP 工具访问权限</p>
+            <p className="text-xs text-fg-muted mt-0.5">按客户端粒度控制 MCP 工具访问权限</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -160,19 +160,19 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
               <div className="grid grid-cols-4 gap-2 mb-3">
                 <div className="rounded-lg border border-border border-l-2 border-l-accent bg-bg-secondary p-2.5">
                   <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{totalClients}</span>
-                  <span className="block text-[10px] text-fg-muted mt-1">客户端</span>
+                  <span className="block text-xs text-fg-muted mt-1">客户端</span>
                 </div>
                 <div className="rounded-lg border border-border border-l-2 border-l-blue-500 bg-bg-secondary p-2.5">
                   <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{countsByLevel.readonly ?? 0}</span>
-                  <span className="block text-[10px] text-fg-muted mt-1">只读</span>
+                  <span className="block text-xs text-fg-muted mt-1">只读</span>
                 </div>
                 <div className="rounded-lg border border-border border-l-2 border-l-green-500 bg-bg-secondary p-2.5">
                   <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{countsByLevel.write ?? 0}</span>
-                  <span className="block text-[10px] text-fg-muted mt-1">可写</span>
+                  <span className="block text-xs text-fg-muted mt-1">可写</span>
                 </div>
                 <div className="rounded-lg border border-border border-l-2 border-l-red-500 bg-bg-secondary p-2.5">
                   <span className="block text-xl font-bold tabular-nums text-fg-primary leading-none">{countsByLevel.full ?? 0}</span>
-                  <span className="block text-[10px] text-fg-muted mt-1">完全</span>
+                  <span className="block text-xs text-fg-muted mt-1">完全</span>
                 </div>
               </div>
               <div className="space-y-2">
@@ -185,8 +185,8 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${p.enabled ? 'bg-green-500' : 'bg-gray-500'}`} />
                       <span className="text-sm font-medium">{p.clientName}</span>
-                      <span className="text-[10px] text-fg-muted">({p.clientId})</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${LEVEL_LABELS[p.level]?.color ?? ''}`}>
+                      <span className="text-xs text-fg-muted">({p.clientId})</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${LEVEL_LABELS[p.level]?.color ?? ''}`}>
                         {LEVEL_LABELS[p.level]?.label ?? p.level}
                       </span>
                     </div>
@@ -214,11 +214,11 @@ export function McpPermissionsPanel({ onClose }: McpPermissionsPanelProps) {
                         style={{ width: `${accessPct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-fg-muted tabular-nums flex-shrink-0">
+                    <span className="text-xs text-fg-muted tabular-nums flex-shrink-0">
                       {access}/{toolCount} 工具
                     </span>
                   </div>
-                  <div className="mt-1.5 flex items-center gap-2 text-[10px] text-fg-muted">
+                  <div className="mt-1.5 flex items-center gap-2 text-xs text-fg-muted">
                     <span>{p.enabled ? '已启用' : '已禁用'}</span>
                     {p.allowedTools && (
                       <>
@@ -348,7 +348,7 @@ function PermissionEditor({
               key={key}
               onClick={() => setLevel(key)}
               className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                level === key ? 'bg-accent text-white' : 'bg-bg-hover text-fg-secondary'
+                level === key ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-secondary'
               }`}
               title={desc}
             >
@@ -383,15 +383,15 @@ function PermissionEditor({
             <div className="border border-border rounded-lg p-2 max-h-48 overflow-y-auto">
               {Array.from(groupedTools.entries()).map(([group, tools]) => (
                 <div key={group} className="mb-2 last:mb-0">
-                  <p className="text-[10px] text-fg-muted mb-1">{group}</p>
+                  <p className="text-xs text-fg-muted mb-1">{group}</p>
                   <div className="flex flex-wrap gap-1">
                     {tools.map((t) => (
                       <button
                         key={t.name}
                         onClick={() => toggleTool(t.name)}
-                        className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                        className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                           selectedTools.has(t.name)
-                            ? 'bg-accent text-white'
+                            ? 'Memora-chip-accent'
                             : 'bg-bg-hover text-fg-muted hover:text-fg-secondary'
                         }`}
                         title={t.desc}

@@ -190,7 +190,7 @@ export function CloudSyncPanel({ onClose }: CloudSyncPanelProps) {
 
           {/* 结果 */}
           {testResult && (
-            <div className={`p-3 rounded-md text-xs ${testResult.success ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
+            <div className={`p-3 rounded-md text-xs ${testResult.success ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
               {testResult.success
                 ? `连接成功！延迟 ${testResult.latency}ms`
                 : `连接失败：${testResult.error}`}

@@ -122,7 +122,7 @@ export function TemplateMarketPanel({ onClose }: TemplateMarketPanelProps) {
                 onClick={() => setActiveCategory(cat)}
                 className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
                   activeCategory === cat
-                    ? 'bg-accent text-white'
+                    ? 'Memora-chip-accent'
                     : 'bg-bg-hover text-fg-secondary hover:text-fg-primary'
                 }`}
               >
@@ -148,19 +148,19 @@ export function TemplateMarketPanel({ onClose }: TemplateMarketPanelProps) {
                 >
                   <div className="flex items-start justify-between">
                     <h3 className="text-sm font-medium">{t.name}</h3>
-                    <span className="text-[10px] text-fg-muted bg-bg-primary px-1.5 py-0.5 rounded">
+                    <span className="text-xs text-fg-muted bg-bg-primary px-1.5 py-0.5 rounded">
                       {t.category}
                     </span>
                   </div>
                   <p className="text-xs text-fg-muted mt-1 line-clamp-2">{t.description}</p>
                   <div className="flex items-center gap-2 mt-2">
                     {t.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] text-fg-muted bg-bg-primary px-1.5 py-0.5 rounded">
+                      <span key={tag} className="text-xs text-fg-muted bg-bg-primary px-1.5 py-0.5 rounded">
                         {tag}
                       </span>
                     ))}
                   </div>
-                  <div className="flex items-center gap-3 mt-2 text-[10px] text-fg-muted">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-fg-muted">
                     <span>{t.author}</span>
                     <span>{t.knowledgeCount} 知识</span>
                     <span>{t.preferenceCount} 偏好</span>
@@ -168,7 +168,7 @@ export function TemplateMarketPanel({ onClose }: TemplateMarketPanelProps) {
                   <div className="flex items-center gap-2 mt-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleExport(t.id) }}
-                      className="text-[10px] text-accent hover:underline"
+                      className="text-xs text-accent hover:underline"
                     >导出</button>
                   </div>
                 </div>

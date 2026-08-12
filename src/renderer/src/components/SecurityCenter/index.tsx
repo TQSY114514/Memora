@@ -124,8 +124,9 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {loading ? (
-            <div className="flex items-center justify-center h-40 text-fg-muted text-sm">
-              <div className="animate-pulse">扫描中...</div>
+            <div className="flex items-center justify-center gap-2.5 h-40 text-sm text-fg-muted">
+              <span className="w-2 h-2 rounded-full bg-accent Memora-pulse" aria-hidden="true" />
+              扫描中...
             </div>
           ) : error ? (
             <div className="text-red-400 text-sm text-center py-8">{error}</div>
@@ -151,7 +152,7 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
                       <p className="text-xs text-red-400">{selfTest.summary}</p>
                     )}
                   </div>
-                  <p className="text-[10px] text-fg-muted mt-2">
+                  <p className="text-xs text-fg-muted mt-2">
                     {selfTest.summary} · 运行于 {new Date(selfTest.ranAt).toLocaleString()} · CLI: <code>npm run self-test</code>
                   </p>
                 </div>
@@ -193,7 +194,7 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
                   <>
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {report.sensitiveInfo.byType.map((t) => (
-                        <span key={t.type} className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-[10px]">
+                        <span key={t.type} className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-xs">
                           {TYPE_LABELS[t.type] ?? t.type}: {t.count}
                         </span>
                       ))}
@@ -201,9 +202,9 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
 
                     {report.sensitiveInfo.samples.length > 0 && (
                       <div className="space-y-1">
-                        <p className="text-[10px] text-fg-muted mb-1">最近检测到（已脱敏）:</p>
+                        <p className="text-xs text-fg-muted mb-1">最近检测到（已脱敏）:</p>
                         {report.sensitiveInfo.samples.slice(0, 5).map((s, i) => (
-                          <div key={i} className="flex items-center justify-between text-[10px]">
+                          <div key={i} className="flex items-center justify-between text-xs">
                             <span className="text-fg-muted">{TYPE_LABELS[s.type] ?? s.type}</span>
                             <code className="text-fg-primary">{s.masked}</code>
                             <span className="text-fg-muted">{s.source}</span>
@@ -253,7 +254,7 @@ export function SecurityCenterPanel({ onClose }: SecurityCenterPanelProps) {
                 </ul>
               </div>
 
-              <p className="text-[10px] text-fg-muted text-center">
+              <p className="text-xs text-fg-muted text-center">
                 报告生成于 {new Date(report.generatedAt).toLocaleString()}
               </p>
             </>

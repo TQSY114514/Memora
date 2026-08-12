@@ -188,7 +188,7 @@ export function TimeCapsulePanel({ onClose }: TimeCapsulePanelProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 mt-2 text-[10px] text-fg-muted">
+                  <div className="flex items-center gap-4 mt-2 text-xs text-fg-muted">
                     <span>封存：{formatDate(c.sealedAt)}</span>
                     <span>解锁：{formatDate(c.unlockAt)}</span>
                     {c.unlockedAt && <span>已解锁于：{formatDate(c.unlockedAt)}</span>}

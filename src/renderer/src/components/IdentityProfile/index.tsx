@@ -104,8 +104,9 @@ export function IdentityProfilePanel({ onClose }: IdentityProfilePanelProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
-            <div className="flex items-center justify-center h-40 text-fg-muted text-sm">
-              <div className="animate-pulse">分析记忆中...</div>
+            <div className="flex items-center justify-center gap-2.5 h-40 text-sm text-fg-muted">
+              <span className="w-2 h-2 rounded-full bg-accent Memora-pulse" aria-hidden="true" />
+              分析记忆中...
             </div>
           ) : error ? (
             <div className="text-red-400 text-sm text-center py-8">{error}</div>
@@ -144,7 +145,7 @@ export function IdentityProfilePanel({ onClose }: IdentityProfilePanelProps) {
 
                 {profile.basics.editors.length > 0 && (
                   <Section title="工具">
-                    <Tags items={profile.basics.editors} color="purple" />
+                    <Tags items={profile.basics.editors} color="amber" />
                   </Section>
                 )}
 
@@ -235,10 +236,10 @@ export function IdentityProfilePanel({ onClose }: IdentityProfilePanelProps) {
                   {profile.knowledge.map((k, i) => (
                     <div key={i} className="text-xs py-1">
                       <div className="flex items-center gap-2">
-                        <span className={`px-1 rounded text-[10px] ${
-                          k.type === 'knowledge' ? 'bg-blue-500/20 text-blue-400' :
-                          k.type === 'decision' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-green-500/20 text-green-400'
+                        <span className={`px-1 rounded text-xs ${
+                          k.type === 'knowledge' ? 'bg-accent/10 text-accent' :
+                          k.type === 'decision' ? 'bg-yellow-600/10 text-yellow-600' :
+                          'bg-amber-600/10 text-amber-600'
                         }`}>
                           {k.type === 'knowledge' ? '知识' : k.type === 'decision' ? '决策' : '任务'}
                         </span>
@@ -270,17 +271,18 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-bg-secondary rounded-lg p-2 text-center">
       <div className="text-lg font-bold text-accent">{value.toLocaleString()}</div>
-      <div className="text-[10px] text-fg-muted">{label}</div>
+      <div className="text-xs text-fg-muted">{label}</div>
     </div>
   )
 }
 
 function Tags({ items, color = 'default' }: { items: string[]; color?: string }) {
+  // 分类标签统一收敛到暖色系：黄铜（主） + 琥珀/芥末黄（次），红色仅保留给"避免"
   const colorClasses: Record<string, string> = {
     default: 'bg-accent/10 text-accent',
-    blue: 'bg-blue-500/10 text-blue-400',
-    green: 'bg-green-500/10 text-green-400',
-    purple: 'bg-purple-500/10 text-purple-400',
+    blue: 'bg-amber-700/10 text-amber-700',
+    green: 'bg-yellow-600/10 text-yellow-600',
+    amber: 'bg-amber-600/10 text-amber-600',
     red: 'bg-red-500/10 text-red-400'
   }
   return (
@@ -288,7 +290,7 @@ function Tags({ items, color = 'default' }: { items: string[]; color?: string })
       {items.map((item, i) => (
         <span
           key={i}
-          className={`px-1.5 py-0.5 rounded text-[10px] ${colorClasses[color] ?? colorClasses.default}`}
+          className={`px-1.5 py-0.5 rounded text-xs ${colorClasses[color] ?? colorClasses.default}`}
         >
           {item}
         </span>
