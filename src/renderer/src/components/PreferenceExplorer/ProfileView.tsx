@@ -77,11 +77,11 @@ export function ProfileView({
                       {p.value}
                     </button>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[10px] text-fg-muted tabular-nums">
+                      <span className="text-xs text-fg-muted tabular-nums">
                         {(conf * 100).toFixed(0)}%
                       </span>
                       <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                           STATUS_META[p.status].badge
                         }`}
                       >

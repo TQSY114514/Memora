@@ -80,14 +80,14 @@ export function ConstitutionView({ workspaceId }: ConstitutionViewProps) {
             </span>
             <h3 className="text-sm font-semibold text-amber-700">AI 宪法</h3>
           </div>
-          <p className="text-[11px] text-fg-secondary leading-relaxed">
+          <p className="text-xs text-fg-secondary leading-relaxed">
             定义你的核心原则，所有 AI 工具都会优先读取这些规则。宪法条目永不衰减、不参与冲突检测。
           </p>
         </div>
 
         {/* 添加按钮 */}
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-fg-muted">
+          <span className="text-xs text-fg-muted">
             {entries.length > 0 ? `共 ${entries.length} 条原则` : ''}
           </span>
           <button
@@ -108,7 +108,7 @@ export function ConstitutionView({ workspaceId }: ConstitutionViewProps) {
         )}
 
         {/* 错误 */}
-        {error && <p className="text-[11px] text-red-500 break-all">✗ {error}</p>}
+        {error && <p className="text-xs text-red-500 break-all">✗ {error}</p>}
 
         {/* 空状态 */}
         {!loading && entries.length === 0 && !error && (
@@ -137,14 +137,14 @@ export function ConstitutionView({ workspaceId }: ConstitutionViewProps) {
               className="rounded-lg border border-amber-500/30 bg-bg-primary p-3.5 transition-colors hover:border-amber-500/50"
             >
               <div className="flex items-start gap-2.5">
-                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 text-[11px] font-semibold tabular-nums">
+                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 text-xs font-semibold tabular-nums">
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-600">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-600">
                           {pref.subject}
                         </span>
                       </div>
@@ -177,7 +177,7 @@ export function ConstitutionView({ workspaceId }: ConstitutionViewProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px] text-fg-muted">
+                  <div className="flex items-center gap-2 mt-2 flex-wrap text-xs text-fg-muted">
                     <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">
                       宪法
                     </span>

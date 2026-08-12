@@ -25,8 +25,8 @@ const TIER_META: Record<
 > = {
   working: {
     label: '工作记忆',
-    bar: 'bg-blue-500',
-    badge: 'bg-blue-500/15 text-blue-500'
+    bar: 'bg-accent',
+    badge: 'bg-accent-muted text-accent'
   },
   short_term: {
     label: '短期记忆',
@@ -57,7 +57,7 @@ function StatCard({
       <span className="text-2xl font-bold tabular-nums text-fg-primary leading-none">
         {value}
       </span>
-      <span className="text-[11px] text-fg-muted mt-1">{label}</span>
+      <span className="text-xs text-fg-muted mt-1">{label}</span>
     </div>
   )
 }
@@ -79,16 +79,16 @@ function HighlightCard({
   return (
     <div className="rounded-md border border-border bg-bg-primary p-2.5 flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
-        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent">
+        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-muted text-accent">
           {subject}
         </span>
         <span
-          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ml-auto ${tierMeta.badge}`}
+          className={`px-1.5 py-0.5 rounded text-xs font-medium ml-auto ${tierMeta.badge}`}
         >
           {tierMeta.label}
         </span>
       </div>
-      <div className="text-[12px] text-fg-primary break-words leading-snug">
+      <div className="text-xs text-fg-primary break-words leading-snug">
         {value}
       </div>
       <div className="flex items-center gap-1.5">
@@ -98,7 +98,7 @@ function HighlightCard({
             style={{ width: `${confPct}%` }}
           />
         </div>
-        <span className="text-[10px] text-fg-muted tabular-nums">{confPct}%</span>
+        <span className="text-xs text-fg-muted tabular-nums">{confPct}%</span>
       </div>
     </div>
   )
@@ -114,11 +114,11 @@ function DecayRow({ mem }: { mem: TieredMemory }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 mb-0.5">
           <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${tierMeta.badge}`}
+            className={`px-1.5 py-0.5 rounded text-xs font-medium ${tierMeta.badge}`}
           >
             {tierMeta.label}
           </span>
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent">
+          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-muted text-accent">
             {mem.preference.subject}
           </span>
         </div>
@@ -130,15 +130,15 @@ function DecayRow({ mem }: { mem: TieredMemory }) {
         <div className="flex items-center gap-1.5">
           <div className="w-16 h-1.5 rounded-full bg-bg-hover overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-red-500 to-red-400"
+              className="h-full rounded-full bg-red-500"
               style={{ width: `${strPct}%` }}
             />
           </div>
-          <span className="text-[10px] text-fg-muted tabular-nums w-8 text-right">
+          <span className="text-xs text-fg-muted tabular-nums w-8 text-right">
             {strPct}%
           </span>
         </div>
-        <span className="text-[10px] text-red-500/80">
+        <span className="text-xs text-red-500/80">
           预计 {mem.estimatedRetentionDays} 天后遗忘
         </span>
       </div>
@@ -162,13 +162,13 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       : 'border-border bg-bg-primary'
   return (
     <div className={`rounded-md border ${toneClass} p-2.5 flex items-center gap-2`}>
-      <span className="text-[12px] text-fg-secondary flex-1 min-w-0 break-words">
+      <span className="text-xs text-fg-secondary flex-1 min-w-0 break-words">
         {text}
       </span>
       {action && (
         <button
           onClick={action.onClick}
-          className="Memora-btn Memora-btn-primary text-[11px] py-1 px-2 whitespace-nowrap flex-shrink-0"
+          className="Memora-btn Memora-btn-primary text-sm py-1 px-2 whitespace-nowrap flex-shrink-0"
         >
           {action.label}
         </button>
@@ -495,7 +495,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
                 />
               </div>
               {/* 图例（含平均保持天数） */}
-              <div className="flex items-center gap-3 flex-wrap text-[11px] text-fg-muted">
+              <div className="flex items-center gap-3 flex-wrap text-xs text-fg-muted">
                 {tierLegend.map(({ tier, count }) => {
                   const meta = TIER_META[tier]
                   const avg = avgRetentionByTier[tier]
@@ -539,9 +539,9 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
               </svg>
               <div className="-mt-[58px] flex flex-col items-center pointer-events-none">
                 <span className={`text-2xl font-bold tabular-nums ${scoreColor}`}>{score}</span>
-                <span className="text-[9px] text-fg-muted">分</span>
+                <span className="text-xs text-fg-muted">分</span>
               </div>
-              <span className="text-[10px] text-fg-muted mt-7">记忆健康评分</span>
+              <span className="text-xs text-fg-muted mt-7">记忆健康评分</span>
             </div>
           </div>
         </div>
@@ -572,7 +572,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
               用户画像摘要
             </h3>
-            <p className="text-[12px] text-fg-secondary leading-relaxed whitespace-pre-wrap break-words">
+            <p className="text-xs text-fg-secondary leading-relaxed whitespace-pre-wrap break-words">
               {summary.summary}
             </p>
           </div>
@@ -588,9 +588,9 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
               {summary.trends.map((t, i) => (
                 <div
                   key={`${t.subject}-${i}`}
-                  className="flex items-start gap-2 text-[12px]"
+                  className="flex items-start gap-2 text-xs"
                 >
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent flex-shrink-0">
+                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-muted text-accent flex-shrink-0">
                     {t.subject}
                   </span>
                   <span className="text-fg-secondary break-words flex-1 min-w-0">
@@ -613,7 +613,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             </h3>
             {decayGroups.critical.length > 0 && (
               <div className="mb-2">
-                <div className="text-[11px] font-medium text-red-500 mb-1.5">
+                <div className="text-xs font-medium text-red-500 mb-1.5">
                   即将遗忘 ({decayGroups.critical.length})
                 </div>
                 <div className="space-y-1.5">
@@ -625,7 +625,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             )}
             {decayGroups.declining.length > 0 && (
               <div>
-                <div className="text-[11px] font-medium text-amber-500 mb-1.5">
+                <div className="text-xs font-medium text-amber-500 mb-1.5">
                   正在衰减 ({decayGroups.declining.length})
                 </div>
                 <div className="space-y-1.5">
@@ -658,7 +658,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-0.5 flex items-center gap-1.5">
               自动记忆合并
             </h3>
-            <p className="text-[11px] text-fg-muted">
+            <p className="text-xs text-fg-muted">
               每周后台自动扫描并合并重复/相似偏好，保持记忆整洁
             </p>
           </div>
@@ -672,13 +672,13 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
               {consolidating ? '合并中…' : '立即合并'}
             </button>
             {consolidation && consolidation.running && (
-              <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-500 text-[10px]">
+              <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-500 text-xs">
                 定时任务运行中
               </span>
             )}
           </div>
           {consolidation && (
-            <div className="flex items-center gap-2 flex-wrap text-[11px] text-fg-muted">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-fg-muted">
               <span className="px-2 py-1 rounded bg-bg-hover text-fg-secondary">
                 最近合并{' '}
                 <span className="text-fg-primary font-medium">{consolidation.lastMerged}</span> 条
@@ -696,13 +696,13 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             </div>
           )}
           {consolidation?.lastSummary && (
-            <p className="text-[11px] text-fg-secondary mt-2 break-words">
+            <p className="text-xs text-fg-secondary mt-2 break-words">
               {consolidation.lastSummary}
             </p>
           )}
           {consolidationMsg && (
             <p
-              className={`text-[11px] mt-1 break-words ${
+              className={`text-xs mt-1 break-words ${
                 consolidationMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'
               }`}
             >
@@ -717,7 +717,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             <h3 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-0.5 flex items-center gap-1.5">
               记忆维护
             </h3>
-            <p className="text-[11px] text-fg-muted">
+            <p className="text-xs text-fg-muted">
               执行记忆生命周期操作：维护、衰减、归档、层级升降
             </p>
           </div>
@@ -741,7 +741,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
           </div>
           {runMsg && (
             <p
-              className={`text-[11px] mt-2.5 break-words ${
+              className={`text-xs mt-2.5 break-words ${
                 runMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'
               }`}
             >
@@ -750,7 +750,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
           )}
           {decayMsg && (
             <p
-              className={`text-[11px] mt-1 break-words ${
+              className={`text-xs mt-1 break-words ${
                 decayMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'
               }`}
             >
@@ -758,7 +758,7 @@ export function MemoryHealthView({ workspaceId, onNavigateConflicts }: MemoryHea
             </p>
           )}
           {runResult && (
-            <div className="flex items-center gap-2 flex-wrap mt-2 text-[11px]">
+            <div className="flex items-center gap-2 flex-wrap mt-2 text-xs">
               <span className="px-2 py-1 rounded bg-bg-hover text-fg-secondary">
                 维护 <span className="text-fg-primary font-medium">{runResult.maintained}</span>
               </span>

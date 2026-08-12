@@ -86,7 +86,7 @@ export function PreferenceEditor({
         </h3>
 
         {isConstitution && !isEdit && (
-          <p className="text-[11px] text-amber-600 mb-3 bg-amber-500/10 rounded px-2 py-1.5">
+          <p className="text-xs text-amber-600 mb-3 bg-amber-500/10 rounded px-2 py-1.5">
             宪法条目是所有 AI 工具都应遵循的核心原则。它们永不衰减、不参与冲突检测。
           </p>
         )}

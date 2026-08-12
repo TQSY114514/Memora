@@ -286,7 +286,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
           </span>
           <div>
             <h2 className="text-sm font-semibold">偏好记忆</h2>
-            <p className="text-[10px] text-fg-muted">用户偏好 · 喜恶 · 工具习惯</p>
+            <p className="text-xs text-fg-muted">用户偏好 · 喜恶 · 工具习惯</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -294,8 +294,8 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
           <div className="flex items-center gap-0.5 mr-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
-                viewMode === 'list' ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+              className={`text-sm px-2 py-1 rounded-md transition-colors ${
+                viewMode === 'list' ? 'Memora-chip-accent' : 'text-fg-muted hover:bg-bg-hover'
               }`}
               title="列表视图"
             >
@@ -303,8 +303,8 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             </button>
             <button
               onClick={() => setViewMode('profile')}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
-                viewMode === 'profile' ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+              className={`text-sm px-2 py-1 rounded-md transition-colors ${
+                viewMode === 'profile' ? 'Memora-chip-accent' : 'text-fg-muted hover:bg-bg-hover'
               }`}
               title="画像视图（按类别分组）"
             >
@@ -312,8 +312,8 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             </button>
             <button
               onClick={() => setViewMode('health')}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
-                viewMode === 'health' ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+              className={`text-sm px-2 py-1 rounded-md transition-colors ${
+                viewMode === 'health' ? 'Memora-chip-accent' : 'text-fg-muted hover:bg-bg-hover'
               }`}
               title="记忆健康视图（分层记忆与健康评分）"
             >
@@ -321,17 +321,17 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             </button>
             <button
               onClick={() => setViewMode('conflicts')}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
-                viewMode === 'conflicts' ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+              className={`text-sm px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
+                viewMode === 'conflicts' ? 'Memora-chip-accent' : 'text-fg-muted hover:bg-bg-hover'
               }`}
               title="冲突解决视图（检测并处理偏好冲突）"
             >
               <span>冲突</span>
               {conflictCount > 0 && (
                 <span
-                  className={`text-[10px] px-1 rounded-full ${
+                  className={`text-xs px-1 rounded-full ${
                     viewMode === 'conflicts'
-                      ? 'bg-white/30 text-white'
+                      ? 'bg-accent-ink/15 text-accent-ink'
                       : 'bg-red-500/15 text-red-500'
                   }`}
                 >
@@ -341,7 +341,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             </button>
             <button
               onClick={() => setViewMode('constitution')}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
+              className={`text-sm px-2 py-1 rounded-md transition-colors ${
                 viewMode === 'constitution'
                   ? 'bg-amber-500 text-white'
                   : 'text-fg-muted hover:bg-bg-hover'
@@ -352,9 +352,9 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
             </button>
             <button
               onClick={() => setViewMode('timeline')}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors ${
+              className={`text-sm px-2 py-1 rounded-md transition-colors ${
                 viewMode === 'timeline'
-                  ? 'bg-accent text-white'
+                  ? 'Memora-chip-accent'
                   : 'text-fg-muted hover:bg-bg-hover'
               }`}
               title="时间线（偏好随时间的演化轨迹）"
@@ -440,17 +440,17 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               <button
                 key={t.key}
                 onClick={() => setFilter(t.key)}
-                className={`text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
+                className={`text-sm px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
                   filter === t.key
-                    ? 'bg-accent text-white'
+                    ? 'Memora-chip-accent'
                     : 'text-fg-muted hover:bg-bg-hover'
                 }`}
               >
                 <span>{t.label}</span>
                 {t.count !== undefined && (
                   <span
-                    className={`text-[10px] ${
-                      filter === t.key ? 'text-white/70' : 'text-fg-muted'
+                    className={`text-xs ${
+                      filter === t.key ? 'text-accent-ink/70' : 'text-fg-muted'
                     }`}
                   >
                     {t.count}
@@ -464,10 +464,10 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
         {/* 按类别分组过滤（v1.15 行动项 5） */}
         {viewMode === 'list' && subjects.length > 1 && (
           <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-[10px] text-fg-muted mr-0.5">类别:</span>
+            <span className="text-xs text-fg-muted mr-0.5">类别:</span>
             <button
               onClick={() => setSubjectFilter('all')}
-              className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+              className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                 subjectFilter === 'all'
                   ? 'bg-accent-muted text-accent'
                   : 'text-fg-muted hover:bg-bg-hover'
@@ -479,7 +479,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               <button
                 key={s}
                 onClick={() => setSubjectFilter(subjectFilter === s ? 'all' : s)}
-                className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                   subjectFilter === s
                     ? 'bg-accent-muted text-accent'
                     : 'text-fg-muted hover:bg-bg-hover'
@@ -493,14 +493,14 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
 
         {decayMsg && (
           <p
-            className={`text-[11px] ${
+            className={`text-xs ${
               decayMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'
             }`}
           >
             {decayMsg}
           </p>
         )}
-        {error && <p className="text-[11px] text-red-500 break-all">✗ {error}</p>}
+        {error && <p className="text-xs text-red-500 break-all">✗ {error}</p>}
       </div>
 
       {/* 列表 / 画像 / 健康 / 冲突 / 宪法 */}
@@ -621,7 +621,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
                 >
                   选择文件…
                 </button>
-                <span className="text-[11px] text-fg-muted">
+                <span className="text-xs text-fg-muted">
                   选择 .json 文件，或直接在下方粘贴 MMF JSON 内容
                 </span>
                 <input
@@ -642,7 +642,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
               />
               {importResult && (
                 <p
-                  className={`text-[11px] whitespace-pre-wrap break-all ${
+                  className={`text-xs whitespace-pre-wrap break-all ${
                     importResult.startsWith('✓') ? 'text-green-600' : 'text-red-500'
                   }`}
                 >

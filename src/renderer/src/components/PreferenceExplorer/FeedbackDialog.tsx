@@ -67,7 +67,7 @@ export function FeedbackDialog({
           </button>
         </div>
         <div className="px-5 py-4 space-y-3 overflow-y-auto">
-          <p className="text-[11px] text-fg-muted">
+          <p className="text-xs text-fg-muted">
             用自然语言告诉 Memora 你想怎么改这条记忆（修正 / 补充 / 替换）。
             例如：「其实我更喜欢 Vim 而不是 VS Code」或「补充：只在写前端时用」
           </p>
@@ -99,7 +99,7 @@ export function FeedbackDialog({
           </div>
           {result && (
             <p
-              className={`text-[11px] whitespace-pre-wrap break-all ${
+              className={`text-xs whitespace-pre-wrap break-all ${
                 result.ok ? 'text-green-600' : 'text-red-500'
               }`}
             >

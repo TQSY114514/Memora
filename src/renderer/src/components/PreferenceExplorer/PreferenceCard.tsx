@@ -29,7 +29,7 @@ export function PreferenceCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent">
+                <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-muted text-accent">
                   {pref.subject}
                 </span>
               </div>
@@ -79,12 +79,12 @@ export function PreferenceCard({
                 style={{ width: `${Math.round(conf * 100)}%` }}
               />
             </div>
-            <span className="text-[10px] text-fg-muted flex-shrink-0 tabular-nums">
+            <span className="text-xs text-fg-muted flex-shrink-0 tabular-nums">
               {(conf * 100).toFixed(0)}%
             </span>
           </div>
 
-          <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px] text-fg-muted">
+          <div className="flex items-center gap-2 mt-2 flex-wrap text-xs text-fg-muted">
             <span className={`px-1.5 py-0.5 rounded font-medium ${meta.badge}`}>
               {meta.label}
             </span>

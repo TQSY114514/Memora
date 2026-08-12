@@ -21,8 +21,8 @@ function PreferenceSide({
   return (
     <div className="flex-1 min-w-0 rounded-md border border-border bg-bg-secondary/60 p-2.5">
       <div className="flex items-center gap-1.5 mb-1.5">
-        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${tagBadge}`}>{tag}</span>
-        <span className="px-1.5 py-0.5 rounded text-[10px] bg-bg-hover text-fg-muted">
+        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${tagBadge}`}>{tag}</span>
+        <span className="px-1.5 py-0.5 rounded text-xs bg-bg-hover text-fg-muted">
           {SOURCE_META[pref.source] ?? pref.source}
         </span>
       </div>
@@ -34,9 +34,9 @@ function PreferenceSide({
             style={{ width: `${Math.round(conf * 100)}%` }}
           />
         </div>
-        <span className="text-[10px] text-fg-muted tabular-nums">{(conf * 100).toFixed(0)}%</span>
+        <span className="text-xs text-fg-muted tabular-nums">{(conf * 100).toFixed(0)}%</span>
       </div>
-      <p className="text-[10px] text-fg-muted mt-1.5">{formatDate(pref.createdAt)}</p>
+      <p className="text-xs text-fg-muted mt-1.5">{formatDate(pref.createdAt)}</p>
     </div>
   )
 }
@@ -100,16 +100,16 @@ function ConflictItem({
   return (
     <div className="rounded-lg border border-border bg-bg-primary p-3.5">
       <div className="flex items-center gap-1.5 mb-2">
-        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent">
+        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-muted text-accent">
           {report.subject}
         </span>
-        <span className="text-[10px] text-fg-muted">冲突原因：{reason}</span>
+        <span className="text-xs text-fg-muted">冲突原因：{reason}</span>
       </div>
 
       <div className="flex items-stretch gap-2 mb-2.5">
-        <PreferenceSide pref={prefA} tag="新的 (A)" tagBadge="bg-blue-500/15 text-blue-500" />
+        <PreferenceSide pref={prefA} tag="新的 (A)" tagBadge="bg-accent-muted text-accent" />
         <div className="flex items-center text-fg-muted text-xs">vs</div>
-        <PreferenceSide pref={prefB} tag="旧的 (B)" tagBadge="bg-yellow-500/15 text-yellow-500" />
+        <PreferenceSide pref={prefB} tag="旧的 (B)" tagBadge="bg-bg-hover text-fg-muted" />
       </div>
 
       {!merging ? (
@@ -142,11 +142,11 @@ function ConflictItem({
           >
             合并
           </button>
-          {busy && <span className="text-[10px] text-fg-muted">处理中…</span>}
+          {busy && <span className="text-xs text-fg-muted">处理中…</span>}
         </div>
       ) : (
         <div className="rounded-md border border-border bg-bg-secondary/60 p-2.5 space-y-2">
-          <label className="block text-[11px] text-fg-secondary">合并后的值</label>
+          <label className="block text-xs text-fg-secondary">合并后的值</label>
           <input
             type="text"
             value={mergedValue}
@@ -155,7 +155,7 @@ function ConflictItem({
             autoFocus
           />
           <div className="flex items-center gap-2">
-            <label className="text-[11px] text-fg-secondary flex-shrink-0">置信度</label>
+            <label className="text-xs text-fg-secondary flex-shrink-0">置信度</label>
             <input
               type="range"
               min={0}
@@ -165,7 +165,7 @@ function ConflictItem({
               onChange={(e) => setMergedConf(Number(e.target.value))}
               className="flex-1"
             />
-            <span className="text-[10px] text-fg-muted tabular-nums w-8 text-right">
+            <span className="text-xs text-fg-muted tabular-nums w-8 text-right">
               {(mergedConf * 100).toFixed(0)}%
             </span>
           </div>
@@ -191,7 +191,7 @@ function ConflictItem({
         </div>
       )}
 
-      {err && <p className="text-[11px] text-red-500 mt-2 break-all">✗ {err}</p>}
+      {err && <p className="text-xs text-red-500 mt-2 break-all">✗ {err}</p>}
     </div>
   )
 }
@@ -318,7 +318,7 @@ export function ConflictResolutionView({ workspaceId, onResolved }: ConflictReso
           </div>
         ) : (
           <>
-            <p className="text-[11px] text-fg-muted">
+            <p className="text-xs text-fg-muted">
               共 {reports.length} 个类别，{totalConflicts} 处冲突待处理
             </p>
             {reports.flatMap((report) =>

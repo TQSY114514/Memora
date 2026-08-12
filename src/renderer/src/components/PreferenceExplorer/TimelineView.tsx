@@ -4,10 +4,10 @@ import type { PreferenceTimeline, PreferenceTimelineEvent } from '@shared/types'
 /** 操作 → 展示文案与颜色 */
 const ACTION_META: Record<string, { label: string; color: string }> = {
   create: { label: '新增', color: 'text-emerald-500' },
-  update: { label: '更新', color: 'text-sky-500' },
+  update: { label: '更新', color: 'text-fg-secondary' },
   supersede: { label: '取代', color: 'text-amber-500' },
   archive: { label: '归档', color: 'text-fg-muted' },
-  feedback: { label: '反馈修正', color: 'text-violet-500' }
+  feedback: { label: '反馈修正', color: 'text-accent' }
 }
 
 function actionLabel(action: string): string {
@@ -49,7 +49,7 @@ function EventItem({ ev }: { ev: PreferenceTimelineEvent }) {
       </div>
       {/* 内容 */}
       <div className="flex-1 pb-4 min-w-0">
-        <div className="flex items-center gap-1.5 text-[11px]">
+        <div className="flex items-center gap-1.5 text-xs">
           <span className={`font-medium ${actionColor(ev.action)}`}>{actionLabel(ev.action)}</span>
           <span className="text-fg-muted">{formatTime(ev.createdAt)}</span>
         </div>
@@ -65,7 +65,7 @@ function EventItem({ ev }: { ev: PreferenceTimelineEvent }) {
             <span>{ev.value || '—'}</span>
           )}
         </div>
-        {ev.reason && <div className="mt-0.5 text-[11px] text-fg-muted break-all">「{ev.reason}」</div>}
+        {ev.reason && <div className="mt-0.5 text-xs text-fg-muted break-all">「{ev.reason}」</div>}
       </div>
     </div>
   )
@@ -120,7 +120,7 @@ export function TimelineView({ workspaceId }: { workspaceId: string }) {
         <div className="space-y-4">
           {timeline.byDay.map((day) => (
             <div key={day.date}>
-              <div className="text-[11px] font-semibold text-accent mb-1.5">{formatDay(day.date)}</div>
+              <div className="text-xs font-semibold text-accent mb-1.5">{formatDay(day.date)}</div>
               <div className="pl-0">
                 {day.events.map((ev) => (
                   <EventItem key={ev.id} ev={ev} />

@@ -30,10 +30,10 @@ function ExplainRow({
 }) {
   return (
     <div className="flex items-start gap-2 py-1.5">
-      <span className="text-fg-muted w-20 flex-shrink-0 text-[11px] flex items-center gap-1">
+      <span className="text-fg-muted w-20 flex-shrink-0 text-xs flex items-center gap-1">
         {label}
       </span>
-      <span className="text-[11px] text-fg-secondary break-all flex-1 min-w-0">{children}</span>
+      <span className="text-xs text-fg-secondary break-all flex-1 min-w-0">{children}</span>
     </div>
   )
 }
@@ -73,10 +73,10 @@ function excerptAround(content: string, keyword: string): string {
 /** 证据链操作文案 */
 const CHAIN_ACTION_META: Record<string, { label: string; color: string }> = {
   create: { label: '新增', color: 'text-emerald-500' },
-  update: { label: '更新', color: 'text-sky-500' },
+  update: { label: '更新', color: 'text-fg-secondary' },
   supersede: { label: '取代', color: 'text-amber-500' },
   archive: { label: '归档', color: 'text-fg-muted' },
-  feedback: { label: '反馈修正', color: 'text-violet-500' },
+  feedback: { label: '反馈修正', color: 'text-accent' },
   delete: { label: '删除', color: 'text-red-500' }
 }
 
@@ -175,12 +175,12 @@ export function MemoryExplainDrawer({
         <div className="px-5 py-4 space-y-4">
           {/* 基本信息 */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2">
               基本信息
             </h4>
             <div className="rounded-lg border border-border bg-bg-secondary/40 p-3">
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-muted text-accent">
+                <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-muted text-accent">
                   {pref.subject}
                 </span>
               </div>
@@ -189,23 +189,23 @@ export function MemoryExplainDrawer({
               </h3>
               {/* 置信度 */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] text-fg-muted w-14 flex-shrink-0">置信度</span>
+                <span className="text-xs text-fg-muted w-14 flex-shrink-0">置信度</span>
                 <div className="flex-1 h-1.5 rounded-full bg-bg-hover overflow-hidden">
                   <div
                     className={`h-full rounded-full ${confidenceColor(conf)}`}
                     style={{ width: `${Math.round(conf * 100)}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-fg-muted flex-shrink-0 tabular-nums">
+                <span className="text-xs text-fg-muted flex-shrink-0 tabular-nums">
                   {(conf * 100).toFixed(0)}%
                 </span>
               </div>
               {/* 状态 + 来源 */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${meta.badge}`}>
+                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${meta.badge}`}>
                   {meta.label}
                 </span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] bg-bg-hover text-fg-secondary">
+                <span className="px-1.5 py-0.5 rounded text-xs bg-bg-hover text-fg-secondary">
                   {SOURCE_META[pref.source] ?? pref.source}
                 </span>
               </div>
@@ -214,14 +214,14 @@ export function MemoryExplainDrawer({
 
           {/* 状态变迁说明 */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2">
               状态说明
             </h4>
-            <p className="text-[11px] text-fg-secondary leading-relaxed">
+            <p className="text-xs text-fg-secondary leading-relaxed">
               {STATUS_EXPLAIN[pref.status]}
             </p>
             {pref.status === 'superseded' && pref.supersededBy && (
-              <p className="text-[10px] text-fg-muted mt-1 break-all">
+              <p className="text-xs text-fg-muted mt-1 break-all">
                 取代者 ID：{pref.supersededBy}
               </p>
             )}
@@ -229,7 +229,7 @@ export function MemoryExplainDrawer({
 
           {/* 时间线 */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-1">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-1">
               时间线
             </h4>
             <div className="rounded-lg border border-border bg-bg-secondary/40 px-3 py-1">
@@ -265,10 +265,10 @@ export function MemoryExplainDrawer({
 
           {/* 访问统计 */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2">
               访问统计
             </h4>
-            <div className="flex items-center gap-2 text-[11px] text-fg-secondary">
+            <div className="flex items-center gap-2 text-xs text-fg-secondary">
               <span className="px-2 py-1 rounded bg-bg-hover">
                 出现次数：{pref.accessCount ?? 0}
               </span>
@@ -277,20 +277,20 @@ export function MemoryExplainDrawer({
 
           {/* 来源对话 */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2">
               来源对话
             </h4>
             {!pref.sessionId ? (
-              <p className="text-[11px] text-fg-muted">无来源对话记录（手动创建的偏好）</p>
+              <p className="text-xs text-fg-muted">无来源对话记录（手动创建的偏好）</p>
             ) : sessionLoading ? (
-              <div className="flex items-center gap-2 text-[11px] text-fg-secondary">
+              <div className="flex items-center gap-2 text-xs text-fg-secondary">
                 <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                 <span>加载来源对话…</span>
               </div>
             ) : sessionError ? (
-              <p className="text-[11px] text-red-500 break-all">✗ {sessionError}</p>
+              <p className="text-xs text-red-500 break-all">✗ {sessionError}</p>
             ) : notFound || !session ? (
-              <p className="text-[11px] text-fg-muted break-all">
+              <p className="text-xs text-fg-muted break-all">
                 来源对话已删除（ID：{pref.sessionId}）
               </p>
             ) : (
@@ -298,13 +298,13 @@ export function MemoryExplainDrawer({
                 <h3 className="text-sm font-medium text-fg-primary leading-snug break-words mb-1.5">
                   {session.title || '（无标题）'}
                 </h3>
-                <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-fg-muted">
+                <div className="flex items-center gap-1.5 flex-wrap text-xs text-fg-muted">
                   <span className="px-1.5 py-0.5 rounded bg-bg-hover">{session.provider}</span>
                   <span>{session.messageCount} 条消息</span>
                   <span>{formatDate(session.createdAt)}</span>
                 </div>
                 {session.description && (
-                  <p className="text-[11px] text-fg-secondary mt-2 break-words">
+                  <p className="text-xs text-fg-secondary mt-2 break-words">
                     {session.description}
                   </p>
                 )}
@@ -314,20 +314,20 @@ export function MemoryExplainDrawer({
 
           {/* 原文命中片段（v1.15 P2-2） */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2">
               原文命中片段
             </h4>
             {!pref.sessionId ? (
-              <p className="text-[11px] text-fg-muted">手动创建的偏好，无原文来源</p>
+              <p className="text-xs text-fg-muted">手动创建的偏好，无原文来源</p>
             ) : sessionLoading ? (
-              <p className="text-[11px] text-fg-muted">加载中…</p>
+              <p className="text-xs text-fg-muted">加载中…</p>
             ) : !hit ? (
-              <p className="text-[11px] text-fg-muted break-all">
+              <p className="text-xs text-fg-muted break-all">
                 未在来源对话中找到包含「{pref.subject} / {pref.value}」的原文片段
               </p>
             ) : (
               <div className="rounded-lg border border-border bg-bg-secondary/40 p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-fg-muted mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-fg-muted mb-1.5">
                   <span
                     className={`px-1.5 py-0.5 rounded ${
                       hit.message.role === 'user'
@@ -340,7 +340,7 @@ export function MemoryExplainDrawer({
                   <span>消息 #{hit.message.order}</span>
                   {hit.message.createdAt && <span>{formatDate(hit.message.createdAt)}</span>}
                 </div>
-                <blockquote className="text-[11px] text-fg-secondary leading-relaxed break-words font-mono">
+                <blockquote className="text-xs text-fg-secondary leading-relaxed break-words font-mono">
                   {hit.snippet}
                 </blockquote>
               </div>
@@ -349,13 +349,13 @@ export function MemoryExplainDrawer({
 
           {/* 证据链（v1.15 P2-2）：完整审计历史 */}
           <section>
-            <h4 className="text-[11px] font-semibold text-fg-muted uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-fg-muted uppercase tracking-wide mb-2">
               证据链{!chainLoading && chain.length > 0 && `（${chain.length} 次变更）`}
             </h4>
             {chainLoading ? (
-              <p className="text-[11px] text-fg-muted">加载证据链…</p>
+              <p className="text-xs text-fg-muted">加载证据链…</p>
             ) : chain.length === 0 ? (
-              <p className="text-[11px] text-fg-muted">暂无审计记录</p>
+              <p className="text-xs text-fg-muted">暂无审计记录</p>
             ) : (
               <div className="rounded-lg border border-border bg-bg-secondary/40 px-3 py-1">
                 {chain.map((log) => {
@@ -365,12 +365,12 @@ export function MemoryExplainDrawer({
                   }
                   return (
                     <div key={log.id} className="py-1.5 border-b border-border/50 last:border-b-0">
-                      <div className="flex items-center gap-1.5 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-xs">
                         <span className={`font-medium ${meta.color}`}>{meta.label}</span>
                         <span className="text-fg-muted">{formatDateTime(log.createdAt)}</span>
                       </div>
                       {log.reason && (
-                        <p className="text-[10px] text-fg-muted mt-0.5 break-all">「{log.reason}」</p>
+                        <p className="text-xs text-fg-muted mt-0.5 break-all">「{log.reason}」</p>
                       )}
                     </div>
                   )
