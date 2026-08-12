@@ -7,6 +7,7 @@ import { qwenImporter } from './qwen'
 import { geminiImporter } from './gemini'
 import { grokImporter } from './grok'
 import { cursorImporter } from './cursor'
+import { opencodeImporter } from './opencode'
 import { markdownImporter } from './markdown'
 import { jsonImporter } from './json'
 import { htmlImporter } from './html'
@@ -26,6 +27,8 @@ export function registerBuiltins(): void {
   registerImporter(geminiImporter)
   registerImporter(grokImporter)
   registerImporter(cursorImporter)
+  // OpenCode 专用解析（parts/time 结构）须在通用 markdown/json/html 之前注册
+  registerImporter(opencodeImporter)
   registerImporter(markdownImporter)
   registerImporter(jsonImporter)
   registerImporter(htmlImporter)
