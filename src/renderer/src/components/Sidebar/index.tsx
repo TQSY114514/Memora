@@ -3,6 +3,7 @@ import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { useT } from '../../i18n'
 import { useDialog, PromptDialog } from '../PromptDialog'
+import { Modal } from '../Modal'
 import { PROVIDER_META } from '@shared/constants'
 import type { Folder, FolderRule, SearchResult } from '@shared/types'
 
@@ -186,7 +187,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
       {/* 工作区列表 */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
         <div className="px-2 py-1 flex items-center justify-between">
-          <span className="text-xs font-medium text-fg-muted uppercase tracking-wider">
+          <span className="Memora-label">
             {t('sidebar.workspace')}
           </span>
           <button
@@ -277,7 +278,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
         {workspaces.length === 0 && (
           <div className="px-3 py-8 text-center">
             <p className="text-sm text-fg-muted mb-3">{t('sidebar.noWorkspace')}</p>
-            <button onClick={handleCreateWorkspace} className="Memora-btn Memora-btn-primary text-xs">
+            <button onClick={handleCreateWorkspace} className="Memora-btn Memora-btn-primary">
               {t('sidebar.createFirst')}
             </button>
           </div>
@@ -286,30 +287,27 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
 
       {/* 底部操作（折叠：核心项常驻，其余默认收起） */}
       <div className="border-t border-border p-2">
-        <div className="px-2 py-1 flex items-center justify-between">
-          <span className="text-[10px] font-medium text-fg-muted uppercase tracking-wider">
-            记忆中枢
-          </span>
-          <span className="text-[10px] text-fg-muted opacity-60">核心</span>
+        <div className="px-2 py-1">
+          <span className="Memora-label">记忆中枢</span>
         </div>
         <div className="space-y-0.5">
         <button
           onClick={onOpenMemory}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center gap-2 px-2 py-1.5 justify-start"
+          className="Memora-btn Memora-btn-ghost w-full text-sm flex items-center gap-2 px-2 py-1.5 justify-start"
           title={t('sidebar.memoryTip')}
         >
           {t('sidebar.memory')}
         </button>
         <button
           onClick={onOpenKnowledge}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center gap-2 px-2 py-1.5 justify-start"
+          className="Memora-btn Memora-btn-ghost w-full text-sm flex items-center gap-2 px-2 py-1.5 justify-start"
           title={t('sidebar.knowledgeTip')}
         >
           {t('sidebar.knowledge')}
         </button>
         <button
           onClick={onOpenPreferences}
-          className="Memora-btn Memora-btn-ghost w-full text-xs flex items-center gap-2 px-2 py-1.5 justify-start"
+          className="Memora-btn Memora-btn-ghost w-full text-sm flex items-center gap-2 px-2 py-1.5 justify-start"
           title={t('sidebar.preferencesTip')}
         >
           {t('sidebar.preferences')}
@@ -317,7 +315,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
         </div>
         <button
           onClick={onOpenSettings}
-          className="Memora-btn Memora-btn-ghost w-full mt-1.5 text-xs flex items-center justify-center gap-1.5"
+          className="Memora-btn Memora-btn-ghost w-full mt-1.5 text-sm flex items-center justify-center gap-1.5"
           title={t('sidebar.settings')}
         >
           {t('sidebar.settings')}
@@ -325,14 +323,8 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
       </div>
 
       {showSmartFolderDialog && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
-          onClick={() => setShowSmartFolderDialog(false)}
-        >
-          <div
-            className="bg-bg-primary rounded-lg shadow-xl p-5 w-96"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal onClose={() => setShowSmartFolderDialog(false)} className="w-96 max-h-[90vh] overflow-y-auto">
+          <div className="p-5">
             <h3 className="text-sm font-semibold mb-3">创建智能文件夹</h3>
             <p className="text-xs text-fg-muted mb-3">根据规则自动归类对话，无需手动移动。</p>
             <label className="block text-xs text-fg-secondary mb-1">名称</label>
@@ -340,7 +332,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
               type="text"
               value={smartName}
               onChange={(e) => setSmartName(e.target.value)}
-              className="Memora-input w-full text-sm mb-3"
+              className="Memora-input w-full mb-3"
               placeholder="如：Claude 项目相关"
             />
             <label className="block text-xs text-fg-secondary mb-1">关键词（逗号分隔，标题/描述含任一即命中）</label>
@@ -348,7 +340,7 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
               type="text"
               value={smartKeywords}
               onChange={(e) => setSmartKeywords(e.target.value)}
-              className="Memora-input w-full text-sm mb-3"
+              className="Memora-input w-full mb-3"
               placeholder="如：aether, 架构, bug"
             />
             <label className="block text-xs text-fg-secondary mb-1">平台（逗号分隔，如 Claude, ChatGPT）</label>
@@ -356,15 +348,15 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
               type="text"
               value={smartProviders}
               onChange={(e) => setSmartProviders(e.target.value)}
-              className="Memora-input w-full text-sm mb-3"
+              className="Memora-input w-full mb-3"
               placeholder="如：Claude, ChatGPT"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowSmartFolderDialog(false)} className="Memora-btn Memora-btn-ghost text-xs">取消</button>
-              <button onClick={handleCreateSmartFolder} className="Memora-btn Memora-btn-primary text-xs">创建</button>
+              <button onClick={() => setShowSmartFolderDialog(false)} className="Memora-btn Memora-btn-ghost">取消</button>
+              <button onClick={handleCreateSmartFolder} className="Memora-btn Memora-btn-primary">创建</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
       <PromptDialog state={dialog.state} onClose={dialog.handleClose} />
     </aside>
@@ -487,7 +479,7 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
           onChange={handleChange}
           onKeyDown={handleSearch}
           placeholder={useSemantic ? t('sidebar.searchSemanticPlaceholder') : t('sidebar.searchPlaceholder')}
-          className="Memora-input w-full text-xs pr-7"
+          className="Memora-input w-full pr-7"
         />
         {searching && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -498,9 +490,9 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
       <div className="flex items-center justify-between mt-1.5">
         <button
           onClick={toggleSemantic}
-          className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+          className={`text-xs px-2 py-0.5 rounded transition-colors ${
             useSemantic
-              ? 'bg-accent text-white'
+              ? 'Memora-chip-accent'
               : 'text-fg-muted hover:bg-bg-hover'
           }`}
           title={aiConfigured ? t('sidebar.toggleSemantic') : t('sidebar.needAi')}
@@ -508,18 +500,18 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
           {useSemantic ? t('sidebar.semanticOn') : t('sidebar.semanticOff')}
         </button>
         {searchError && (
-          <span className="text-[10px] text-red-500 truncate max-w-[140px]" title={searchError}>
+          <span className="text-xs text-red-500 truncate max-w-[140px]" title={searchError}>
             {searchError}
           </span>
         )}
       </div>
       {/* 平台过滤（折叠为单行滚动，弱化视觉权重） */}
       <div className="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar">
-        <span className="text-[10px] text-fg-muted shrink-0 opacity-60">平台</span>
+        <span className="text-xs text-fg-muted shrink-0 opacity-60">平台</span>
         <button
           onClick={() => handleProviderFilter(null)}
-          className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 transition-colors ${
-            searchProvider === null ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-hover'
+          className={`text-xs px-2 py-0.5 rounded shrink-0 transition-colors ${
+            searchProvider === null ? 'Memora-chip-accent' : 'text-fg-muted hover:bg-bg-hover'
           }`}
         >
           全部
@@ -528,8 +520,8 @@ function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { sear
           <button
             key={key}
             onClick={() => handleProviderFilter(searchProvider === key ? null : key)}
-            className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 transition-colors ${
-              searchProvider === key ? 'text-white' : 'text-fg-muted hover:text-fg-secondary hover:bg-bg-hover'
+            className={`text-xs px-2 py-0.5 rounded shrink-0 transition-colors ${
+              searchProvider === key ? 'Memora-chip-accent' : 'text-fg-muted hover:text-fg-secondary hover:bg-bg-hover'
             }`}
             style={searchProvider === key ? { backgroundColor: meta.color } : undefined}
           >

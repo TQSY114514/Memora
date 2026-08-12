@@ -299,7 +299,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={handleToggleFavorite}
-              className="Memora-btn Memora-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost"
               title={session.isFavorite ? '取消收藏' : '收藏'}
             >
               {session.isFavorite ? '★ 已收藏' : '☆ 收藏'}
@@ -336,7 +336,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             <select
               value={selectedTemplateId}
               onChange={(e) => setSelectedTemplateId(e.target.value)}
-              className="Memora-input text-xs py-0.5 max-w-[160px]"
+              className="Memora-input py-1 max-w-[160px]"
               title="选择蒸馏模板"
               disabled={summaryLoading}
             >
@@ -350,7 +350,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           <button
             onClick={handleGenerateSummary}
             disabled={summaryLoading}
-            className="Memora-btn Memora-btn-ghost text-xs"
+            className="Memora-btn Memora-btn-ghost"
             title="蒸馏对话为知识要点"
           >
             {summaryLoading ? '蒸馏中…' : summary ? '重新蒸馏' : '记忆蒸馏'}
@@ -358,7 +358,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           <button
             onClick={handleEmbed}
             disabled={embedLoading}
-            className="Memora-btn Memora-btn-ghost text-xs"
+            className="Memora-btn Memora-btn-ghost"
             title="建立向量索引（用于语义搜索）"
           >
             {embedLoading
@@ -370,7 +370,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           {summary && (
             <button
               onClick={() => setShowSummary(!showSummary)}
-              className="Memora-btn Memora-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost"
             >
               {showSummary ? '▼ 隐藏蒸馏' : '▶ 显示蒸馏'}
             </button>
@@ -379,14 +379,14 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             <>
               <button
                 onClick={handleEditSummary}
-                className="Memora-btn Memora-btn-ghost text-xs"
+                className="Memora-btn Memora-btn-ghost"
                 title="编辑总结"
               >
                 编辑
               </button>
               <button
                 onClick={handleDeleteSummary}
-                className="Memora-btn Memora-btn-ghost text-xs text-red-500"
+                className="Memora-btn Memora-btn-ghost text-red-500"
                 title="删除蒸馏"
               >
                 删除
@@ -396,7 +396,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           {summary && (
             <button
               onClick={handleExportKnowledge}
-              className="Memora-btn Memora-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost"
               title="导出 knowledge.md"
             >
               导出 knowledge.md
@@ -406,26 +406,26 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             <button
               onClick={handleExtractToKnowledge}
               disabled={extractLoading}
-              className="Memora-btn Memora-btn-ghost text-xs"
+              className="Memora-btn Memora-btn-ghost"
               title="把本次蒸馏的要点/待办/知识提炼为知识库条目（幂等）"
             >
               {extractLoading ? '提炼中…' : '提炼到知识库'}
             </button>
           )}
           {extractMsg && (
-            <span className={`text-[10px] ${extractMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+            <span className={`text-xs ${extractMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
               {extractMsg}
             </span>
           )}
           <button
             onClick={handleLoadRelated}
-            className="Memora-btn Memora-btn-ghost text-xs"
+            className="Memora-btn Memora-btn-ghost"
             title="基于向量相似度推荐相关对话"
           >
             {showRelated ? '▼ 相关讨论' : '▶ 相关讨论'}
           </button>
           {embedStatus && !embedStatus.complete && (
-            <span className="text-[10px] text-fg-muted ml-1">
+            <span className="text-xs text-fg-muted ml-1">
               索引 {embedStatus.embedded}/{embedStatus.total}
             </span>
           )}
@@ -443,7 +443,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       {summary && showSummary && !editingSummary && (
         <div className="px-6 py-4 border-b border-border bg-accent-muted/30">
           <div className="max-w-3xl mx-auto">
-            <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
+            <h3 className="Memora-label mb-2">
               记忆蒸馏
               {summary.model && (
                 <span className="ml-2 text-fg-muted normal-case font-normal">
@@ -488,7 +488,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       {summary && showSummary && editingSummary && (
         <div className="px-6 py-4 border-b border-border bg-accent-muted/30">
           <div className="max-w-3xl mx-auto">
-            <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">编辑蒸馏</h3>
+            <h3 className="Memora-label mb-2">编辑蒸馏</h3>
             <textarea
               value={editSummaryText}
               onChange={(e) => setEditSummaryText(e.target.value)}
@@ -496,14 +496,14 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
               rows={4}
               placeholder="总结内容"
             />
-            <label className="block text-[10px] text-fg-muted mb-1">关键要点（每行一条）</label>
+            <label className="block text-xs text-fg-muted mb-1">关键要点（每行一条）</label>
             <textarea
               value={editKeyPoints}
               onChange={(e) => setEditKeyPoints(e.target.value)}
               className="Memora-input w-full text-sm mb-2"
               rows={3}
             />
-            <label className="block text-[10px] text-fg-muted mb-1">待办事项（每行一条）</label>
+            <label className="block text-xs text-fg-muted mb-1">待办事项（每行一条）</label>
             <textarea
               value={editTodos}
               onChange={(e) => setEditTodos(e.target.value)}
@@ -522,11 +522,15 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       {showRelated && (
         <div className="px-6 py-3 border-b border-border bg-bg-secondary/50">
           <div className="max-w-3xl mx-auto">
-            <h3 className="text-xs font-semibold text-fg-secondary uppercase tracking-wider mb-2">
+            <h3 className="Memora-label mb-2">
               相关讨论
             </h3>
             {relatedLoading ? (
-              <p className="text-xs text-fg-muted py-2">加载中…</p>
+              <div className="space-y-1.5 py-1">
+                <div className="Memora-skeleton h-12" />
+                <div className="Memora-skeleton h-12" />
+                <div className="Memora-skeleton h-12" />
+              </div>
             ) : relatedSessions.length === 0 ? (
               <p className="text-xs text-fg-muted py-2">
                 暂无相关讨论。需要先为本对话和其他对话建立向量索引。
@@ -546,18 +550,18 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
                       className="w-full text-left p-2 rounded-md border border-border hover:bg-bg-hover transition-colors flex items-start gap-2"
                     >
                       <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 mt-0.5"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 mt-0.5"
                         style={{ backgroundColor: `${rMeta.color}20`, color: rMeta.color }}
                       >
                         {rMeta.label}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-fg-primary truncate">{r.session.title}</p>
+                        <p className="text-sm text-fg-primary truncate">{r.session.title}</p>
                         {r.reason && (
-                          <p className="text-[10px] text-fg-muted truncate mt-0.5">{r.reason}</p>
+                          <p className="text-xs text-fg-muted truncate mt-0.5">{r.reason}</p>
                         )}
                       </div>
-                      <span className="text-[10px] text-fg-muted flex-shrink-0 mt-0.5">
+                      <span className="text-xs text-fg-muted flex-shrink-0 mt-0.5">
                         {(r.score * 100).toFixed(0)}%
                       </span>
                     </button>
@@ -572,9 +576,19 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
       {/* 消息流（虚拟滚动） */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
         {messagesLoading ? (
-          <div className="px-6 py-12 text-center text-sm text-fg-muted">加载中…</div>
+          <div className="max-w-3xl mx-auto px-6 py-10 space-y-3">
+            <div className="Memora-skeleton h-4 w-24" />
+            <div className="Memora-skeleton h-20 w-full" />
+            <div className="Memora-skeleton h-4 w-16" />
+            <div className="Memora-skeleton h-32 w-full" />
+            <div className="Memora-skeleton h-4 w-20" />
+            <div className="Memora-skeleton h-16 w-5/6" />
+          </div>
         ) : messages.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-fg-muted">此对话没有消息</div>
+          <div className="px-6 py-20 text-center">
+            <p className="text-sm text-fg-secondary mb-1">此对话没有消息</p>
+            <p className="text-xs text-fg-muted">从导入中心拖入对话文件，或查看其他会话</p>
+          </div>
         ) : (
           <div
             style={{
@@ -607,7 +621,9 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
           </div>
         )}
         {loadingMore && (
-          <div className="py-3 text-center text-xs text-fg-muted">加载中…</div>
+          <div className="max-w-3xl mx-auto px-6 py-3">
+            <div className="Memora-skeleton h-3 w-40 mx-auto" />
+          </div>
         )}
       </div>
     </div>
@@ -628,14 +644,12 @@ function MessageBubble({ message }: { message: Message }) {
   return (
     <article className={`rounded-lg border p-4 ${containerClass}`}>
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-          {roleLabel}
-        </span>
+        <span className="Memora-label">{roleLabel}</span>
         {message.model && (
           <span className="text-xs text-fg-muted opacity-70">{message.model}</span>
         )}
       </div>
-      <div className="prose prose-sm dark:prose-invert max-w-none text-fg-primary">
+      <div className="Memora-md">
         <Suspense fallback={<p className="whitespace-pre-wrap">{message.content}</p>}>
           <MarkdownMessage content={message.content} />
         </Suspense>

@@ -41,11 +41,13 @@ const FULL_PANELS: Record<string, LazyExoticComponent<ComponentType<{ onClose: (
   securityCenter: SecurityCenterPanel,
 }
 
-/** lazy 组件加载中的 fallback */
+/** lazy 组件加载中的 fallback：安静的骨架条，替代加载文字 */
 function PanelSkeleton() {
   return (
-    <div className="flex-1 flex items-center justify-center text-fg-muted text-sm">
-      <div className="animate-pulse">加载中…</div>
+    <div className="flex-1 flex flex-col items-center justify-center gap-3">
+      <div className="Memora-skeleton h-6 w-48" />
+      <div className="Memora-skeleton h-4 w-64" />
+      <div className="Memora-skeleton h-4 w-52" />
     </div>
   )
 }
@@ -180,8 +182,8 @@ export default function App() {
       )}
 
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-accent-muted backdrop-blur-sm flex items-center justify-center pointer-events-none">
-          <div className="border-2 border-dashed border-accent rounded-2xl p-12 text-center bg-bg-primary/80">
+        <div className="absolute inset-0 z-50 bg-accent-muted flex items-center justify-center pointer-events-none">
+          <div className="border-2 border-dashed border-accent rounded-xl p-12 text-center bg-bg-primary shadow-lg">
             <div className="mb-4 flex justify-center text-accent">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </div>
@@ -240,7 +242,7 @@ function ImportProgress() {
   return (
     <div className="absolute bottom-4 right-4 z-50 bg-bg-primary border border-border rounded-lg shadow-lg p-4 min-w-[300px]">
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-accent Memora-pulse" />
         <span className="text-sm font-medium">{isImporting ? '导入中…' : '导入完成'}</span>
       </div>
       <p className="text-xs text-fg-muted mb-3 truncate">{pending?.file ?? last?.file ?? '处理中'}</p>
@@ -248,11 +250,11 @@ function ImportProgress() {
         <div className="mb-3">
           <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
             <div
-              className="h-full bg-accent transition-all duration-200"
+              className="h-full bg-accent transition-colors duration-200"
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="text-[10px] text-fg-muted mt-1">{pct}%</p>
+          <p className="text-xs text-fg-muted mt-1">{pct}%</p>
         </div>
       )}
       {last?.result && (
@@ -261,7 +263,7 @@ function ImportProgress() {
           {last.result.skipped > 0 && <p className="text-fg-muted">⊘ 跳过 {last.result.skipped}（重复）</p>}
           {last.result.failed > 0 && <p className="text-red-500">✗ 失败 {last.result.failed}</p>}
           {last.result.errors.length > 0 && (
-            <p className="text-red-500 text-[10px] truncate" title={last.result.errors.join('\n')}>{last.result.errors[0]}</p>
+            <p className="text-red-500 text-xs truncate" title={last.result.errors.join('\n')}>{last.result.errors[0]}</p>
           )}
           <button onClick={clear} className="mt-2 Memora-btn Memora-btn-ghost text-xs w-full">关闭</button>
         </div>

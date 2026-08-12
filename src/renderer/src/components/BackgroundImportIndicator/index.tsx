@@ -55,7 +55,7 @@ export function BackgroundImportIndicator() {
     return (
       <div className="absolute bottom-4 right-4 z-50 bg-bg-primary border border-border rounded-lg shadow-lg p-3 min-w-[240px] max-w-[280px] animate-[fadeIn_0.2s_ease]">
         <div className="flex items-center gap-2 mb-1.5">
-          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-accent Memora-pulse" />
           <span className="text-xs font-medium">
             {PHASE_LABEL[progress.phase] ?? progress.phase}
             {progress.provider ? ` · ${progress.provider}` : ''}
@@ -65,7 +65,7 @@ export function BackgroundImportIndicator() {
         {progress.total > 0 && (
           <div className="h-1 rounded-full bg-bg-hover overflow-hidden">
             <div
-              className="h-full bg-accent transition-all duration-300"
+              className="h-full bg-accent transition-colors duration-300"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -90,11 +90,11 @@ export function BackgroundImportIndicator() {
           {r.skipped > 0 && <p className="text-fg-muted">⊘ 跳过 {r.skipped}（重复）</p>}
           {r.failed > 0 && <p className="text-red-500">✗ 失败 {r.failed}</p>}
           {r.errors.length > 0 && (
-            <p className="text-red-500 text-[10px] truncate" title={r.errors.join('\n')}>
+            <p className="text-red-500 text-xs truncate" title={r.errors.join('\n')}>
               {r.errors[0]}
             </p>
           )}
-          <p className="text-[10px] text-fg-muted">耗时 {(r.durationMs / 1000).toFixed(1)}s</p>
+          <p className="text-xs text-fg-muted">耗时 {(r.durationMs / 1000).toFixed(1)}s</p>
         </div>
       </div>
     )

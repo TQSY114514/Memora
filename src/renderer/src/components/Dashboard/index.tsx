@@ -12,22 +12,41 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
   const { setActiveSession, setActiveSessionData, dataVersion } = useStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    window.Memora.stats
-      .get()
-      .then((s) => {
+    async function load() {
+      setLoading(true)
+      setLoadError(false)
+      try {
+        const s = await window.Memora.stats.get()
         if (!cancelled) setStats(s)
-      })
-      .catch(console.error)
-      .finally(() => {
+      } catch (e) {
+        console.error(e)
+        if (!cancelled) setLoadError(true)
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    }
+    load()
     return () => {
       cancelled = true
     }
   }, [dataVersion])
+
+  function handleRetry() {
+    setLoading(true)
+    setLoadError(false)
+    window.Memora.stats
+      .get()
+      .then(setStats)
+      .catch((e) => {
+        console.error(e)
+        setLoadError(true)
+      })
+      .finally(() => setLoading(false))
+  }
 
   const hour = new Date().getHours()
   const greeting = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好'
@@ -61,16 +80,30 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
 
   if (loading) {
     return (
-      <div className="flex-1 bg-bg-tertiary flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="flex-1 bg-bg-tertiary overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-8 py-10 space-y-8">
+          <div className="space-y-2">
+            <div className="Memora-skeleton h-7 w-40" />
+            <div className="Memora-skeleton h-4 w-56" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="Memora-skeleton h-24" />
+            <div className="Memora-skeleton h-24" />
+            <div className="Memora-skeleton h-24" />
+            <div className="Memora-skeleton h-24" />
+          </div>
+          <div className="Memora-skeleton h-32" />
+        </div>
       </div>
     )
   }
 
-  if (!stats) {
+  if (!stats || loadError) {
     return (
-      <div className="flex-1 bg-bg-tertiary flex items-center justify-center text-fg-muted">
-        加载失败
+      <div className="flex-1 bg-bg-tertiary flex flex-col items-center justify-center gap-3">
+        <p className="text-sm text-fg-secondary">统计加载失败</p>
+        <p className="text-xs text-fg-muted">请确认数据库可访问后重试</p>
+        <button onClick={handleRetry} className="Memora-btn Memora-btn-ghost">重试</button>
       </div>
     )
   }
@@ -94,12 +127,12 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
             <p className="text-xs text-fg-muted mb-4">导入你与 AI 的对话，让它们变成可搜索的长期记忆</p>
             <div className="flex items-center justify-center gap-2">
               {onOpenImportCenter && (
-                <button onClick={onOpenImportCenter} className="Memora-btn Memora-btn-primary text-xs">
+                <button onClick={onOpenImportCenter} className="Memora-btn Memora-btn-primary">
                   开始导入
                 </button>
               )}
               {onOpenAiSettings && (
-                <button onClick={onOpenAiSettings} className="Memora-btn Memora-btn-ghost text-xs">
+                <button onClick={onOpenAiSettings} className="Memora-btn Memora-btn-ghost">
                   配置 AI
                 </button>
               )}
@@ -125,16 +158,16 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={<IconMessage />} label="消息总数" value={stats.messageCount} color="text-blue-500" />
-          <StatCard icon={<IconFile />} label="对话数" value={stats.sessionCount} color="text-green-500" />
-          <StatCard icon={<IconPlug />} label="AI 平台" value={stats.providerCount} color="text-purple-500" />
-          <StatCard icon={<IconBrain />} label="偏好记忆" value={stats.preferenceCount} color="text-pink-500" />
+          <StatCard icon={<IconMessage />} label="消息总数" value={stats.messageCount} />
+          <StatCard icon={<IconFile />} label="对话数" value={stats.sessionCount} />
+          <StatCard icon={<IconPlug />} label="AI 平台" value={stats.providerCount} />
+          <StatCard icon={<IconBrain />} label="偏好记忆" value={stats.preferenceCount} />
         </div>
 
         {/* 平台分布 */}
         {stats.providerBreakdown.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-sm font-semibold text-fg-secondary uppercase tracking-wider mb-3">平台分布</h2>
+            <h2 className="Memora-label mb-3">平台分布</h2>
             <div className="space-y-2">
               {stats.providerBreakdown.map(({ provider, count }) => {
                 const meta = PROVIDER_META[provider as Provider] || PROVIDER_META.Unknown
@@ -158,7 +191,7 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
         {/* 最近活动 */}
         {stats.recentSessions.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-fg-secondary uppercase tracking-wider mb-3">最近活动</h2>
+            <h2 className="Memora-label mb-3">最近活动</h2>
             <div className="space-y-2">
               {stats.recentSessions.map((session) => {
                 const meta = PROVIDER_META[session.provider as Provider] || PROVIDER_META.Unknown
@@ -190,14 +223,14 @@ export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardPro
   )
 }
 
-function StatCard({ icon, label, value, color }: { icon: ReactNode; label: string; value: number; color: string }) {
+function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
   return (
     <div className="bg-bg-primary border border-border rounded-lg p-4">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-accent">{icon}</span>
         <span className="text-xs text-fg-muted">{label}</span>
       </div>
-      <p className={`text-2xl font-bold ${color}`}>{value.toLocaleString()}</p>
+      <p className="text-2xl font-semibold text-fg-primary">{value.toLocaleString()}</p>
     </div>
   )
 }
