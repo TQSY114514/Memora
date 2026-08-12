@@ -15,7 +15,7 @@ interface KnowledgePanelProps {
 type FilterType = 'all' | KnowledgeType | 'open-task'
 
 const TYPE_META: Record<KnowledgeType, { label: string; icon: string; color: string; badge: string }> = {
-  knowledge: { label: '知识', icon: '', color: '#6d5dfc', badge: 'bg-purple-500/15 text-purple-500' },
+  knowledge: { label: '知识', icon: '', color: 'var(--accent)', badge: 'bg-accent-muted text-accent' },
   decision: { label: '决策', icon: '', color: '#d97757', badge: 'bg-orange-500/15 text-orange-500' },
   task: { label: '任务', icon: '', color: '#10a37f', badge: 'bg-emerald-500/15 text-emerald-500' }
 }
@@ -189,7 +189,7 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
           <svg className="text-fg-secondary" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" /></svg>
           <div>
             <h2 className="text-sm font-semibold">知识库</h2>
-            <p className="text-[10px] text-fg-muted">决策 · 任务 · 知识一等公民实体</p>
+            <p className="text-xs text-fg-muted">决策 · 任务 · 知识一等公民实体</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -246,17 +246,17 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
             <button
               key={t.key}
               onClick={() => setFilter(t.key)}
-              className={`text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
+              className={`text-sm px-2 py-1 rounded-md transition-colors flex items-center gap-1 ${
                 filter === t.key
-                  ? 'bg-accent text-white'
+                  ? 'Memora-chip-accent'
                   : 'text-fg-muted hover:bg-bg-hover'
               }`}
             >
               <span>{t.label}</span>
               {t.count !== undefined && (
                 <span
-                  className={`text-[10px] ${
-                    filter === t.key ? 'text-white/70' : 'text-fg-muted'
+                  className={`text-xs ${
+                    filter === t.key ? 'text-accent-ink/70' : 'text-fg-muted'
                   }`}
                 >
                   {t.count}
@@ -267,11 +267,11 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
         </div>
 
         {extractMsg && (
-          <p className={`text-[11px] ${extractMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
+          <p className={`text-xs ${extractMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
             {extractMsg}
           </p>
         )}
-        {error && <p className="text-[11px] text-red-500 break-all">✗ {error}</p>}
+        {error && <p className="text-xs text-red-500 break-all">✗ {error}</p>}
       </div>
 
       {/* 列表 / 图谱 */}
@@ -378,7 +378,7 @@ function KnowledgeCard({
         {isTask ? (
           <button
             onClick={onToggleTask}
-            className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center text-[10px] flex-shrink-0 transition-colors ${
+            className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center text-xs flex-shrink-0 transition-colors ${
               isDone
                 ? 'bg-emerald-500 border-emerald-500 text-white'
                 : 'border-border hover:border-emerald-500'
@@ -430,7 +430,7 @@ function KnowledgeCard({
             </p>
           )}
 
-          <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px] text-fg-muted">
+          <div className="flex items-center gap-2 mt-2 flex-wrap text-xs text-fg-muted">
             <span className={`px-1.5 py-0.5 rounded font-medium ${meta.badge}`}>
               {meta.label}
             </span>
@@ -544,7 +544,7 @@ function EntryEditor({
                 if (t !== 'task' && status === 'open') setStatus('active')
               }}
               className={`text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 ${
-                type === t ? 'bg-accent text-white' : 'bg-bg-hover text-fg-secondary hover:bg-bg-tertiary'
+                type === t ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-secondary hover:bg-bg-tertiary'
               }`}
             >
               <span>{TYPE_META[t].icon}</span>
@@ -579,7 +579,7 @@ function EntryEditor({
               <button
                 onClick={() => setStatus('open')}
                 className={`text-xs px-2.5 py-1 rounded-md ${
-                  status === 'open' ? 'bg-accent text-white' : 'bg-bg-hover text-fg-secondary'
+                  status === 'open' ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-secondary'
                 }`}
               >
                 待办
@@ -587,7 +587,7 @@ function EntryEditor({
               <button
                 onClick={() => setStatus('done')}
                 className={`text-xs px-2.5 py-1 rounded-md ${
-                  status === 'done' ? 'bg-accent text-white' : 'bg-bg-hover text-fg-secondary'
+                  status === 'done' ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-secondary'
                 }`}
               >
                 已完成
@@ -603,7 +603,7 @@ function EntryEditor({
               <button
                 onClick={() => setStatus('active')}
                 className={`text-xs px-2.5 py-1 rounded-md ${
-                  status === 'active' ? 'bg-accent text-white' : 'bg-bg-hover text-fg-secondary'
+                  status === 'active' ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-secondary'
                 }`}
               >
                 生效中
@@ -611,7 +611,7 @@ function EntryEditor({
               <button
                 onClick={() => setStatus('superseded')}
                 className={`text-xs px-2.5 py-1 rounded-md ${
-                  status === 'superseded' ? 'bg-accent text-white' : 'bg-bg-hover text-fg-secondary'
+                  status === 'superseded' ? 'Memora-chip-accent' : 'bg-bg-hover text-fg-secondary'
                 }`}
               >
                 已废弃

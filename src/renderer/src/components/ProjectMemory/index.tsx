@@ -72,7 +72,7 @@ export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
           </span>
           <div>
             <h2 className="text-sm font-semibold">Project Memory</h2>
-            <p className="text-[10px] text-fg-muted">基于历史对话的智能问答</p>
+            <p className="text-xs text-fg-muted">基于历史对话的智能问答</p>
           </div>
         </div>
         <button onClick={onClose} className="Memora-btn Memora-btn-ghost text-sm">
@@ -199,10 +199,10 @@ function AnswerCard({
             答案
           </span>
           {answer.model && (
-            <span className="text-[10px] text-fg-muted">{answer.model}</span>
+            <span className="text-xs text-fg-muted">{answer.model}</span>
           )}
         </div>
-        <div className="prose prose-sm dark:prose-invert max-w-none text-fg-primary">
+        <div className="Memora-md">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.answer}</ReactMarkdown>
         </div>
       </div>
@@ -223,9 +223,9 @@ function AnswerCard({
                   className="w-full text-left p-2.5 rounded-md border border-border hover:bg-bg-hover transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] text-fg-muted">#{i + 1}</span>
+                    <span className="text-xs text-fg-muted">#{i + 1}</span>
                     <span
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium"
                       style={{ backgroundColor: `${meta.color}20`, color: meta.color }}
                     >
                       {meta.label}
@@ -233,13 +233,13 @@ function AnswerCard({
                     <span className="text-xs text-fg-secondary truncate flex-1">
                       {c.sessionTitle}
                     </span>
-                    <span className="text-[10px] text-fg-muted">
+                    <span className="text-xs text-fg-muted">
                       {(c.score * 100).toFixed(0)}%
                     </span>
                   </div>
                   <p className="text-xs text-fg-muted line-clamp-2">{c.snippet}</p>
                   {c.reason && (
-                    <p className="text-[10px] text-fg-muted mt-1 opacity-80">
+                    <p className="text-xs text-fg-muted mt-1 opacity-80">
                       为何引用: {c.reason}
                     </p>
                   )}

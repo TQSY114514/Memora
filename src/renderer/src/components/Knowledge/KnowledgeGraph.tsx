@@ -17,7 +17,7 @@ import type { KnowledgeEntry, KnowledgeGraphData } from '@shared/types'
  */
 
 const TYPE_COLORS: Record<string, string> = {
-  knowledge: '#6d5dfc',
+  knowledge: 'var(--accent)',
   decision: '#d97757',
   task: '#10a37f'
 }
@@ -355,9 +355,9 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
             <button
               key={opt.key}
               onClick={() => setTimeFilter(opt.key)}
-              className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+              className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                 timeFilter === opt.key
-                  ? 'bg-accent text-white'
+                  ? 'Memora-chip-accent'
                   : 'text-fg-muted hover:bg-bg-hover'
               }`}
             >
@@ -398,7 +398,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
       {/* 图例 */}
       <div className="absolute top-3 left-3 z-10 bg-bg-primary/90 border border-border rounded-lg px-3 py-2 space-y-1">
         {['knowledge', 'decision', 'task'].map((type) => (
-          <div key={type} className="flex items-center gap-2 text-[11px]">
+          <div key={type} className="flex items-center gap-2 text-xs">
             <span
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: TYPE_COLORS[type] }}
@@ -410,10 +410,10 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
           </div>
         ))}
         <div className="border-t border-border pt-1 mt-1 space-y-0.5">
-          <div className="flex items-center gap-2 text-[10px] text-fg-muted">
+          <div className="flex items-center gap-2 text-xs text-fg-muted">
             <span className="w-4 h-px bg-fg-muted" /> 显式关系
           </div>
-          <div className="flex items-center gap-2 text-[10px] text-fg-muted">
+          <div className="flex items-center gap-2 text-xs text-fg-muted">
             <span className="w-4 h-px border-t border-dashed border-fg-muted" /> 同源对话
           </div>
         </div>
@@ -421,7 +421,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
           <div className="border-t border-border pt-1 mt-1">
             <button
               onClick={() => setExpandedIds(new Set())}
-              className="text-[10px] text-accent hover:underline"
+              className="text-xs text-accent hover:underline"
             >
               收起全部 ({expandedIds.size})
             </button>
@@ -430,7 +430,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
       </div>
 
       {/* 提示信息 */}
-      <div className="absolute bottom-3 left-3 z-10 text-[10px] text-fg-muted bg-bg-primary/80 border border-border rounded px-2 py-1">
+      <div className="absolute bottom-3 left-3 z-10 text-xs text-fg-muted bg-bg-primary/80 border border-border rounded px-2 py-1">
         拖拽节点移动 · 双击展开关联 · 滚轮缩放 · 拖拽背景平移
       </div>
 
@@ -553,11 +553,11 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
               }}
             >
               <p className="text-xs font-medium text-fg-primary mb-0.5">{entry.title}</p>
-              <p className="text-[10px] text-fg-muted">
+              <p className="text-xs text-fg-muted">
                 {TYPE_LABELS[entry.type]} · {entry.source}
               </p>
               {entry.content && (
-                <p className="text-[10px] text-fg-secondary mt-1 line-clamp-2">
+                <p className="text-xs text-fg-secondary mt-1 line-clamp-2">
                   {entry.content}
                 </p>
               )}
@@ -592,7 +592,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                 </button>
               </div>
-              <p className="text-[10px] text-fg-muted mb-2">
+              <p className="text-xs text-fg-muted mb-2">
                 {TYPE_LABELS[entry.type]} · {entry.source} · {relatedEdges.length} 个关联
                 {' · '}{new Date(entry.createdAt).toLocaleDateString('zh-CN')}
               </p>
@@ -601,7 +601,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
               )}
               {relatedEdges.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-[10px] text-fg-muted uppercase tracking-wider">关联</p>
+                  <p className="text-xs text-fg-muted uppercase tracking-wider">关联</p>
                   {relatedEdges.slice(0, 5).map((edge, idx) => {
                     const otherId = edge.from === selectedId ? edge.to : edge.from
                     const other = data.nodes.find((n) => n.id === otherId)
@@ -610,7 +610,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
                       <button
                         key={idx}
                         onClick={() => setSelectedId(otherId)}
-                        className="block w-full text-left text-[11px] text-fg-secondary hover:text-fg-primary hover:bg-bg-hover px-1.5 py-0.5 rounded"
+                        className="block w-full text-left text-xs text-fg-secondary hover:text-fg-primary hover:bg-bg-hover px-1.5 py-0.5 rounded"
                       >
                         <span className="text-fg-muted mr-1">
                           {RELATION_LABELS[edge.relation] || edge.relation}:
@@ -620,7 +620,7 @@ export function KnowledgeGraph({ workspaceId, onEntryClick }: KnowledgeGraphProp
                     )
                   })}
                   {relatedEdges.length > 5 && (
-                    <p className="text-[10px] text-fg-muted">还有 {relatedEdges.length - 5} 条…</p>
+                    <p className="text-xs text-fg-muted">还有 {relatedEdges.length - 5} 条…</p>
                   )}
                 </div>
               )}
