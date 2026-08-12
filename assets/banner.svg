@@ -13,7 +13,7 @@
     </filter>
   </defs>
 
-  <!-- Logo 标记（书架 M，左侧） -->
+  <!-- Logo mark (bookshelf M, left) -->
   <g transform="translate(20, 10) scale(0.75)">
     <rect x="44" y="40" width="32" height="160" rx="8" fill="url(#bGrad)" filter="url(#bShadow)"/>
     <rect x="180" y="40" width="32" height="160" rx="8" fill="url(#bGrad)" filter="url(#bShadow)"/>
@@ -27,7 +27,7 @@
     <line x1="140" y1="140" x2="154" y2="154" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
   </g>
 
-  <!-- 标题 -->
+  <!-- Title -->
   <text x="270" y="95" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="52" font-weight="800" letter-spacing="3" fill="url(#bGrad)" text-anchor="start">Memora</text>
   <text x="272" y="130" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="18" font-weight="500" letter-spacing="5" fill="#F59E0B" text-anchor="start" opacity="0.85">AI MEMORY WORKSPACE</text>
   <text x="272" y="158" font-family="'Inter','Segoe UI','Helvetica Neue',sans-serif" font-size="13" font-weight="400" letter-spacing="3" fill="#D97706" text-anchor="start" opacity="0.6">Unified · Searchable · Local-first</text>

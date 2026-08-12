@@ -4,8 +4,7 @@
 <img src="assets/banner.svg" width="600" alt="Memora - Personal AI Knowledge Vault"/>
 
 <p>
-  <strong>Your memory, not your tools. Switch AI, keep your accumulated life.</strong><br/>
-  <sub>换 AI，不换人生积累 — 无论你换多少次模型、多少个平台</sub>
+  <strong>Your memory, not your tools. Switch AI, keep your accumulated life.</strong>
 </p>
 
 <!-- Badges -->
@@ -88,10 +87,10 @@ $ node out/main/index.js --mcp
   "totalPreferences": 5,
   "activePreferences": 4,
   "bySubject": [
-    { "subject": "architecture", "value": "Local-First，数据留在本地设备", "confidence": 0.95 },
+    { "subject": "architecture", "value": "Local-First, data stays on-device", "confidence": 0.95 },
     { "subject": "editor",       "value": "VSCode + Cursor", "confidence": 0.85 },
-    { "subject": "language",     "value": "Rust，最近在学系统编程", "confidence": 0.68 },
-    { "subject": "tech stack",   "value": "Electron + React + TypeScript，本地优先架构", "confidence": 0.92 }
+    { "subject": "language",     "value": "Rust, currently learning systems programming", "confidence": 0.68 },
+    { "subject": "tech stack",   "value": "Electron + React + TypeScript, local-first architecture", "confidence": 0.92 }
   ]
 }
 
@@ -101,7 +100,7 @@ $ node out/main/index.js --mcp
 [
   {
     "subject": "tech stack",
-    "value": "Electron + React + TypeScript，本地优先架构",
+    "value": "Electron + React + TypeScript, local-first architecture",
     "confidence": 0.92,
     "status": "active",
     "source": "mcp"
@@ -117,14 +116,14 @@ $ node out/main/index.js --mcp
   "explanations": [
     {
       "subject": "tech stack",
-      "value": "Electron + React + TypeScript，本地优先架构",
+      "value": "Electron + React + TypeScript, local-first architecture",
       "confidence": 0.92,
-      "reasons": ["高置信度（多次确认）", "最初记录于 2026/8/7"],
+      "reasons": ["High confidence (confirmed multiple times)", "First recorded on 2026/8/7"],
       "source": "mcp",
       "status": "active"
     }
   ],
-  "summary": "找到 1 条相关记忆。高置信度（多次确认）；最初记录于 2026/8/7"
+  "summary": "Found 1 related memory. High confidence (confirmed multiple times); first recorded on 2026/8/7"
 }
 ```
 
@@ -144,8 +143,8 @@ Import conversations → distill preferences → export a portable memory packag
 { "workspaceId": "36db...", "totalPreferences": 5, "activePreferences": 4, ... }
 
 # ③ Inject memory into the new AI
-> memory_save_preference({ workspaceId: "5806...", subject: "tech stack", value: "Electron + React + TypeScript，本地优先架构", confidence: 0.92 })
-{ "preferenceId": "b516...", "subject": "tech stack", "status": "active", "note": "新偏好已保存" }
+> memory_save_preference({ workspaceId: "5806...", subject: "tech stack", value: "Electron + React + TypeScript, local-first architecture", confidence: 0.92 })
+{ "preferenceId": "b516...", "subject": "tech stack", "status": "active", "note": "New preference saved" }
 
 # ④ After switching: the new AI instantly knows you
 > memory_profile({ workspaceId: "5806..." })
@@ -153,7 +152,7 @@ Import conversations → distill preferences → export a portable memory packag
 
 # ⑤ The new AI can also recall your preferences
 > preference_search({ query: "tech stack", workspaceId: "5806..." })
-[ { "subject": "tech stack", "value": "Electron + React + TypeScript，本地优先架构", "confidence": 0.92, "status": "active" } ]
+[ { "subject": "tech stack", "value": "Electron + React + TypeScript, local-first architecture", "confidence": 0.92, "status": "active" } ]
 ```
 
 ### AI Identity Profile: One-click portable persona
@@ -182,11 +181,11 @@ Import conversations → distill preferences → export a portable memory packag
 ### Memory Timeline: Watch your knowledge evolve
 
 ```
-2026-01 ━━━ Python 80%  →  "主要用 Python 做后端"
-2026-05 ━━━ Rust 65%    →  "开始学习 Rust，感觉有意思"
-2026-08 ━━━ TypeScript 92% → "全栈开发主语言，Electron 项目"
+2026-01 ━━━ Python 80%  →  "Primarily Python for backend"
+2026-05 ━━━ Rust 65%    →  "Started learning Rust, find it interesting"
+2026-08 ━━━ TypeScript 92% → "Primary full-stack language, Electron project"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Trend: 技术栈从 Python 后端 → TypeScript 全栈，新语言探索活跃
+Trend: Tech stack shifted from Python backend → TypeScript full-stack, active exploration of new languages
 ```
 
 ---
