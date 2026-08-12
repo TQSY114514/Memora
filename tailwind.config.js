@@ -23,20 +23,32 @@ export default {
         accent: {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
-          muted: 'var(--accent-muted)'
-        },
-        glass: {
-          bg: 'var(--glass-bg)',
-          border: 'var(--glass-border)'
+          muted: 'var(--accent-muted)',
+          ink: 'var(--accent-ink)'
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'SF Mono', 'Menlo', 'monospace']
+        sans: [
+          'system-ui',
+          '-apple-system',
+          'Segoe UI',
+          'PingFang SC',
+          'Microsoft YaHei',
+          'Noto Sans CJK SC',
+          'sans-serif'
+        ],
+        mono: [
+          'JetBrains Mono',
+          'ui-monospace',
+          'SF Mono',
+          'Cascadia Code',
+          'Consolas',
+          'monospace'
+        ]
       },
       borderRadius: {
-        xl: '12px',
-        '2xl': '16px'
+        xl: '10px',
+        '2xl': '12px'
       },
       boxShadow: {
         sm: 'var(--shadow-sm)',

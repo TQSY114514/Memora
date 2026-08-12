@@ -2,45 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS 变量驱动的主题（暗色/亮色） */
+/* ============================================================
+   Memora 设计令牌（Design Tokens）
+   审美方向：档案室 / 阅读室（reading-room archive）
+   —— 暖纸色底、墨水文字、单一黄铜强调色、打字机式目录标签
+   ============================================================ */
+
 :root {
-  --bg-primary: #f8f7f4;
-  --bg-secondary: #efede8;
-  --bg-tertiary: #ffffff;
-  --bg-hover: #e8e5de;
-  --fg-primary: #1a1a2e;
-  --fg-secondary: #5a5a6e;
-  --fg-muted: #9a9aae;
-  --border-default: #e2dfd8;
-  --border-strong: #cdcac0;
-  --accent: #7c5cbf;
-  --accent-hover: #6a4eaa;
-  --accent-muted: rgba(124, 92, 191, 0.12);
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
+  --bg-primary: #f5f2ec;
+  --bg-secondary: #ede8de;
+  --bg-tertiary: #fbf9f4;
+  --bg-hover: #e3ddd0;
+  --fg-primary: #2a2620;
+  --fg-secondary: #6e675b;
+  --fg-muted: #9b9384;
+  --border-default: #ded6c8;
+  --border-strong: #c4baa8;
+  --accent: #9a5b13;
+  --accent-hover: #7f4b0e;
+  --accent-muted: rgba(154, 91, 19, 0.1);
+  --accent-ink: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(64, 54, 38, 0.05);
+  --shadow-md: 0 2px 10px rgba(64, 54, 38, 0.07);
+  --shadow-lg: 0 10px 30px rgba(64, 54, 38, 0.1);
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
 }
 
 .dark {
-  --bg-primary: #0f0e12;
-  --bg-secondary: #16151c;
-  --bg-tertiary: #1e1d26;
-  --bg-hover: #25242e;
-  --fg-primary: #e8e6f0;
-  --fg-secondary: #a09cb8;
-  --fg-muted: #6e6a82;
-  --border-default: #2a2836;
-  --border-strong: #3a3848;
-  --accent: #a78bfa;
-  --accent-hover: #c4b5fd;
-  --accent-muted: rgba(167, 139, 250, 0.15);
-  --glass-bg: rgba(30, 29, 38, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --bg-primary: #161410;
+  --bg-secondary: #1c1914;
+  --bg-tertiary: #221f18;
+  --bg-hover: #2a261e;
+  --fg-primary: #eae3d5;
+  --fg-secondary: #b0a791;
+  --fg-muted: #7c7462;
+  --border-default: #342f25;
+  --border-strong: #4a4435;
+  --accent: #d9a441;
+  --accent-hover: #e7b95c;
+  --accent-muted: rgba(217, 164, 65, 0.14);
+  --accent-ink: #221b0f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -61,8 +65,9 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -82,43 +87,68 @@ body {
   background: var(--fg-muted);
 }
 
-/* 玻璃面板 */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-md);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.glass-panel:hover {
-  box-shadow: var(--shadow-lg);
-  border-color: var(--border-strong);
-}
+/* ============================================================
+   通用工具类
+   ============================================================ */
 
-/* 内容卡片 */
-.content-card {
-  @apply rounded-lg border border-border bg-bg-tertiary;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.content-card:hover {
-  box-shadow: var(--shadow-md);
-}
-
-/* 通用工具类 */
 .Memora-btn {
-  @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150;
+  @apply px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150;
+}
+.Memora-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .Memora-btn-primary {
-  @apply bg-accent text-white hover:bg-accent-hover;
+  background-color: var(--accent);
+  color: var(--accent-ink);
+}
+.Memora-btn-primary:hover {
+  background-color: var(--accent-hover);
 }
 .Memora-btn-ghost {
   @apply text-fg-secondary hover:bg-bg-hover hover:text-fg-primary;
 }
+
 .Memora-input {
-  @apply bg-bg-tertiary border border-border rounded-lg px-3 py-1.5 text-sm text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted transition-all duration-150;
+  @apply bg-bg-tertiary border border-border rounded-md px-3 py-1.5 text-sm text-fg-primary placeholder:text-fg-muted transition-colors duration-150;
+}
+.Memora-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+/* 目录抽屉标签：等宽字体的小型分组标题（本设计的签名元素） */
+.Memora-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+/* 强调色实底 chip：文字颜色跟随 --accent-ink（暗色模式黄铜底配深墨字） */
+.Memora-chip-accent {
+  background-color: var(--accent);
+  color: var(--accent-ink);
+}
+.Memora-chip-accent:hover {
+  background-color: var(--accent-hover);
+}
+
+/* 安静的骨架屏 / 状态点：仅透明度呼吸，无缩放跳动 */
+.Memora-skeleton {
+  background-color: var(--bg-hover);
+  border-radius: 6px;
+  animation: MemoraPulse 1.8s ease-in-out infinite;
+}
+.Memora-pulse {
+  animation: MemoraPulse 1.8s ease-in-out infinite;
+}
+@keyframes MemoraPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 /* 隐藏滚动条（用于单行滚动的 chip 行） */
@@ -140,16 +170,125 @@ body {
 }
 
 /* 有背景图片时，组件背景半透明，让背景图透过来 */
-.has-bg-image .bg-bg-primary { background-color: rgba(250, 250, 250, 0.75) !important; }
-.has-bg-image .bg-bg-secondary { background-color: rgba(244, 244, 245, 0.75) !important; }
-.has-bg-image .bg-bg-tertiary { background-color: rgba(255, 255, 255, 0.75) !important; }
-.dark .has-bg-image .bg-bg-primary { background-color: rgba(10, 10, 11, 0.75) !important; }
-.dark .has-bg-image .bg-bg-secondary { background-color: rgba(17, 17, 19, 0.75) !important; }
-.dark .has-bg-image .bg-bg-tertiary { background-color: rgba(24, 24, 27, 0.75) !important; }
+.has-bg-image .bg-bg-primary { background-color: rgba(245, 242, 236, 0.78) !important; }
+.has-bg-image .bg-bg-secondary { background-color: rgba(237, 232, 222, 0.78) !important; }
+.has-bg-image .bg-bg-tertiary { background-color: rgba(251, 249, 244, 0.78) !important; }
+.dark .has-bg-image .bg-bg-primary { background-color: rgba(22, 20, 16, 0.78) !important; }
+.dark .has-bg-image .bg-bg-secondary { background-color: rgba(28, 25, 20, 0.78) !important; }
+.dark .has-bg-image .bg-bg-tertiary { background-color: rgba(34, 31, 24, 0.78) !important; }
+
+/* ============================================================
+   Markdown 排版（替代 @tailwindcss/typography 的 prose 类）
+   手写实现：标题 / 列表 / 代码 / 引用 / 链接 / 表格
+   ============================================================ */
+
+.Memora-md {
+  color: var(--fg-primary);
+  font-size: 14px;
+  line-height: 1.75;
+}
+.Memora-md > *:first-child { margin-top: 0; }
+.Memora-md > *:last-child { margin-bottom: 0; }
+
+.Memora-md h1, .Memora-md h2, .Memora-md h3, .Memora-md h4, .Memora-md h5, .Memora-md h6 {
+  font-weight: 600;
+  color: var(--fg-primary);
+  margin: 20px 0 10px;
+  line-height: 1.4;
+}
+.Memora-md h1 { font-size: 20px; }
+.Memora-md h2 {
+  font-size: 17px;
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 6px;
+}
+.Memora-md h3 { font-size: 15px; }
+.Memora-md h4, .Memora-md h5, .Memora-md h6 { font-size: 14px; }
+
+.Memora-md p { margin: 0 0 12px; }
+
+.Memora-md ul, .Memora-md ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+.Memora-md li { margin: 4px 0; }
+.Memora-md li::marker { color: var(--accent); }
+.Memora-md ul ul, .Memora-md ol ol, .Memora-md ul ol, .Memora-md ol ul { margin-bottom: 0; }
+
+.Memora-md code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.Memora-md pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0 0 14px;
+}
+.Memora-md pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.Memora-md blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+  margin: 0 0 14px;
+  color: var(--fg-secondary);
+}
+.Memora-md blockquote p:last-child { margin-bottom: 0; }
+
+.Memora-md a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.Memora-md a:hover { color: var(--accent-hover); }
+
+.Memora-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.Memora-md th, .Memora-md td {
+  border: 1px solid var(--border-default);
+  padding: 6px 10px;
+  text-align: left;
+}
+.Memora-md th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.Memora-md hr {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: 16px 0;
+}
+.Memora-md img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.Memora-md mark {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
 
 /* ============================================================
    导出菜单 ExportMenu
-   设计取向：克制的精致感——玻璃背板、精确排版、错峰进场
+   设计取向：克制的精致感——纸面背板、精确排版、错峰进场
    ============================================================ */
 
 /* 触发按钮：比 ghost 更内敛，带细分隔的 chevron */
@@ -178,7 +317,7 @@ body {
   border-color: var(--border-default);
 }
 
-/* 下拉面板：玻璃质感、柔和投影、圆角 */
+/* 下拉面板：纸面背板、柔和投影、圆角 */
 .export-panel {
   position: absolute;
   top: calc(100% + 6px);
@@ -186,9 +325,7 @@ body {
   z-index: 50;
   min-width: 280px;
   padding: 6px;
-  background: color-mix(in srgb, var(--bg-tertiary) 88%, transparent);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  background: color-mix(in srgb, var(--bg-tertiary) 96%, transparent);
   border: 1px solid var(--border-default);
   border-radius: 10px;
   box-shadow:
@@ -214,9 +351,10 @@ body {
 .export-group { padding: 4px 2px; }
 .export-group-label {
   padding: 4px 10px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-muted);
 }
@@ -288,17 +426,17 @@ body {
   letter-spacing: 0.005em;
 }
 .export-row-ext {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--fg-muted);
-  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
   padding: 1px 5px;
   background: var(--bg-secondary);
   border-radius: 4px;
   letter-spacing: 0.02em;
 }
 .export-row-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--fg-muted);
   line-height: 1.4;
   white-space: nowrap;
@@ -320,12 +458,11 @@ body {
 .export-hint {
   margin: 6px 10px 2px;
   padding: 7px 9px;
-  font-size: 10.5px;
+  font-size: 11.5px;
   line-height: 1.5;
   color: var(--fg-muted);
   background: var(--bg-secondary);
   border-radius: 6px;
-  border-left: 2px solid var(--accent);
 }
 
 /* 进行中 spinner */
@@ -341,4 +478,3 @@ body {
 @keyframes exportSpin {
   to { transform: rotate(360deg); }
 }
-
