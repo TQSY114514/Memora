@@ -10,7 +10,7 @@
 
 <!-- Badges -->
 <p>
-  <img src="https://img.shields.io/badge/version-1.14.0-6366f1?style=flat-square" alt="version"/>
+  <img src="https://img.shields.io/badge/version-1.15.0-6366f1?style=flat-square" alt="version"/>
   <img src="https://img.shields.io/badge/Electron-39-47848F?style=flat-square" alt="Electron"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square" alt="React"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square" alt="TypeScript"/>

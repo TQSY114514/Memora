@@ -2,6 +2,25 @@
 
 本文件记录 Memora 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.15.0] - 2026-08-12
+
+### Changed
+
+#### 全新 UI 设计系统：「档案室 / 阅读室」
+- **设计令牌全面重构**（`tailwind.config.js` + `styles/index.css`）：移除 AI 默认紫色强调色与 Inter 字体，改用暖纸色中性底 + 单一黄铜强调色（亮色 `#9a5b13` / 暗色 `#d9a441`）+ 系统字体栈（PingFang SC / Microsoft YaHei）
+- **签名元素**：等宽字体「目录抽屉」标签（`.Memora-label`）用于分组标题与消息角色标记；手写 markdown 排版类 `.Memora-md` 替代未安装的 `@tailwindcss/typography`（修复消息正文无样式问题）
+- **新增共享 `Modal` 组件**，替换 Settings / AiSettings / ImportCenter / DistillationTemplates / PromptDialog 五处重复浮层标记
+- **核心界面重做**：Sidebar / ChatList / ChatViewer / Dashboard 全面去 AI-slop——骨架屏替换 `animate-pulse` 加载、黄铜 chip 替换 `bg-accent text-white`（暗色模式可读性）、10px 级小字提升至 12px+
+- **全量面板收敛**：PreferenceExplorer / Knowledge / KnowledgeGraph / McpPermissions / SecurityCenter / IdentityProfile / MemoryAgent / CloudSync / TimeCapsule / TeamWorkspace / TemplateMarket / MigrationWizard / ProjectMemory 等 20+ 文件——紫色/靛蓝分类色收敛至黄铜/琥珀/芥末黄暖色系，语义色（成功绿/错误红/权限三色）保留
+- 移除未引用的 `VersionHistory` 组件与 `.glass-panel` / `.content-card` 死代码
+
+### Fixed
+- **英文版 README 去除中文残留**（demo 输出、Timeline 示例、banner 注释全部英文化），中文版保持双语分离
+- markdown 消息渲染无排版样式（`prose` 类无对应插件）——以手写 `.Memora-md` 修复
+
+### Quality
+- 全量验证通过：typecheck / lint / build / **810 项测试全部通过**
+
 ## [1.14.0] - 2026-08-04
 
 ### Added
