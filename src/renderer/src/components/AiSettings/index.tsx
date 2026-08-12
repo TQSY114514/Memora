@@ -5,6 +5,7 @@ import {
 } from '../../stores/aiConfigStore'
 import { API_STYLE_META } from '@shared/constants'
 import type { AiApiStyle, EmbeddingMode } from '@shared/types'
+import { Modal } from '../Modal'
 
 interface AiSettingsProps {
   onClose: () => void
@@ -176,14 +177,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
   const currentStyleMeta = API_STYLE_META[config.apiStyle]
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
-      onClick={onClose}
-    >
-      <div
-        className="bg-bg-primary border border-border rounded-xl shadow-2xl w-[680px] max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} className="w-[680px] max-h-[90vh] overflow-hidden flex flex-col">
         {/* 头部 */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
@@ -226,7 +220,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     onClick={() => setActiveProvider(p)}
                     className={`w-full text-left px-2.5 py-2 rounded text-xs transition-colors ${
                       activeProvider === p
-                        ? 'bg-accent text-white'
+                        ? 'Memora-chip-accent'
                         : 'text-fg-secondary hover:bg-bg-hover'
                     }`}
                     title={cfg.label}
@@ -234,12 +228,12 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     <div className="flex items-center justify-between gap-1">
                       <span className="truncate">{cfg.label}</span>
                       {isConfigured && (
-                        <span className={activeProvider === p ? 'text-white' : 'text-green-500'}>
+                        <span className={activeProvider === p ? 'text-accent-ink' : 'text-green-500'}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
                         </span>
                       )}
                     </div>
-                    <div className={`text-[10px] mt-0.5 ${activeProvider === p ? 'text-white/70' : 'text-fg-muted'}`}>
+                    <div className={`text-xs mt-0.5 ${activeProvider === p ? 'text-accent-ink/70' : 'text-fg-muted'}`}>
                       {API_STYLE_META[cfg.apiStyle].label}
                     </div>
                   </button>
@@ -315,7 +309,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                   </option>
                 ))}
               </select>
-              <p className="text-[10px] text-fg-muted mt-1 leading-relaxed">
+              <p className="text-xs text-fg-muted mt-1 leading-relaxed">
                 {currentStyleMeta.description}
               </p>
             </div>
@@ -383,7 +377,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                   onClick={() => setConfig({ embeddingMode: 'api' as EmbeddingMode })}
                   className={`flex-1 px-3 py-2 rounded text-xs transition-colors border ${
                     config.embeddingMode === 'api'
-                      ? 'bg-accent text-white border-accent'
+                      ? 'Memora-chip-accent border-accent'
                       : 'bg-bg-secondary text-fg-secondary border-border hover:bg-bg-hover'
                   }`}
                 >
@@ -394,14 +388,14 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                   onClick={() => setConfig({ embeddingMode: 'local' as EmbeddingMode })}
                   className={`flex-1 px-3 py-2 rounded text-xs transition-colors border ${
                     config.embeddingMode === 'local'
-                      ? 'bg-accent text-white border-accent'
+                      ? 'Memora-chip-accent border-accent'
                       : 'bg-bg-secondary text-fg-secondary border-border hover:bg-bg-hover'
                   }`}
                 >
                   本地 ONNX 嵌入（隐私优先）
                 </button>
               </div>
-              <p className="text-[10px] text-fg-muted mt-1 leading-relaxed">
+              <p className="text-xs text-fg-muted mt-1 leading-relaxed">
                 {config.embeddingMode === 'local'
                   ? '嵌入向量在本地计算，无需 API 密钥，首次使用时自动下载模型（~23MB）。对话总结仍走 API。'
                   : '嵌入向量通过 API 远程计算，需要供应商支持 embeddings 接口。'}
@@ -435,7 +429,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     <option value="Xenova/multilingual-e5-small">multilingual-e5-small（~120MB · 多语言含中文）</option>
                     <option value="Xenova/bge-small-zh-v1.5">bge-small-zh-v1.5（~50MB · 中文专用）</option>
                   </select>
-                  <p className="text-[10px] text-fg-muted mt-1">
+                  <p className="text-xs text-fg-muted mt-1">
                     向量维度：{config.embeddingDim}（自动匹配模型）
                   </p>
                 </div>
@@ -491,7 +485,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                   </button>
                 </div>
                 {cacheInfo && (
-                  <div className="flex items-center gap-2 text-[10px] text-fg-muted">
+                  <div className="flex items-center gap-2 text-xs text-fg-muted">
                     <span>模型缓存：{formatBytes(cacheInfo.totalBytes)}</span>
                     <button
                       type="button"
@@ -603,7 +597,7 @@ export function AiSettings({ onClose }: AiSettingsProps) {
                     </option>
                   ))}
                 </select>
-                <p className="text-[10px] text-fg-muted mt-1 leading-relaxed">
+                <p className="text-xs text-fg-muted mt-1 leading-relaxed">
                   {API_STYLE_META[newProviderStyle].description}
                 </p>
               </div>
@@ -622,7 +616,6 @@ export function AiSettings({ onClose }: AiSettingsProps) {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

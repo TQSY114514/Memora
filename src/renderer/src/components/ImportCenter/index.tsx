@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, ScanPreview, DetectedApp, ExtractedSession } from '@shared/types'
+import { Modal } from '../Modal'
 
 interface ImportCenterProps {
   onClose: () => void
@@ -265,11 +266,7 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
   // 渲染
   // ============================================================
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
-      <div
-        className="bg-bg-primary rounded-xl shadow-2xl w-[900px] max-w-[94vw] max-h-[88vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} className="w-[900px] max-w-[94vw] max-h-[88vh] flex flex-col overflow-hidden">
         {/* 头部 */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <div className="flex items-center gap-3">
@@ -356,8 +353,7 @@ export function ImportCenter({ onClose }: ImportCenterProps) {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -424,14 +420,14 @@ function AppsView({
             >
               <div className="flex items-center gap-2">
                 <span
-                  className="w-8 h-8 rounded flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                  className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold text-white shrink-0"
                   style={{ background: meta.color }}
                 >
                   {meta.icon}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{app.name}</div>
-                  <div className="text-[10px] text-fg-muted flex items-center gap-1">
+                  <div className="text-xs text-fg-muted flex items-center gap-1">
                     {app.canExtract ? (
                       <span className="text-green-600">✓ 可扒取本地记录</span>
                     ) : app.installed ? (
@@ -444,11 +440,11 @@ function AppsView({
               </div>
 
               {app.hint && (
-                <p className="text-[10px] text-fg-muted leading-relaxed">{app.hint}</p>
+                <p className="text-xs text-fg-muted leading-relaxed">{app.hint}</p>
               )}
 
               {app.dataPath && (
-                <p className="text-[10px] text-fg-muted truncate" title={app.dataPath}>
+                <p className="text-xs text-fg-muted truncate" title={app.dataPath}>
                   {app.dataPath}
                 </p>
               )}
@@ -518,7 +514,7 @@ function SessionsView({
                 className="accent-accent"
               />
               <span
-                className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold text-white"
+                className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold text-white"
                 style={{ background: meta.color }}
               >
                 {meta.icon}
@@ -565,11 +561,11 @@ function SessionsView({
                             type="text"
                             value={editState?.source ?? it.source}
                             onChange={(e) => onUpdateEdit(it.id, 'source', e.target.value)}
-                            className="Memora-input w-full text-[10px] text-fg-muted"
+                            className="Memora-input w-full text-xs text-fg-muted"
                             placeholder="来源标注（如：Cursor 本地扒取）"
                           />
                         ) : (
-                          <div className="text-[10px] text-fg-muted truncate" title={it.source}>
+                          <div className="text-xs text-fg-muted truncate" title={it.source}>
                             {it.source}
                           </div>
                         )}
@@ -578,13 +574,13 @@ function SessionsView({
                       {/* 右侧元信息 */}
                       <div className="flex flex-col items-end gap-0.5 shrink-0">
                         {it.messageCount !== null && it.messageCount > 0 && (
-                          <span className="text-[10px] text-fg-muted">{it.messageCount} 条</span>
+                          <span className="text-xs text-fg-muted">{it.messageCount} 条</span>
                         )}
-                        <span className="text-[10px] text-fg-muted">
+                        <span className="text-xs text-fg-muted">
                           {new Date(it.createdAt).toLocaleDateString()}
                         </span>
                         {isExtracted && (
-                          <span className="text-[9px] px-1 py-0.5 bg-green-100 text-green-700 rounded">本地扒取</span>
+                          <span className="text-xs px-1.5 py-0.5 bg-green-500/10 text-green-600 rounded">本地扒取</span>
                         )}
                       </div>
                     </div>

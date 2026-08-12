@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Modal } from '../Modal'
 
 interface DialogState {
   open: boolean
@@ -105,36 +106,28 @@ export function PromptDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center"
-      onClick={handleCancel}
-    >
-      <div
-        className="bg-bg-primary border border-border rounded-xl shadow-2xl w-[400px] max-w-[90vw]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-5 py-4">
-          <p className="text-sm text-fg-primary mb-3">{state.title}</p>
-          {isPrompt && (
-            <input
-              ref={inputRef}
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="Memora-input w-full text-sm"
-            />
-          )}
-        </div>
-        <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
-          <button onClick={handleCancel} className="Memora-btn Memora-btn-ghost text-xs">
-            取消
-          </button>
-          <button onClick={handleConfirm} className="Memora-btn Memora-btn-primary text-xs">
-            确定
-          </button>
-        </div>
+    <Modal onClose={handleCancel} className="w-[400px] max-w-[90vw] max-h-[90vh] overflow-y-auto" overlayClassName="z-[60]">
+      <div className="px-5 py-4">
+        <p className="text-sm text-fg-primary mb-3">{state.title}</p>
+        {isPrompt && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="Memora-input w-full"
+          />
+        )}
       </div>
-    </div>
+      <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
+        <button onClick={handleCancel} className="Memora-btn Memora-btn-ghost">
+          取消
+        </button>
+        <button onClick={handleConfirm} className="Memora-btn Memora-btn-primary">
+          确定
+        </button>
+      </div>
+    </Modal>
   )
 }

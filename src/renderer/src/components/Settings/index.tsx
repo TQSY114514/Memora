@@ -5,6 +5,7 @@ import { useThemeStore } from '../../stores/themeStore'
 import { useBgImportStore } from '../../stores/backgroundImportStore'
 import type { Folder, Workspace } from '@shared/types'
 import { DistillationTemplates } from '../DistillationTemplates'
+import { Modal } from '../Modal'
 
 interface SettingsProps {
   onClose: () => void
@@ -183,14 +184,7 @@ export function Settings({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
-      onClick={onClose}
-    >
-      <div
-        className="bg-bg-primary border border-border rounded-xl shadow-2xl w-[460px] max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} className="w-[460px] max-h-[90vh] overflow-y-auto">
         {/* 头部 */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
@@ -208,7 +202,7 @@ export function Settings({
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
               {t('settings.language')}
             </label>
-            <p className="text-[11px] text-fg-muted mb-2.5">{t('settings.languageHint')}</p>
+            <p className="text-xs text-fg-muted mb-2.5">{t('settings.languageHint')}</p>
             <div className="flex gap-2 flex-wrap">
               {LANGUAGES.map((l) => (
                 <button
@@ -216,7 +210,7 @@ export function Settings({
                   onClick={() => setLang(l.code)}
                   className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
                     lang === l.code
-                      ? 'bg-accent text-white'
+                      ? 'Memora-chip-accent'
                       : 'bg-bg-hover text-fg-secondary hover:text-fg-primary'
                   }`}
                 >
@@ -242,7 +236,7 @@ export function Settings({
                   onClick={() => setMode(th.code)}
                   className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
                     mode === th.code
-                      ? 'bg-accent text-white'
+                      ? 'Memora-chip-accent'
                       : 'bg-bg-hover text-fg-secondary hover:text-fg-primary'
                   }`}
                 >
@@ -276,7 +270,7 @@ export function Settings({
             {backgroundImage && (
               <>
                 <div className="mt-3">
-                  <label className="block text-[10px] text-fg-muted mb-1">
+                  <label className="block text-xs text-fg-muted mb-1">
                     {t('settings.blur')} ({blur}px)
                   </label>
                   <input
@@ -289,7 +283,7 @@ export function Settings({
                   />
                 </div>
                 <div className="mt-2">
-                  <label className="block text-[10px] text-fg-muted mb-1">
+                  <label className="block text-xs text-fg-muted mb-1">
                     {t('settings.opacity')} ({Math.round(opacity * 100)}%)
                   </label>
                   <input
@@ -323,7 +317,7 @@ export function Settings({
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
               其他功能
             </label>
-            <p className="text-[11px] text-fg-muted mb-2.5">
+            <p className="text-xs text-fg-muted mb-2.5">
               记忆管理、同步与安全等高级功能。
             </p>
             <div className="grid grid-cols-2 gap-1.5">
@@ -344,7 +338,7 @@ export function Settings({
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
               蒸馏模板
             </label>
-            <p className="text-[11px] text-fg-muted mb-2.5">
+            <p className="text-xs text-fg-muted mb-2.5">
               自定义记忆蒸馏的 System Prompt，内置「默认 / 技术决策 / 学习笔记」三种模板，也可新建专属模板。
             </p>
             <button
@@ -360,7 +354,7 @@ export function Settings({
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
               数据备份与恢复
             </label>
-            <p className="text-[11px] text-fg-muted mb-2.5">导出全部数据为 JSON 文件，或从备份恢复（会覆盖当前数据）。</p>
+            <p className="text-xs text-fg-muted mb-2.5">导出全部数据为 JSON 文件，或从备份恢复（会覆盖当前数据）。</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleExportBackup}
@@ -389,7 +383,7 @@ export function Settings({
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
               数据迁移
             </label>
-            <p className="text-[11px] text-fg-muted mb-2.5">
+            <p className="text-xs text-fg-muted mb-2.5">
               将整个工作区（数据库 + AI 配置）导出为单个归档文件，可在另一台机器上导入恢复。导入会完全替换当前数据。
             </p>
             <div className="flex items-center gap-2">
@@ -424,7 +418,7 @@ export function Settings({
             <label className="block text-xs font-medium text-fg-secondary mb-1.5">
               数据库维护
             </label>
-            <p className="text-[11px] text-fg-muted mb-2.5">压缩数据库文件（VACUUM）或清理引用了已删除对话的孤儿数据。</p>
+            <p className="text-xs text-fg-muted mb-2.5">压缩数据库文件（VACUUM）或清理引用了已删除对话的孤儿数据。</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleVacuum}
@@ -463,8 +457,7 @@ export function Settings({
         {showDistillTemplates && (
           <DistillationTemplates onClose={() => setShowDistillTemplates(false)} />
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -539,14 +532,14 @@ function BackgroundImportSection() {
           />
         </button>
       </div>
-      <p className="text-[11px] text-fg-muted mb-2.5">
+      <p className="text-xs text-fg-muted mb-2.5">
         应用启动后自动扒取已安装的 AI 应用（Cursor / Claude Code 等）并导入新对话，重复对话自动跳过。
       </p>
 
       <div className="space-y-2.5">
         {/* 目标文件夹 */}
         <div>
-          <label className="block text-[10px] text-fg-muted mb-1">目标文件夹（必选）</label>
+          <label className="block text-xs text-fg-muted mb-1">目标文件夹（必选）</label>
           <select
             value={targetFolderId}
             onChange={handleFolder}
@@ -563,7 +556,7 @@ function BackgroundImportSection() {
 
         {/* 轮询间隔 */}
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-fg-muted">轮询间隔</label>
+          <label className="text-xs text-fg-muted">轮询间隔</label>
           <input
             type="number"
             min={1}
@@ -571,12 +564,12 @@ function BackgroundImportSection() {
             onChange={handleInterval}
             className="Memora-input w-20 text-xs py-1"
           />
-          <span className="text-[10px] text-fg-muted">分钟</span>
+          <span className="text-xs text-fg-muted">分钟</span>
         </div>
 
         {/* 启动时立即执行 */}
         <div className="flex items-center justify-between">
-          <label className="text-[10px] text-fg-muted">启动时立即执行一次</label>
+          <label className="text-xs text-fg-muted">启动时立即执行一次</label>
           <button
             onClick={handleToggleRunOnStartup}
             className={`relative w-9 h-5 rounded-full transition-colors ${
@@ -602,13 +595,13 @@ function BackgroundImportSection() {
             {running ? '执行中…' : '立即执行一次'}
           </button>
           {enabled && !targetFolderId && (
-            <span className="text-[10px] text-red-500">请先选择目标文件夹</span>
+            <span className="text-xs text-red-500">请先选择目标文件夹</span>
           )}
         </div>
 
         {/* 上次结果 */}
         {last && (
-          <div className="text-[11px] text-fg-muted mt-1 space-y-0.5">
+          <div className="text-xs text-fg-muted mt-1 space-y-0.5">
             <p>
               上次：+{last.imported} 新 / 跳过 {last.skipped} / 失败 {last.failed}
               <span className="ml-1">· 耗时 {(last.durationMs / 1000).toFixed(1)}s</span>
@@ -624,7 +617,7 @@ function BackgroundImportSection() {
           </div>
         )}
         {enabled && status?.nextRunAt && (
-          <p className="text-[10px] text-fg-muted">
+          <p className="text-xs text-fg-muted">
             下次：{new Date(status.nextRunAt).toLocaleString()}
           </p>
         )}

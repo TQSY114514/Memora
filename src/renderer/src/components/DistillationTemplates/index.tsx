@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { DistillationTemplate, DistillationOutputFormat } from '@shared/types'
+import { Modal } from '../Modal'
 
 interface DistillationTemplatesProps {
   onClose: () => void
@@ -148,14 +149,7 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
-      onClick={onClose}
-    >
-      <div
-        className="bg-bg-primary border border-border rounded-xl shadow-2xl w-[760px] max-w-[92vw] max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} className="w-[760px] max-w-[92vw] max-h-[90vh] flex flex-col overflow-hidden">
         {/* 头部 */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
@@ -199,11 +193,11 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold text-fg-primary">{tpl.name}</h3>
                         {tpl.isBuiltin && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-accent/15 text-accent font-medium">
+                          <span className="px-1.5 py-0.5 rounded text-xs bg-accent-muted text-accent font-medium">
                             内置
                           </span>
                         )}
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-bg-hover text-fg-secondary font-medium">
+                        <span className="px-1.5 py-0.5 rounded text-xs bg-bg-hover text-fg-secondary font-medium">
                           {OUTPUT_FORMAT_LABEL[tpl.outputFormat]}
                         </span>
                       </div>
@@ -231,7 +225,7 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
                     </div>
                   </div>
                   {/* System Prompt 预览（截断） */}
-                  <pre className="text-[11px] text-fg-muted mt-2 bg-bg-tertiary/50 rounded p-2 max-h-24 overflow-hidden whitespace-pre-wrap break-all">
+                  <pre className="text-xs text-fg-muted mt-2 bg-bg-tertiary/50 rounded p-2 max-h-24 overflow-hidden whitespace-pre-wrap break-all">
                     {tpl.systemPrompt.slice(0, 200)}
                     {tpl.systemPrompt.length > 200 ? '…' : ''}
                   </pre>
@@ -260,8 +254,7 @@ export function DistillationTemplates({ onClose }: DistillationTemplatesProps) {
             onConvertToCopy={convertToCopy}
           />
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -312,7 +305,7 @@ function EditorModal({
         {/* 表单 */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           <div>
-            <label className="block text-[11px] text-fg-muted mb-1">名称</label>
+            <label className="block text-xs text-fg-muted mb-1">名称</label>
             <input
               type="text"
               value={editor.name}
@@ -323,7 +316,7 @@ function EditorModal({
             />
           </div>
           <div>
-            <label className="block text-[11px] text-fg-muted mb-1">描述（可选）</label>
+            <label className="block text-xs text-fg-muted mb-1">描述（可选）</label>
             <input
               type="text"
               value={editor.description}
@@ -334,7 +327,7 @@ function EditorModal({
             />
           </div>
           <div>
-            <label className="block text-[11px] text-fg-muted mb-1">输出格式</label>
+            <label className="block text-xs text-fg-muted mb-1">输出格式</label>
             <select
               value={editor.outputFormat}
               disabled={isView}
@@ -349,7 +342,7 @@ function EditorModal({
             </select>
           </div>
           <div>
-            <label className="block text-[11px] text-fg-muted mb-1">System Prompt</label>
+            <label className="block text-xs text-fg-muted mb-1">System Prompt</label>
             <textarea
               value={editor.systemPrompt}
               disabled={isView}
@@ -358,7 +351,7 @@ function EditorModal({
               rows={14}
               placeholder="输入蒸馏用的 System Prompt…"
             />
-            <p className="text-[10px] text-fg-muted mt-1">
+            <p className="text-xs text-fg-muted mt-1">
               提示：JSON 输出格式需保持与默认模板一致的字段（summary/keyPoints/todos/knowledge/suggestedTags/preferences），否则解析会降级为空数组。
             </p>
           </div>
@@ -368,9 +361,9 @@ function EditorModal({
         {/* 底部 */}
         <div className="px-5 py-3 border-t border-border flex items-center justify-between gap-2">
           {isView ? (
-            <span className="text-[11px] text-fg-muted">内置模板不可直接修改，可另存为副本后编辑</span>
+            <span className="text-xs text-fg-muted">内置模板不可直接修改，可另存为副本后编辑</span>
           ) : (
-            <span className="text-[11px] text-fg-muted">
+            <span className="text-xs text-fg-muted">
               {editor.mode === 'create' ? '将创建为自定义模板' : '修改将立即生效'}
             </span>
           )}
