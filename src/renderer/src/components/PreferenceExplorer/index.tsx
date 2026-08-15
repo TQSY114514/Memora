@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../../stores/appStore'
 import { useDialog, PromptDialog } from '../PromptDialog'
 import type { Preference, PreferenceStatus, Workspace } from '@shared/types'
@@ -19,7 +21,10 @@ interface PreferenceExplorerProps {
 type FilterType = 'all' | PreferenceStatus
 
 export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
-  const { activeWorkspaceId, activeSessionId } = useStore()
+  // selector 订阅：数据字段 useShallow 组合订阅
+  const { activeWorkspaceId, activeSessionId } = useStore(
+    useShallow((s) => ({ activeWorkspaceId: s.activeWorkspaceId, activeSessionId: s.activeSessionId }))
+  )
   const dialog = useDialog()
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -140,40 +145,66 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
     return list
   }, [entries, filter, subjectFilter])
 
-  async function handleArchive(pref: Preference) {
-    const ok = await dialog.confirm(`确定归档（遗忘）「${pref.subject}: ${pref.value}」？`)
-    if (!ok) return
-    try {
-      const updated = await window.Memora.preference.archive(pref.id)
-      if (!updated) {
-        dialog.alert('归档失败：服务端返回空结果')
-        return
-      }
-      setEntries((prev) => prev.map((e) => (e.id === pref.id ? updated : e)))
-      if (counts) {
-        setCounts({
-          ...counts,
-          active: pref.status === 'active' ? counts.active - 1 : counts.active,
-          superseded: pref.status === 'superseded' ? counts.superseded - 1 : counts.superseded,
-          archived: counts.archived + 1
-        })
-      }
-    } catch (e) {
-      dialog.alert(e instanceof Error ? e.message : String(e))
-    }
-  }
+  // 列表虚拟化：条目高度不一时用 measureElement 动态测量
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 125, // 卡片（类别 + 值 + 置信度条 + 元信息行）典型高度
+    overscan: 6
+  })
 
-  async function handleDelete(pref: Preference) {
-    const ok = await dialog.confirm(`确定删除「${pref.subject}: ${pref.value}」？`)
-    if (!ok) return
-    try {
-      await window.Memora.preference.delete(pref.id)
-      setEntries((prev) => prev.filter((e) => e.id !== pref.id))
-      if (counts) setCounts({ ...counts, total: counts.total - 1 })
-    } catch (e) {
-      dialog.alert(e instanceof Error ? e.message : String(e))
-    }
-  }
+  // 卡片操作回调 useCallback 化：保持传给 memo 化 PreferenceCard 的 props 引用稳定（参数传 pref，不用闭包捕获）
+  const handleEdit = useCallback((pref: Preference) => {
+    setEditing(pref)
+  }, [])
+
+  const handleExplain = useCallback((pref: Preference) => {
+    setExplaining(pref)
+  }, [])
+
+  const handleArchive = useCallback(
+    async (pref: Preference) => {
+      const ok = await dialog.confirm(`确定归档（遗忘）「${pref.subject}: ${pref.value}」？`)
+      if (!ok) return
+      try {
+        const updated = await window.Memora.preference.archive(pref.id)
+        if (!updated) {
+          dialog.alert('归档失败：服务端返回空结果')
+          return
+        }
+        setEntries((prev) => prev.map((e) => (e.id === pref.id ? updated : e)))
+        setCounts((c) =>
+          c
+            ? {
+                ...c,
+                active: pref.status === 'active' ? c.active - 1 : c.active,
+                superseded: pref.status === 'superseded' ? c.superseded - 1 : c.superseded,
+                archived: c.archived + 1
+              }
+            : c
+        )
+      } catch (e) {
+        dialog.alert(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [dialog]
+  )
+
+  const handleDelete = useCallback(
+    async (pref: Preference) => {
+      const ok = await dialog.confirm(`确定删除「${pref.subject}: ${pref.value}」？`)
+      if (!ok) return
+      try {
+        await window.Memora.preference.delete(pref.id)
+        setEntries((prev) => prev.filter((e) => e.id !== pref.id))
+        setCounts((c) => (c ? { ...c, total: c.total - 1 } : c))
+      } catch (e) {
+        dialog.alert(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [dialog]
+  )
 
   async function handleDecay() {
     if (!currentWsId) return
@@ -505,7 +536,7 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
 
       {/* 列表 / 画像 / 健康 / 冲突 / 宪法 */}
       {viewMode === 'profile' ? (
-        <ProfileView workspaceId={currentWsId} onEdit={(p) => setEditing(p)} />
+        <ProfileView workspaceId={currentWsId} onEdit={handleEdit} />
       ) : viewMode === 'health' ? (
         <MemoryHealthView
           workspaceId={currentWsId}
@@ -524,16 +555,18 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
       ) : viewMode === 'timeline' ? (
         <TimelineView workspaceId={currentWsId} />
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">
-            {loading && (
+        <div className="flex-1 overflow-y-auto" ref={scrollRef}>
+          {loading && (
+            <div className="max-w-3xl mx-auto px-5 py-4">
               <div className="flex items-center gap-2 text-sm text-fg-secondary py-8 justify-center">
                 <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                 <span>加载中...</span>
               </div>
-            )}
+            </div>
+          )}
 
-            {!loading && filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
+            <div className="max-w-3xl mx-auto px-5 py-4">
               <div className="text-center py-16">
                 <div className="mb-3 flex justify-center opacity-30 text-accent">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" /><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" /><path d="M12 5v14" /></svg>
@@ -555,20 +588,49 @@ export function PreferenceExplorer({ onClose }: PreferenceExplorerProps) {
                   </button>
                 )}
               </div>
-            )}
+            </div>
+          )}
 
-            {!loading &&
-              filtered.map((pref) => (
-                <PreferenceCard
-                  key={pref.id}
-                  pref={pref}
-                  onEdit={() => setEditing(pref)}
-                  onArchive={() => handleArchive(pref)}
-                  onDelete={() => handleDelete(pref)}
-                  onExplain={() => setExplaining(pref)}
-                />
-              ))}
-          </div>
+          {!loading && filtered.length > 0 && (
+            <div className="max-w-3xl mx-auto px-5 py-4">
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative'
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualItem) => {
+                  const pref = filtered[virtualItem.index]
+                  return (
+                    <div
+                      key={pref.id}
+                      data-index={virtualItem.index}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualItem.start}px)`
+                      }}
+                    >
+                      {/* 原 space-y-2.5 改为 pb：margin 不计入 measureElement 测量高度，会导致条目重叠 */}
+                      <div className="pb-2.5">
+                        <PreferenceCard
+                          pref={pref}
+                          onEdit={handleEdit}
+                          onArchive={handleArchive}
+                          onDelete={handleDelete}
+                          onExplain={handleExplain}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

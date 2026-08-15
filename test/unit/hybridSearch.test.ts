@@ -52,10 +52,20 @@ function makeSession(id: string, title: string, isFavorite = false, extra: Parti
   }
 }
 
-/** 构造一个返回 FTS 行的 mock db */
+/** 构造一个返回 FTS 行的 mock db（图谱/实体 boost 查询路由到空结果） */
 function makeFtsDb(rows: any[]) {
   const stmt = { all: vi.fn(() => rows), get: vi.fn(() => undefined) }
-  return { prepare: vi.fn(() => stmt), _stmt: stmt }
+  const emptyStmt = { all: vi.fn(() => [] as any[]), get: vi.fn(() => undefined) }
+  return {
+    prepare: vi.fn((sql: string) => {
+      // computeGraphBoost / computeEntityBoost 的批量查询（boost = 0）
+      if (sql.includes('knowledge_entries') || sql.includes('knowledge_relations')) {
+        return emptyStmt
+      }
+      return stmt
+    }),
+    _stmt: stmt
+  }
 }
 
 describe('hybridSearch', () => {
@@ -114,95 +124,132 @@ describe('hybridSearch', () => {
   })
 })
 
-describe('computeGraphBoost', () => {
+describe('computeGraphBoost（批量）', () => {
   it('无图数据时返回 0', () => {
     const mockDb = makeFtsDb([])
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
-    // get 返回 undefined → entryCount/relCount 均为 0
-    expect(computeGraphBoost('s1')).toBe(0)
+    // knowledge 查询返回空 → entryCount/relCount 均为 0
+    const boosts = computeGraphBoost(['s1', 's2'])
+    expect(boosts.get('s1')).toBe(0)
+    expect(boosts.get('s2')).toBe(0)
   })
 
   it('会话关联的知识条目与关系越多，boost 越高（最多 0.1）', () => {
-    // prepare 根据 SQL 返回对应计数：知识条目 10，关系 5 → (10+5)/20*0.1 = 0.075
-    const stmt = {
-      all: vi.fn(() => []),
-      get: vi.fn(() => undefined)
-    }
+    // 条目 GROUP BY 计数：s1 = 10；关系端点行 5 条（from 属于 s1）→ (10+5)/20*0.1 = 0.075
     const mockDb = {
       prepare: vi.fn((sql: string) => {
-        if (sql.includes('knowledge_relations')) stmt.get = vi.fn(() => ({ cnt: 5 }))
-        else if (sql.includes('knowledge_entries')) stmt.get = vi.fn(() => ({ cnt: 10 }))
-        else stmt.get = vi.fn(() => undefined)
-        return stmt
+        if (sql.includes('GROUP BY session_id')) {
+          return { all: vi.fn(() => [{ session_id: 's1', cnt: 10 }]) }
+        }
+        if (sql.includes('knowledge_relations')) {
+          return {
+            all: vi.fn(() =>
+              Array.from({ length: 5 }, (_, i) => ({
+                from_session: 's1',
+                to_session: `other-${i}` // 不在候选集，不计数
+              }))
+            )
+          }
+        }
+        return { all: vi.fn(() => [] as any[]) }
       })
     }
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
-    const boost = computeGraphBoost('s1')
-    expect(boost).toBeCloseTo(0.075, 5)
+    const boosts = computeGraphBoost(['s1'])
+    expect(boosts.get('s1')).toBeCloseTo(0.075, 5)
+  })
+
+  it('关系两端属于同一会话时只计一次（与单会话 COUNT(*) 语义一致）', () => {
+    const mockDb = {
+      prepare: vi.fn((sql: string) => {
+        if (sql.includes('GROUP BY session_id')) {
+          return { all: vi.fn(() => [{ session_id: 's1', cnt: 0 }]) }
+        }
+        if (sql.includes('knowledge_relations')) {
+          return {
+            all: vi.fn(() => [
+              { from_session: 's1', to_session: 's1' }, // 同会话 → 只计 1
+              { from_session: 's1', to_session: 'other' }
+            ])
+          }
+        }
+        return { all: vi.fn(() => [] as any[]) }
+      })
+    }
+    vi.mocked(getDatabase).mockReturnValue(mockDb as any)
+
+    // entries 0 + rels 2 → 2/20*0.1 = 0.01
+    expect(computeGraphBoost(['s1']).get('s1')).toBeCloseTo(0.01, 5)
   })
 
   it('boost 上限为 0.1', () => {
-    const stmt = {
-      all: vi.fn(() => []),
-      get: vi.fn(() => undefined)
-    }
     const mockDb = {
       prepare: vi.fn((sql: string) => {
-        stmt.get = vi.fn(() => ({ cnt: 100 }))
-        return stmt
+        if (sql.includes('GROUP BY session_id')) {
+          return { all: vi.fn(() => [{ session_id: 's1', cnt: 100 }]) }
+        }
+        return { all: vi.fn(() => [] as any[]) }
       })
     }
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
-    expect(computeGraphBoost('s1')).toBeCloseTo(0.1, 5)
+    expect(computeGraphBoost(['s1']).get('s1')).toBeCloseTo(0.1, 5)
   })
 })
 
-describe('computeEntityBoost', () => {
+describe('computeEntityBoost（批量）', () => {
   it('无知识条目时返回 0', () => {
     const mockDb = makeFtsDb([])
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
-    expect(computeEntityBoost('s1')).toBe(0)
+    expect(computeEntityBoost(['s1']).get('s1')).toBe(0)
   })
 
   it('会话存在实体链接关系时返回加成（最多 0.15）', () => {
-    const stmt = {
-      all: vi.fn(() => [{ id: 'e1' }, { id: 'e2' }]),
-      get: vi.fn(() => undefined)
-    }
+    // s1 的条目 e1/e2 作为端点的显式关系 2 条 → 2/4*0.15 = 0.075
     const mockDb = {
       prepare: vi.fn((sql: string) => {
-        // 第一条查询：获取会话的知识条目 id
-        if (sql.includes('SELECT id FROM knowledge_entries')) {
-          stmt.all = vi.fn(() => [{ id: 'e1' }, { id: 'e2' }])
+        if (sql.includes('SELECT id, session_id FROM knowledge_entries')) {
+          return { all: vi.fn(() => [{ id: 'e1', session_id: 's1' }, { id: 'e2', session_id: 's1' }]) }
         }
-        // 第二条查询：统计实体链接关系数
         if (sql.includes('knowledge_relations')) {
-          stmt.get = vi.fn(() => ({ cnt: 2 }))
+          return {
+            all: vi.fn(() => [
+              { from_id: 'e1', to_id: 'e2', relation: 'relates' },
+              { from_id: 'e2', to_id: 'e1', relation: 'relates' }
+            ])
+          }
         }
-        return stmt
+        return { all: vi.fn(() => [] as any[]) }
       })
     }
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
 
-    // 2 条关系 / 4 * 0.15 = 0.075
-    expect(computeEntityBoost('s1')).toBeCloseTo(0.075, 5)
+    expect(computeEntityBoost(['s1']).get('s1')).toBeCloseTo(0.075, 5)
   })
 
   it('实体链接越多加成越高，且有上限 0.15', () => {
-    const stmt = {
-      all: vi.fn(() => [{ id: 'e1' }]),
-      get: vi.fn(() => undefined)
-    }
     const mockDb = {
       prepare: vi.fn((sql: string) => {
-        if (sql.includes('knowledge_relations')) stmt.get = vi.fn(() => ({ cnt: 100 }))
-        return stmt
+        if (sql.includes('SELECT id, session_id FROM knowledge_entries')) {
+          return { all: vi.fn(() => [{ id: 'e1', session_id: 's1' }]) }
+        }
+        if (sql.includes('knowledge_relations')) {
+          return {
+            all: vi.fn(() =>
+              Array.from({ length: 100 }, (_, i) => ({
+                from_id: 'e1',
+                to_id: `other-${i}`,
+                relation: 'relates'
+              }))
+            )
+          }
+        }
+        return { all: vi.fn(() => [] as any[]) }
       })
     }
     vi.mocked(getDatabase).mockReturnValue(mockDb as any)
-    expect(computeEntityBoost('s1')).toBeCloseTo(0.15, 5)
+    expect(computeEntityBoost(['s1']).get('s1')).toBeCloseTo(0.15, 5)
   })
 })
 

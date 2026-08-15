@@ -1,13 +1,12 @@
 import { create } from 'zustand'
+import { useCallback } from 'react'
 import { zhCN } from './locales/zh-CN'
-import { en } from './locales/en'
-import { ja } from './locales/ja'
 
 /**
  * 轻量 i18n 系统
  * - Zustand store 持久化语言选择到 localStorage
- * - useT() hook 供组件使用
- * - t() 普通函数供非组件场景使用
+ * - zh-CN（默认/回退语言）静态打包；en / ja 按需动态 import 懒加载
+ * - useT() hook 供组件使用，t() 普通函数供非组件场景使用
  */
 
 export type Language = 'zh-CN' | 'en' | 'ja'
@@ -18,11 +17,42 @@ export const LANGUAGES: { code: Language; label: string }[] = [
   { code: 'ja', label: '日本語' }
 ]
 
-/** 翻译字典 */
-const DICTS: Record<Language, Record<string, string>> = {
-  'zh-CN': zhCN,
-  en,
-  ja
+type Dict = Record<string, string>
+
+/** 翻译字典缓存：zh-CN 随包提供；en / ja 首次用到时动态加载后填入 */
+const DICTS: Partial<Record<Language, Dict>> = {
+  'zh-CN': zhCN
+}
+
+/** en / ja 懒加载器（动态 import 使语言包从首屏 bundle 中拆分） */
+const DICT_LOADERS: { [L in Exclude<Language, 'zh-CN'>]: () => Promise<Dict> } = {
+  en: async () => (await import('./locales/en')).en,
+  ja: async () => (await import('./locales/ja')).ja
+}
+
+/** 进行中的加载请求，避免同一语言包重复 import */
+const pendingLoads: Partial<Record<Language, Promise<void>>> = {}
+
+/**
+ * 确保目标语言字典已就绪：
+ * 字典未加载时先保持当前字典渲染，异步加载完成后写入缓存并通过 set() 广播更新。
+ */
+function ensureDict(lang: Language): void {
+  if (lang === 'zh-CN') return
+  if (DICTS[lang] || pendingLoads[lang]) return
+  const load = DICT_LOADERS[lang]()
+    .then((dict) => {
+      DICTS[lang] = dict
+      // 新字典写入后广播快照引用变化，订阅 dicts 的组件随即重渲染
+      useI18nStore.setState({ dicts: { ...DICTS } })
+    })
+    .catch((err) => {
+      console.error(`[i18n] 语言包加载失败: ${lang}`, err)
+    })
+    .finally(() => {
+      delete pendingLoads[lang]
+    })
+  pendingLoads[lang] = load
 }
 
 const STORAGE_KEY = 'memora.lang'
@@ -47,25 +77,37 @@ function saveLang(lang: Language): void {
 
 interface I18nState {
   lang: Language
+  /** 已就绪字典的快照；引用变化（新字典加载完成）驱动订阅组件更新 */
+  dicts: Partial<Record<Language, Dict>>
   setLang: (lang: Language) => void
 }
 
 export const useI18nStore = create<I18nState>((set) => ({
   lang: loadLang(),
+  dicts: DICTS,
   setLang: (lang) => {
     saveLang(lang)
     set({ lang })
+    ensureDict(lang)
   }
 }))
 
-/** 查询翻译：先查目标语言，找不到 fallback 到 zh-CN，再找不到返回 key 本身 */
+// 应用启动时：持久化的语言若非 zh-CN，提前预加载对应字典
+const initialLang = useI18nStore.getState().lang
+if (initialLang !== 'zh-CN') ensureDict(initialLang)
+
+/** 查询翻译：先查目标语言（可能尚未加载完成），找不到 fallback 到 zh-CN，再找不到返回 key 本身 */
 export function t(key: string, lang?: Language): string {
   const l = lang ?? useI18nStore.getState().lang
   return DICTS[l]?.[key] ?? DICTS['zh-CN']?.[key] ?? key
 }
 
-/** 供组件使用的 hook，返回 t 函数，语言变化时触发重渲染 */
+/** 供组件使用的 hook，返回 t 函数（useCallback 稳定引用），语言/字典变化时触发重渲染 */
 export function useT(): (key: string) => string {
   const lang = useI18nStore((s) => s.lang)
-  return (key: string) => DICTS[lang]?.[key] ?? DICTS['zh-CN']?.[key] ?? key
+  const dicts = useI18nStore((s) => s.dicts)
+  return useCallback(
+    (key: string) => dicts[lang]?.[key] ?? dicts['zh-CN']?.[key] ?? key,
+    [lang, dicts]
+  )
 }

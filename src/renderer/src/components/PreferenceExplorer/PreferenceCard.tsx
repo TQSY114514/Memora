@@ -1,7 +1,9 @@
+import { memo } from 'react'
 import type { Preference } from '@shared/types'
 import { STATUS_META, SOURCE_META, formatDate, confidenceColor } from './types'
 
-export function PreferenceCard({
+// memo + 回调参数化（传 pref 而非闭包捕获），父列表重渲染时未变化的卡片可直接复用
+export const PreferenceCard = memo(function PreferenceCard({
   pref,
   onEdit,
   onArchive,
@@ -9,10 +11,10 @@ export function PreferenceCard({
   onExplain
 }: {
   pref: Preference
-  onEdit: () => void
-  onArchive: () => void
-  onDelete: () => void
-  onExplain: () => void
+  onEdit: (pref: Preference) => void
+  onArchive: (pref: Preference) => void
+  onDelete: (pref: Preference) => void
+  onExplain: (pref: Preference) => void
 }) {
   const meta = STATUS_META[pref.status]
   const isInactive = pref.status !== 'active'
@@ -39,14 +41,14 @@ export function PreferenceCard({
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity">
               <button
-                onClick={onExplain}
+                onClick={() => onExplain(pref)}
                 className="text-fg-muted hover:text-accent text-xs px-1 py-0.5"
                 title="记忆溯源"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
               </button>
               <button
-                onClick={onEdit}
+                onClick={() => onEdit(pref)}
                 className="text-fg-muted hover:text-accent text-xs px-1 py-0.5"
                 title="编辑值"
               >
@@ -54,7 +56,7 @@ export function PreferenceCard({
               </button>
               {pref.status !== 'archived' && (
                 <button
-                  onClick={onArchive}
+                  onClick={() => onArchive(pref)}
                   className="text-fg-muted hover:text-yellow-500 text-xs px-1 py-0.5"
                   title="归档（遗忘）"
                 >
@@ -62,7 +64,7 @@ export function PreferenceCard({
                 </button>
               )}
               <button
-                onClick={onDelete}
+                onClick={() => onDelete(pref)}
                 className="text-fg-muted hover:text-red-500 text-xs px-1 py-0.5"
                 title="删除"
               >
@@ -101,4 +103,4 @@ export function PreferenceCard({
       </div>
     </div>
   )
-}
+})

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { useT } from '../../i18n'
@@ -18,17 +19,20 @@ interface SidebarProps {
 
 export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpenSettings, onOpenKnowledge, onOpenPreferences
 }: SidebarProps) {
-  const {
-    workspaces,
-    activeWorkspaceId,
-    activeFolderId,
-    setActiveWorkspace,
-    setActiveFolder,
-    setWorkspaces,
-    setSessions,
-    clearSearch
-  } = useStore()
-  const { config } = useAiConfigStore()
+  // selector 订阅：数据字段 useShallow 组合订阅，action 引用稳定可单独取
+  const { workspaces, activeWorkspaceId, activeFolderId } = useStore(
+    useShallow((s) => ({
+      workspaces: s.workspaces,
+      activeWorkspaceId: s.activeWorkspaceId,
+      activeFolderId: s.activeFolderId
+    }))
+  )
+  const setActiveWorkspace = useStore((s) => s.setActiveWorkspace)
+  const setActiveFolder = useStore((s) => s.setActiveFolder)
+  const setWorkspaces = useStore((s) => s.setWorkspaces)
+  const setSessions = useStore((s) => s.setSessions)
+  const clearSearch = useStore((s) => s.clearSearch)
+  const config = useAiConfigStore((s) => s.config)
   const t = useT()
   const dialog = useDialog()
 
@@ -364,8 +368,12 @@ export function Sidebar({ searchInputRef, onOpenAiSettings, onOpenMemory, onOpen
 }
 
 function SearchBox({ searchInputRef, onOpenAiSettings, onSearchCleared }: { searchInputRef: React.RefObject<HTMLInputElement>; onOpenAiSettings: () => void; onSearchCleared: () => void }) {
-  const { setSearch, clearSearch, setSessions, searchProvider, setSearchProvider } = useStore()
-  const { config } = useAiConfigStore()
+  const searchProvider = useStore((s) => s.searchProvider)
+  const setSearch = useStore((s) => s.setSearch)
+  const clearSearch = useStore((s) => s.clearSearch)
+  const setSessions = useStore((s) => s.setSessions)
+  const setSearchProvider = useStore((s) => s.setSearchProvider)
+  const config = useAiConfigStore((s) => s.config)
   const t = useT()
   const [query, setQuery] = useState('')
   const [useSemantic, setUseSemantic] = useState(false)

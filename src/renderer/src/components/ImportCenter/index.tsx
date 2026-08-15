@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, ScanPreview, DetectedApp, ExtractedSession } from '@shared/types'
@@ -21,7 +22,13 @@ type View = 'apps' | 'sessions'
  * 2. 对话列表：扒取/扫描结果按 AI 分组，每条可编辑标题和来源标注
  */
 export function ImportCenter({ onClose }: ImportCenterProps) {
-  const { activeFolderId, activeWorkspaceId, setSessions, setActiveSession, setActiveSessionData } = useStore()
+  // selector 订阅：数据字段 useShallow 组合订阅；action 引用稳定单独取
+  const { activeFolderId, activeWorkspaceId } = useStore(
+    useShallow((s) => ({ activeFolderId: s.activeFolderId, activeWorkspaceId: s.activeWorkspaceId }))
+  )
+  const setSessions = useStore((s) => s.setSessions)
+  const setActiveSession = useStore((s) => s.setActiveSession)
+  const setActiveSessionData = useStore((s) => s.setActiveSessionData)
   const [view, setView] = useState<View>('apps')
   const [apps, setApps] = useState<DetectedApp[]>([])
   const [detecting, setDetecting] = useState(false)

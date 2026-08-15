@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useCallback, memo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
@@ -63,97 +63,144 @@ export function ChatList() {
     overscan: 6
   })
 
-  async function handleClick(sessionId: string, e: React.MouseEvent) {
-    if (e.ctrlKey || e.metaKey) {
-      const next = new Set(selectedIds)
-      if (next.has(sessionId)) next.delete(sessionId)
-      else next.add(sessionId)
-      setSelectedIds(next)
-      setShowBatchBar(next.size > 0)
-      lastSelectedRef.current = sessionId
-      return
-    }
-    if (e.shiftKey && selectedIds.size > 0) {
-      const idx = sortedSessions.findIndex((s) => s.id === sessionId)
-      // 锚点 = 最近一次点击/选中的会话；若为空回退到第一个选中项
-      const anchorId = lastSelectedRef.current ?? Array.from(selectedIds)[0]
-      const anchorIdx = sortedSessions.findIndex((s) => s.id === anchorId)
-      if (anchorIdx >= 0 && idx >= 0) {
-        const [from, to] = [Math.min(idx, anchorIdx), Math.max(idx, anchorIdx)]
+  // 回调 useCallback 化 + 参数改为 sessionId（不闭包捕获 session 对象），保持传给 memo 化 ChatListItem 的 props 引用稳定
+  const handleClick = useCallback(
+    async (sessionId: string, e: React.MouseEvent) => {
+      if (e.ctrlKey || e.metaKey) {
         const next = new Set(selectedIds)
-        for (let i = from; i <= to; i++) next.add(sortedSessions[i].id)
+        if (next.has(sessionId)) next.delete(sessionId)
+        else next.add(sessionId)
         setSelectedIds(next)
-        setShowBatchBar(true)
+        setShowBatchBar(next.size > 0)
         lastSelectedRef.current = sessionId
         return
       }
-    }
-    setSelectedIds(new Set())
-    setShowBatchBar(false)
-    lastSelectedRef.current = sessionId
-    setActiveSession(sessionId)
-    try {
-      const session = await window.Memora.session.get(sessionId, false)
-      setActiveSessionData(session)
-    } catch (e) {
-      dialog.alert('加载对话失败：' + (e instanceof Error ? e.message : String(e)))
-    }
-  }
-
-  async function handleToggleFavorite(e: React.MouseEvent, sessionId: string) {
-    e.stopPropagation()
-    // 乐观更新：先改 UI，失败时回滚
-    const idx = sessions.findIndex((s) => s.id === sessionId)
-    const prevFavorite = idx >= 0 ? sessions[idx].isFavorite : false
-    if (idx >= 0) {
-      const updated = [...sessions]
-      updated[idx] = { ...updated[idx], isFavorite: !prevFavorite }
-      setSessions(updated)
-    }
-    try {
-      await window.Memora.session.toggleFavorite(sessionId)
-    } catch (e) {
-      // 回滚
-      if (idx >= 0) {
-        const updated = [...sessions]
-        updated[idx] = { ...updated[idx], isFavorite: prevFavorite }
-        setSessions(updated)
+      if (e.shiftKey && selectedIds.size > 0) {
+        const idx = sortedSessions.findIndex((s) => s.id === sessionId)
+        // 锚点 = 最近一次点击/选中的会话；若为空回退到第一个选中项
+        const anchorId = lastSelectedRef.current ?? Array.from(selectedIds)[0]
+        const anchorIdx = sortedSessions.findIndex((s) => s.id === anchorId)
+        if (anchorIdx >= 0 && idx >= 0) {
+          const [from, to] = [Math.min(idx, anchorIdx), Math.max(idx, anchorIdx)]
+          const next = new Set(selectedIds)
+          for (let i = from; i <= to; i++) next.add(sortedSessions[i].id)
+          setSelectedIds(next)
+          setShowBatchBar(true)
+          lastSelectedRef.current = sessionId
+          return
+        }
       }
-      dialog.alert('操作失败：' + (e instanceof Error ? e.message : String(e)))
-    }
-  }
+      setSelectedIds(new Set())
+      setShowBatchBar(false)
+      lastSelectedRef.current = sessionId
+      setActiveSession(sessionId)
+      try {
+        const session = await window.Memora.session.get(sessionId, false)
+        setActiveSessionData(session)
+      } catch (e) {
+        dialog.alert('加载对话失败：' + (e instanceof Error ? e.message : String(e)))
+      }
+    },
+    [selectedIds, sortedSessions, setActiveSession, setActiveSessionData, dialog]
+  )
 
-  async function handleRename(e: React.MouseEvent, sessionId: string, oldTitle: string) {
-    e.stopPropagation()
-    const title = await dialog.prompt('对话标题', oldTitle)
-    if (!title || title === oldTitle) return
-    try {
-      await window.Memora.session.update(sessionId, { title })
+  const handleToggleFavorite = useCallback(
+    async (sessionId: string, e: React.MouseEvent) => {
+      e.stopPropagation()
+      // 乐观更新：先改 UI，失败时回滚
       const idx = sessions.findIndex((s) => s.id === sessionId)
+      const prevFavorite = idx >= 0 ? sessions[idx].isFavorite : false
       if (idx >= 0) {
         const updated = [...sessions]
-        updated[idx] = { ...updated[idx], title }
+        updated[idx] = { ...updated[idx], isFavorite: !prevFavorite }
         setSessions(updated)
       }
-    } catch (e) {
-      dialog.alert('重命名失败：' + (e instanceof Error ? e.message : String(e)))
-    }
-  }
+      try {
+        await window.Memora.session.toggleFavorite(sessionId)
+      } catch (e) {
+        // 回滚
+        if (idx >= 0) {
+          const updated = [...sessions]
+          updated[idx] = { ...updated[idx], isFavorite: prevFavorite }
+          setSessions(updated)
+        }
+        dialog.alert('操作失败：' + (e instanceof Error ? e.message : String(e)))
+      }
+    },
+    [sessions, setSessions, dialog]
+  )
 
-  async function handleDelete(e: React.MouseEvent, sessionId: string, title: string) {
-    e.stopPropagation()
-    const ok = await dialog.confirm(`确定删除「${title}」？此操作不可撤销。`)
-    if (!ok) return
-    try {
-      await window.Memora.session.delete(sessionId)
-      const { bumpDataVersion } = useStore.getState()
-      bumpDataVersion()
-      clearDeletedState([sessionId])
-      refreshList()
-    } catch (e) {
-      dialog.alert('删除失败：' + (e instanceof Error ? e.message : String(e)))
+  const handleRename = useCallback(
+    async (sessionId: string, e: React.MouseEvent) => {
+      e.stopPropagation()
+      const oldTitle = sessions.find((s) => s.id === sessionId)?.title ?? ''
+      const title = await dialog.prompt('对话标题', oldTitle)
+      if (!title || title === oldTitle) return
+      try {
+        await window.Memora.session.update(sessionId, { title })
+        const idx = sessions.findIndex((s) => s.id === sessionId)
+        if (idx >= 0) {
+          const updated = [...sessions]
+          updated[idx] = { ...updated[idx], title }
+          setSessions(updated)
+        }
+      } catch (e) {
+        dialog.alert('重命名失败：' + (e instanceof Error ? e.message : String(e)))
+      }
+    },
+    [sessions, setSessions, dialog]
+  )
+
+  /** 删除后清理：激活会话指向已删除项时清空；置顶残留 ID 移除 */
+  const clearDeletedState = useCallback(
+    (deletedIds: string[]) => {
+      const deleted = new Set(deletedIds)
+      if (activeSessionId && deleted.has(activeSessionId)) {
+        setActiveSession(null)
+        setActiveSessionData(null)
+      }
+      const stalePinned = Array.from(pinnedIds).filter((id) => deleted.has(id))
+      if (stalePinned.length > 0) unpinIds(stalePinned)
+    },
+    [activeSessionId, pinnedIds, setActiveSession, setActiveSessionData, unpinIds]
+  )
+
+  const refreshList = useCallback(async () => {
+    if (activeFolderId) {
+      const sessions = await window.Memora.session.list({ folderId: activeFolderId })
+      setSessions(sessions)
+    } else {
+      const ws = useStore.getState().activeWorkspaceId
+      if (ws) {
+        const tree = await window.Memora.workspace.tree(ws)
+        if (tree) setSessions(tree.sessions)
+      }
     }
-  }
+  }, [activeFolderId, setSessions])
+
+  const handleDelete = useCallback(
+    async (sessionId: string, e: React.MouseEvent) => {
+      e.stopPropagation()
+      const title = sessions.find((s) => s.id === sessionId)?.title ?? ''
+      const ok = await dialog.confirm(`确定删除「${title}」？此操作不可撤销。`)
+      if (!ok) return
+      try {
+        await window.Memora.session.delete(sessionId)
+        const { bumpDataVersion } = useStore.getState()
+        bumpDataVersion()
+        clearDeletedState([sessionId])
+        refreshList()
+      } catch (e) {
+        dialog.alert('删除失败：' + (e instanceof Error ? e.message : String(e)))
+      }
+    },
+    [sessions, dialog, clearDeletedState, refreshList]
+  )
+
+  const handleTogglePin = useCallback((sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    togglePin(sessionId)
+  }, [togglePin])
 
   async function handleBatchDelete() {
     const ids = Array.from(selectedIds)
@@ -170,30 +217,6 @@ export function ChatList() {
       refreshList()
     } catch (e) {
       dialog.alert('批量删除失败：' + (e instanceof Error ? e.message : String(e)))
-    }
-  }
-
-  /** 删除后清理：激活会话指向已删除项时清空；置顶残留 ID 移除 */
-  function clearDeletedState(deletedIds: string[]) {
-    const deleted = new Set(deletedIds)
-    if (activeSessionId && deleted.has(activeSessionId)) {
-      setActiveSession(null)
-      setActiveSessionData(null)
-    }
-    const stalePinned = Array.from(pinnedIds).filter((id) => deleted.has(id))
-    if (stalePinned.length > 0) unpinIds(stalePinned)
-  }
-
-  async function refreshList() {
-    if (activeFolderId) {
-      const sessions = await window.Memora.session.list({ folderId: activeFolderId })
-      setSessions(sessions)
-    } else {
-      const ws = useStore.getState().activeWorkspaceId
-      if (ws) {
-        const tree = await window.Memora.workspace.tree(ws)
-        if (tree) setSessions(tree.sessions)
-      }
     }
   }
 
@@ -298,11 +321,11 @@ export function ChatList() {
                     isPinned={pinnedIds.has(session.id)}
                     searchResult={searchMap.get(session.id)}
                     rankRange={rankRange}
-                    onClick={(e) => handleClick(session.id, e)}
-                    onRename={(e) => handleRename(e, session.id, session.title)}
-                    onToggleFavorite={(e) => handleToggleFavorite(e, session.id)}
-                    onDelete={(e) => handleDelete(e, session.id, session.title)}
-                    onTogglePin={(e) => { e.stopPropagation(); togglePin(session.id) }}
+                    onClick={handleClick}
+                    onRename={handleRename}
+                    onToggleFavorite={handleToggleFavorite}
+                    onDelete={handleDelete}
+                    onTogglePin={handleTogglePin}
                   />
                 </div>
               )
@@ -316,7 +339,8 @@ export function ChatList() {
   )
 }
 
-const ChatListItem = ({
+// memo：滚动/重渲染时复用未变化的列表项；回调参数为 sessionId（父组件 useCallback 提供，引用稳定）
+const ChatListItem = memo(function ChatListItem({
   session,
   isActive,
   isSelected,
@@ -335,12 +359,12 @@ const ChatListItem = ({
   isPinned: boolean
   searchResult?: SearchResult
   rankRange: { min: number; max: number }
-  onClick: (e: React.MouseEvent) => void
-  onRename: (e: React.MouseEvent) => void
-  onToggleFavorite: (e: React.MouseEvent) => void
-  onDelete: (e: React.MouseEvent) => void
-  onTogglePin: (e: React.MouseEvent) => void
-}) => {
+  onClick: (sessionId: string, e: React.MouseEvent) => void
+  onRename: (sessionId: string, e: React.MouseEvent) => void
+  onToggleFavorite: (sessionId: string, e: React.MouseEvent) => void
+  onDelete: (sessionId: string, e: React.MouseEvent) => void
+  onTogglePin: (sessionId: string, e: React.MouseEvent) => void
+}) {
   const meta = PROVIDER_META[session.provider as Provider] || PROVIDER_META.Unknown
 
   let relevancePct: number | null = null
@@ -356,7 +380,7 @@ const ChatListItem = ({
 
   return (
     <div
-      onClick={onClick}
+      onClick={(e) => onClick(session.id, e)}
       className={`group px-4 py-3 border-b border-border transition-colors cursor-pointer ${
         isActive
           ? 'bg-bg-hover'
@@ -371,7 +395,7 @@ const ChatListItem = ({
         </h3>
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
-            onClick={onTogglePin}
+            onClick={(e) => onTogglePin(session.id, e)}
             className={`text-xs ${
               isPinned ? 'text-accent' : 'text-fg-muted opacity-0 group-hover:opacity-100'
             }`}
@@ -380,14 +404,14 @@ const ChatListItem = ({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1Z" /></svg>
           </button>
           <button
-            onClick={onRename}
+            onClick={(e) => onRename(session.id, e)}
             className="text-xs text-fg-muted opacity-0 group-hover:opacity-100 hover:text-accent transition-opacity"
             title="重命名"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
           </button>
           <button
-            onClick={onToggleFavorite}
+            onClick={(e) => onToggleFavorite(session.id, e)}
             className={`text-xs ${
               session.isFavorite ? 'text-yellow-500' : 'text-fg-muted opacity-0 group-hover:opacity-100'
             }`}
@@ -396,7 +420,7 @@ const ChatListItem = ({
             {session.isFavorite ? '★' : '☆'}
           </button>
           <button
-            onClick={onDelete}
+            onClick={(e) => onDelete(session.id, e)}
             className="text-xs text-fg-muted opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
             title="删除"
           >
@@ -436,7 +460,7 @@ const ChatListItem = ({
       )}
     </div>
   )
-}
+})
 
 function formatDate(iso: string): string {
   try {

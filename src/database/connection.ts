@@ -76,6 +76,10 @@ export function initDatabase(dbPath?: string): Database.Database {
   dbInstance.pragma('foreign_keys = ON')
   dbInstance.pragma('synchronous = NORMAL')
   dbInstance.pragma('busy_timeout = 5000')
+  // 页缓存扩到 64MB（负值 = KB 单位），全库向量/消息扫描命中率↑
+  dbInstance.pragma('cache_size = -65536')
+  // 256MB 内存映射读，减少全库扫描（语义搜索/向量加载）的 read 系统调用
+  dbInstance.pragma('mmap_size = 268435456')
 
   // 启动时完整性自检：如果数据库损坏，尝试从备份恢复
   // Startup self-check: use quick_check first (fast), escalate to full integrity_check only on failure.

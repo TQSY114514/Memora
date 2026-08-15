@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense, type LazyExoticComponent, type ComponentType } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { Sidebar } from './components/Sidebar'
 import { ChatList } from './components/ChatList'
 import { ChatViewer } from './components/ChatViewer'
@@ -53,10 +54,19 @@ function PanelSkeleton() {
 }
 
 export default function App() {
-  const { error, bumpDataVersion } = useStore()
-  const { isDragging, dragFiles, startDrag, endDrag, runImport } = useImportStore()
-  const { backgroundImage, blur, opacity } = useThemeStore()
-  const { loadApiKeys } = useAiConfigStore()
+  // selector 订阅：只订阅顶层真正需要的字段。isDragging/dragFiles 高频变更，
+  // dragFiles 仅订阅 length（进度更新不改长度，不触发 App 顶层重渲染）
+  const error = useStore((s) => s.error)
+  const bumpDataVersion = useStore((s) => s.bumpDataVersion)
+  const isDragging = useImportStore((s) => s.isDragging)
+  const dragFileCount = useImportStore((s) => s.dragFiles.length)
+  const startDrag = useImportStore((s) => s.startDrag)
+  const endDrag = useImportStore((s) => s.endDrag)
+  const runImport = useImportStore((s) => s.runImport)
+  const { backgroundImage, blur, opacity } = useThemeStore(
+    useShallow((s) => ({ backgroundImage: s.backgroundImage, blur: s.blur, opacity: s.opacity }))
+  )
+  const loadApiKeys = useAiConfigStore((s) => s.loadApiKeys)
 
   // 全屏面板：与 ChatList+ChatViewer 互斥
   const [activePanel, setActivePanel] = useState<string | null>(null)
@@ -193,7 +203,7 @@ export default function App() {
         </div>
       )}
 
-      {dragFiles.length > 0 && <ImportProgress />}
+      {dragFileCount > 0 && <ImportProgress />}
 
       <BackgroundImportIndicator />
 
@@ -234,7 +244,10 @@ export default function App() {
 }
 
 function ImportProgress() {
-  const { dragFiles, clear, isImporting } = useImportStore()
+  // selector 订阅：进度条自身订阅 dragFiles 全量（要展示每个条目的进度），App 顶层只看长度
+  const dragFiles = useImportStore((s) => s.dragFiles)
+  const isImporting = useImportStore((s) => s.isImporting)
+  const clear = useImportStore((s) => s.clear)
   const last = dragFiles[dragFiles.length - 1]
   const pct = last?.progress != null ? Math.round(last.progress * 100) : null
   // 找到第一个仍在处理中（无 result）的条目

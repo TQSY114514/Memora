@@ -58,6 +58,11 @@ describe('embeddingRepo', () => {
     expect(db.transaction).toHaveBeenCalled()
   })
 
+  it('upsertEmbeddings uses a single ON CONFLICT upsert statement', () => {
+    upsertEmbeddings([{ messageId: 'm1', sessionId: 's1', embedding: [1], model: 'm' }])
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT(message_id) DO UPDATE'))
+  })
+
   it('deleteSessionEmbeddings runs a DELETE', () => {
     deleteSessionEmbeddings('s1')
     expect(db.prepare).toHaveBeenCalledWith('DELETE FROM message_embeddings WHERE session_id = ?')
@@ -111,13 +116,15 @@ describe('embeddingRepo', () => {
     expect(getSessionEmbeddings('s1')[0].embedding).toEqual([])
   })
 
-  it('getAllEmbeddings maps all rows', () => {
+  it('getAllEmbeddings maps all rows (embedding as zero-copy Float32Array)', () => {
     stmtResults.set('SELECT * FROM message_embeddings', {
       all: [{ message_id: 'm1', session_id: 's1', embedding: validFloat32, model: 'm', dim: 3, created_at: 'x', id: 'e1' }]
     })
     const rows = getAllEmbeddings()
     expect(rows).toHaveLength(1)
     expect(rows[0].sessionId).toBe('s1')
+    expect(rows[0].embedding).toBeInstanceOf(Float32Array)
+    expect(Array.from(rows[0].embedding)).toEqual([1, 2, 3])
   })
 
   it('getMessagesWithoutEmbeddings maps messages without embeddings', () => {

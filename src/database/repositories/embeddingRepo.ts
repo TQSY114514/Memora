@@ -67,13 +67,28 @@ export function upsertEmbedding(
   ).run(uuidv4(), messageId, sessionId, buf, model, dim, now)
 }
 
-/** 批量写入向量（事务） */
+/** 批量写入向量（事务 + 单条预编译 ON CONFLICT upsert）
+ *  依赖 migration v14 的 message_id 唯一索引，原子完成"存在则覆盖"，消除逐行 SELECT 探测 */
 export function upsertEmbeddings(
   rows: Array<{ messageId: string; sessionId: string; embedding: number[]; model: string }>
 ): void {
   const db = getDatabase()
+  const stmt = db.prepare(
+    `INSERT INTO message_embeddings (id, message_id, session_id, embedding, model, dim, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(message_id) DO UPDATE SET
+       embedding = excluded.embedding,
+       model = excluded.model,
+       dim = excluded.dim,
+       created_at = excluded.created_at`
+  )
   const tx = db.transaction(() => {
-    for (const r of rows) upsertEmbedding(r.messageId, r.sessionId, r.embedding, r.model)
+    for (const r of rows) {
+      const dim = validateDim(r.embedding)
+      // 存为 BLOB：Float32Array 的二进制 buffer，读取零解析
+      const buf = Buffer.from(new Float32Array(r.embedding).buffer)
+      stmt.run(uuidv4(), r.messageId, r.sessionId, buf, r.model, dim, new Date().toISOString())
+    }
   })
   tx()
 }
@@ -118,6 +133,15 @@ function bufferToNumbers(buf: Buffer): number[] {
   return Array.from(arr)
 }
 
+/** BLOB buffer → Float32Array 零拷贝视图（存储时即按 Float32Array 小端写入，视图即原始值）。
+ *  损坏的 buffer 返回空 Float32Array。 */
+function bufferToFloat32(buf: Buffer): Float32Array {
+  if (buf.byteLength === 0 || buf.byteLength % 4 !== 0) {
+    return new Float32Array(0)
+  }
+  return new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4)
+}
+
 /** 加载会话内全部向量（供本地相似度计算） */
 export function getSessionEmbeddings(sessionId: string): Array<{
   messageId: string
@@ -135,11 +159,11 @@ export function getSessionEmbeddings(sessionId: string): Array<{
   }))
 }
 
-/** 加载全库向量（用于跨会话语义搜索） */
+/** 加载全库向量（用于跨会话语义搜索）。embedding 为 Float32Array 零拷贝视图（省一次 Array 拷贝） */
 export function getAllEmbeddings(): Array<{
   messageId: string
   sessionId: string
-  embedding: number[]
+  embedding: Float32Array
   model: string
 }> {
   const db = getDatabase()
@@ -149,7 +173,7 @@ export function getAllEmbeddings(): Array<{
   return rows.map((r) => ({
     messageId: r.message_id,
     sessionId: r.session_id,
-    embedding: bufferToNumbers(r.embedding),
+    embedding: bufferToFloat32(r.embedding),
     model: r.model
   }))
 }

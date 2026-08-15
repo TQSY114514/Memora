@@ -51,7 +51,7 @@ export function getSummary(sessionId: string): SessionSummary | null {
   return row ? rowToSummary(row) : null
 }
 
-/** 创建或更新总结（upsert） */
+/** 创建或更新总结（upsert）。session_id 有 UNIQUE 约束，单条 ON CONFLICT 原子完成，消除 SELECT 探测 */
 export function upsertSummary(
   sessionId: string,
   data: {
@@ -64,37 +64,26 @@ export function upsertSummary(
   }
 ): SessionSummary {
   const db = getDatabase()
-  const existing = getSummary(sessionId)
   const now = new Date().toISOString()
 
   const knowledgeJson = data.knowledge ? JSON.stringify(data.knowledge) : null
   const suggestedTagsJson = data.suggestedTags ? JSON.stringify(data.suggestedTags) : null
 
-  if (existing) {
-    db.prepare(
-      `UPDATE session_summaries
-       SET summary = ?, key_points = ?, todos = ?, knowledge = ?, suggested_tags = ?, model = ?, updated_at = ?
-       WHERE session_id = ?`
-    ).run(
-      data.summary,
-      JSON.stringify(data.keyPoints),
-      JSON.stringify(data.todos),
-      knowledgeJson,
-      suggestedTagsJson,
-      data.model ?? null,
-      now,
-      sessionId
-    )
-    return getSummary(sessionId)!
-  }
-
-  const id = uuidv4()
+  // 冲突时保留原 id / created_at（与旧 UPDATE 分支行为一致）
   db.prepare(
     `INSERT INTO session_summaries
      (id, session_id, summary, key_points, todos, knowledge, suggested_tags, model, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(session_id) DO UPDATE SET
+       summary = excluded.summary,
+       key_points = excluded.key_points,
+       todos = excluded.todos,
+       knowledge = excluded.knowledge,
+       suggested_tags = excluded.suggested_tags,
+       model = excluded.model,
+       updated_at = excluded.updated_at`
   ).run(
-    id,
+    uuidv4(),
     sessionId,
     data.summary,
     JSON.stringify(data.keyPoints),

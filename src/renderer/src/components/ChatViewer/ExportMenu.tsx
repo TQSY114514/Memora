@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback, memo } from 'react'
 import type { ChatSession } from '@shared/types'
 
 /**
@@ -26,6 +26,40 @@ interface FormatItem {
   accent?: boolean
 }
 
+/** 导出格式列表：不依赖任何渲染期数据（图标为静态 JSX 元素，可安全复用），提为模块级常量避免每次渲染重建 */
+const ITEMS: FormatItem[] = [
+  {
+    key: 'html',
+    title: 'HTML 单文件',
+    desc: '自包含，可分享给任何人',
+    ext: '.html',
+    icon: <IconHtml />
+  },
+  {
+    key: 'md',
+    title: 'Markdown',
+    desc: '导入 Obsidian / Notion / 语雀',
+    ext: '.md',
+    icon: <IconMd />
+  },
+  {
+    key: 'json',
+    title: '通用 JSON',
+    desc: '导入 OpenCode / 其他 AI 工具',
+    ext: '.json',
+    icon: <IconJson />,
+    accent: true
+  },
+  {
+    key: 'claudeCode',
+    title: 'Claude Code 对话',
+    desc: '迁移：放到 ~/.claude/projects/ 即可',
+    ext: '.jsonl',
+    icon: <IconClaude />,
+    accent: true
+  }
+]
+
 export function ExportMenu({ session }: ExportMenuProps) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<FormatKey | null>(null)
@@ -49,69 +83,40 @@ export function ExportMenu({ session }: ExportMenuProps) {
     }
   }, [open])
 
-  async function runExport(kind: FormatKey) {
-    if (busy) return
-    setBusy(kind)
-    setExportError('')
-    try {
-      const safeName = session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')
-      let content: string | null = null
-      let ext = ''
-      if (kind === 'html') {
-        content = await window.Memora.share.exportHtml(session.id)
-        ext = 'html'
-      } else if (kind === 'md') {
-        content = await window.Memora.share.exportMd(session.id)
-        ext = 'md'
-      } else if (kind === 'json') {
-        content = await window.Memora.share.exportJson(session.id)
-        ext = 'json'
-      } else {
-        content = await window.Memora.share.exportClaudeCode(session.id)
-        ext = 'jsonl'
+  // useCallback：作为 memo 化 FormatRow 的 onSelect prop，保持引用稳定
+  const runExport = useCallback(
+    async (kind: FormatKey) => {
+      if (busy) return
+      setBusy(kind)
+      setExportError('')
+      try {
+        const safeName = session.title.replace(/[^\w\u4e00-\u9fa5]/g, '_')
+        let content: string | null = null
+        let ext = ''
+        if (kind === 'html') {
+          content = await window.Memora.share.exportHtml(session.id)
+          ext = 'html'
+        } else if (kind === 'md') {
+          content = await window.Memora.share.exportMd(session.id)
+          ext = 'md'
+        } else if (kind === 'json') {
+          content = await window.Memora.share.exportJson(session.id)
+          ext = 'json'
+        } else {
+          content = await window.Memora.share.exportClaudeCode(session.id)
+          ext = 'jsonl'
+        }
+        if (!content) return
+        await window.Memora.saveFileDialog({ defaultName: `${safeName}.${ext}`, content })
+        setOpen(false)
+      } catch (e) {
+        setExportError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setBusy(null)
       }
-      if (!content) return
-      await window.Memora.saveFileDialog({ defaultName: `${safeName}.${ext}`, content })
-      setOpen(false)
-    } catch (e) {
-      setExportError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const items: FormatItem[] = [
-    {
-      key: 'html',
-      title: 'HTML 单文件',
-      desc: '自包含，可分享给任何人',
-      ext: '.html',
-      icon: <IconHtml />
     },
-    {
-      key: 'md',
-      title: 'Markdown',
-      desc: '导入 Obsidian / Notion / 语雀',
-      ext: '.md',
-      icon: <IconMd />
-    },
-    {
-      key: 'json',
-      title: '通用 JSON',
-      desc: '导入 OpenCode / 其他 AI 工具',
-      ext: '.json',
-      icon: <IconJson />,
-      accent: true
-    },
-    {
-      key: 'claudeCode',
-      title: 'Claude Code 对话',
-      desc: '迁移：放到 ~/.claude/projects/ 即可',
-      ext: '.jsonl',
-      icon: <IconClaude />,
-      accent: true
-    }
-  ]
+    [busy, session]
+  )
 
   return (
     <div className="relative" ref={wrapRef}>
@@ -130,13 +135,13 @@ export function ExportMenu({ session }: ExportMenuProps) {
           {/* 分组 1：归档与分享 */}
           <div className="export-group">
             <div className="export-group-label">归档与分享</div>
-            {items.slice(0, 2).map((it, i) => (
+            {ITEMS.slice(0, 2).map((it, i) => (
               <FormatRow
                 key={it.key}
                 item={it}
                 index={i}
                 busy={busy === it.key}
-                onClick={() => runExport(it.key)}
+                onSelect={runExport}
               />
             ))}
           </div>
@@ -146,13 +151,13 @@ export function ExportMenu({ session }: ExportMenuProps) {
           {/* 分组 2：迁移到其他 AI */}
           <div className="export-group">
             <div className="export-group-label">迁移到其他 AI</div>
-            {items.slice(2).map((it, i) => (
+            {ITEMS.slice(2).map((it, i) => (
               <FormatRow
                 key={it.key}
                 item={it}
                 index={i + 2}
                 busy={busy === it.key}
-                onClick={() => runExport(it.key)}
+                onSelect={runExport}
               />
             ))}
             <div className="export-hint">
@@ -171,22 +176,23 @@ export function ExportMenu({ session }: ExportMenuProps) {
   )
 }
 
-function FormatRow({
+// memo：onSelect 传 key（父组件 useCallback 提供，引用稳定），仅 busy 变化时重渲染
+const FormatRow = memo(function FormatRow({
   item,
   index,
   busy,
-  onClick
+  onSelect
 }: {
   item: FormatItem
   index: number
   busy: boolean
-  onClick: () => void
+  onSelect: (key: FormatKey) => void
 }) {
   return (
     <button
       className={`export-row ${item.accent ? 'is-accent' : ''}`}
       style={{ animationDelay: `${60 + index * 45}ms` }}
-      onClick={onClick}
+      onClick={() => onSelect(item.key)}
       disabled={busy}
       role="menuitem"
     >
@@ -201,7 +207,7 @@ function FormatRow({
       {busy && <span className="export-row-spinner" />}
     </button>
   )
-}
+})
 
 /* ===== 自绘 SVG 图标（1.5px 线条，统一风格） ===== */
 

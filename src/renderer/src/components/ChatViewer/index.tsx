@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, lazy, Suspense } from 'react'
+import { useEffect, useState, useRef, useCallback, lazy, Suspense, memo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useStore } from '../../stores/appStore'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
@@ -32,7 +32,7 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
   const activeSession = useStore((s) => s.activeSession)
   const setActiveSession = useStore((s) => s.setActiveSession)
   const setActiveSessionData = useStore((s) => s.setActiveSessionData)
-  const { config } = useAiConfigStore()
+  const config = useAiConfigStore((s) => s.config)
 
   const session = activeSession!
   const meta = PROVIDER_META[session.provider as Provider] || PROVIDER_META.Unknown
@@ -151,13 +151,31 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
     }
   }
 
-  function handleScroll() {
-    const el = scrollRef.current
-    if (!el || loadingMore || !hasMore || messagesLoadingRef.current) return
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 600) {
-      void loadMore()
+  // 滚动加载更多：requestAnimationFrame 节流，避免高频 onScroll 反复触底判断
+  const scrollRafRef = useRef<number | null>(null)
+  // latest-ref：rAF 回调延迟一帧执行，须调用最新渲染的 loadMore（否则闭包里的 messages.length 过期会重复拉页）
+  const loadMoreRef = useRef(loadMore)
+  useEffect(() => {
+    loadMoreRef.current = loadMore
+  })
+  const handleScroll = useCallback(() => {
+    if (scrollRafRef.current != null) return
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null
+      const el = scrollRef.current
+      if (!el || loadingMore || !hasMore || messagesLoadingRef.current) return
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 600) {
+        void loadMoreRef.current()
+      }
+    })
+  }, [loadingMore, hasMore])
+
+  // 卸载时取消未执行的 rAF 回调
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current)
     }
-  }
+  }, [])
 
   async function handleToggleFavorite() {
     if (!session) return
@@ -590,35 +608,37 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
             <p className="text-xs text-fg-muted">从导入中心拖入对话文件，或查看其他会话</p>
           </div>
         ) : (
-          <div
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              width: '100%',
-              position: 'relative'
-            }}
-          >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
-              const msg = messages[virtualItem.index]
-              return (
-                <div
-                  key={msg.id || virtualItem.index}
-                  data-index={virtualItem.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`
-                  }}
-                >
-                  <div className="max-w-3xl mx-auto px-6 py-3">
-                    <MessageBubble message={msg} />
+          <Suspense fallback={<div className="max-w-3xl mx-auto px-6 py-10"><div className="Memora-skeleton h-24 w-full" /></div>}>
+            <div
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative'
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const msg = messages[virtualItem.index]
+                return (
+                  <div
+                    key={msg.id || virtualItem.index}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualItem.start}px)`
+                    }}
+                  >
+                    <div className="max-w-3xl mx-auto px-6 py-3">
+                      <MessageBubble message={msg} />
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          </Suspense>
         )}
         {loadingMore && (
           <div className="max-w-3xl mx-auto px-6 py-3">
@@ -630,7 +650,8 @@ function ChatViewerContent({ onOpenAiSettings }: { onOpenAiSettings: () => void 
   )
 }
 
-function MessageBubble({ message }: { message: Message }) {
+// memo：虚拟列表滚动时复用未变化的消息气泡，避免整个列表逐条重渲染
+const MessageBubble = memo(function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
 
@@ -650,10 +671,9 @@ function MessageBubble({ message }: { message: Message }) {
         )}
       </div>
       <div className="Memora-md">
-        <Suspense fallback={<p className="whitespace-pre-wrap">{message.content}</p>}>
-          <MarkdownMessage content={message.content} />
-        </Suspense>
+        {/* Suspense 已提升到虚拟列表外层（MarkdownMessage chunk 首次加载时整体兜底） */}
+        <MarkdownMessage content={message.content} />
       </div>
     </article>
   )
-}
+})

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Modal } from '../Modal'
 
 interface DialogState {
@@ -21,44 +21,55 @@ export function useDialog() {
     title: ''
   })
 
+  // 用 ref 镜像 resolve，使 handleClose 引用稳定 → 返回对象可整体 memo
+  const resolveRef = useRef<NonNullable<DialogState['resolve']> | null>(null)
+
   const prompt = useCallback((title: string, defaultValue?: string) => {
     return new Promise<string | null>((resolve) => {
+      const fn: DialogState['resolve'] = (v) => resolve(v as string | null)
+      resolveRef.current = fn
       setState({
         open: true,
         mode: 'prompt',
         title,
         defaultValue,
-        resolve: (v) => resolve(v as string | null)
+        resolve: fn
       })
     })
   }, [])
 
   const confirm = useCallback((message: string) => {
     return new Promise<boolean>((resolve) => {
+      const fn: DialogState['resolve'] = (v) => resolve(v as boolean)
+      resolveRef.current = fn
       setState({
         open: true,
         mode: 'confirm',
         title: message,
-        resolve: (v) => resolve(v as boolean)
+        resolve: fn
       })
     })
   }, [])
 
   const alert = useCallback((message: string) => {
     return new Promise<void>((resolve) => {
-      setState({ open: true, mode: 'confirm', title: message, resolve: () => resolve() })
+      const fn: DialogState['resolve'] = () => resolve()
+      resolveRef.current = fn
+      setState({ open: true, mode: 'confirm', title: message, resolve: fn })
     })
   }, [])
 
-  const handleClose = useCallback(
-    (value: string | boolean | null) => {
-      state.resolve?.(value)
-      setState((s) => ({ ...s, open: false, resolve: undefined }))
-    },
-    [state]
-  )
+  const handleClose = useCallback((value: string | boolean | null) => {
+    resolveRef.current?.(value)
+    resolveRef.current = null
+    setState((s) => ({ ...s, open: false, resolve: undefined }))
+  }, [])
 
-  return { state, prompt, confirm, alert, handleClose }
+  // 返回对象 memo 化：dialog 引用仅在弹窗开合时变化，消费方可用 [dialog] 作依赖且不破坏 memo
+  return useMemo(
+    () => ({ state, prompt, confirm, alert, handleClose }),
+    [state, prompt, confirm, alert, handleClose]
+  )
 }
 
 /** 弹窗组件 —— prompt 和 confirm 模式共用 */

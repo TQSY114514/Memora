@@ -9,7 +9,10 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onOpenImportCenter, onOpenAiSettings }: DashboardProps = {}) {
-  const { setActiveSession, setActiveSessionData, dataVersion } = useStore()
+  // selector 订阅：仅 dataVersion 变化触发统计重拉；action 引用稳定单独取
+  const dataVersion = useStore((s) => s.dataVersion)
+  const setActiveSession = useStore((s) => s.setActiveSession)
+  const setActiveSessionData = useStore((s) => s.setActiveSessionData)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
