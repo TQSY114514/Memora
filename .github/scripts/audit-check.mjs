@@ -11,6 +11,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
+import { existsSync } from 'node:fs'
 
 /** 白名单:无修复版本 / 修复需 breaking 升级的传递依赖 CVE(附原因) */
 const ALLOWLIST = new Map([
@@ -20,13 +21,28 @@ const ALLOWLIST = new Map([
   ['GHSA-jmr9-qjv8-65gv', 'extract-zip via electron installer, no fixed version (electron 43 is a breaking upgrade)'],
 ])
 
-// Windows 上 execFileSync 不能直接跑 npm.cmd(EINVAL),统一用 node 执行
-// npm 的 CLI 入口(标准 node 安装布局,CI 与本地一致)。
-const npmCli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+// Windows 上 execFileSync 不能直接跑 npm.cmd(EINVAL),用 node 执行 npm 的
+// CLI 入口(安装器布局:node_modules/npm);非 Windows 直接用 npm 可执行文件。
+// CI 与本地 node 安装布局不同,两个候选路径都要探测。
+function npmInvocation() {
+  if (process.platform !== 'win32') return ['npm', false]
+  const nodeDir = dirname(process.execPath)
+  const candidates = [
+    join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ]
+  const npmCli = candidates.find(p => existsSync(p))
+  if (!npmCli) throw new Error(`未找到 npm-cli.js(尝试:${candidates.join(', ')})`)
+  return [npmCli, true]
+}
+
+const [npmBin, viaNode] = npmInvocation()
 const args = ['audit', '--json', '--omit=optional']
 let stdout
 try {
-  stdout = execFileSync(process.execPath, [npmCli, ...args], { encoding: 'utf8' })
+  stdout = viaNode
+    ? execFileSync(process.execPath, [npmBin, ...args], { encoding: 'utf8' })
+    : execFileSync(npmBin, args, { encoding: 'utf8' })
   console.log('npm audit: 0 vulnerabilities')
   process.exit(0)
 } catch (err) {
