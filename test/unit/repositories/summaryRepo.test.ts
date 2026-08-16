@@ -72,14 +72,16 @@ describe('summaryRepo', () => {
     expect(s.suggestedTags).toBeUndefined()
   })
 
-  it('upsertSummary updates when summary exists', () => {
+  it('upsertSummary uses single ON CONFLICT upsert (existing row keeps id)', () => {
     stmtResults.set('SELECT * FROM session_summaries WHERE session_id = ?', { get: baseRow })
     const s = upsertSummary('s1', { summary: 'new', keyPoints: ['x'], todos: ['y'] })
     expect(s.id).toBe('sum1')
-    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE session_summaries'))
+    // 单条 SQL 原子 upsert（不再先 SELECT 再 UPDATE）
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT(session_id) DO UPDATE'))
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO session_summaries'))
   })
 
-  it('upsertSummary inserts when summary does not exist', () => {
+  it('upsertSummary works when summary does not exist (insert path)', () => {
     stmtResults.set('SELECT * FROM session_summaries WHERE session_id = ?', { get: undefined })
     upsertSummary('s1', { summary: 'new', keyPoints: ['x'], todos: ['y'], knowledge: ['k'], suggestedTags: ['t'], model: 'gpt' })
     expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO session_summaries'))

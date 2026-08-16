@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../../stores/appStore'
 import { useDialog, PromptDialog } from '../PromptDialog'
 import type {
@@ -27,7 +29,12 @@ const SOURCE_META: Record<string, string> = {
 }
 
 export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
-  const { activeWorkspaceId, activeSessionId, setActiveSession, setActiveSessionData } = useStore()
+  // selector 订阅：数据字段 useShallow 组合订阅；action 引用稳定单独取
+  const { activeWorkspaceId, activeSessionId } = useStore(
+    useShallow((s) => ({ activeWorkspaceId: s.activeWorkspaceId, activeSessionId: s.activeSessionId }))
+  )
+  const setActiveSession = useStore((s) => s.setActiveSession)
+  const setActiveSessionData = useStore((s) => s.setActiveSessionData)
   const dialog = useDialog()
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -103,36 +110,53 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
     return entries.filter((e) => e.type === (filter as KnowledgeType))
   }, [entries, filter])
 
-  async function handleToggleTask(entry: KnowledgeEntry) {
-    try {
-      const updated = await window.Memora.knowledge.toggleTask(entry.id)
-      if (!updated) {
-        dialog.alert('更新失败：服务端返回空结果')
-        return
-      }
-      setEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
-      if (counts) {
-        setCounts({
-          ...counts,
-          openTask: updated.status === 'done' ? counts.openTask - 1 : counts.openTask + 1
-        })
-      }
-    } catch (e) {
-      dialog.alert(e instanceof Error ? e.message : String(e))
-    }
-  }
+  // 列表虚拟化：条目高度不一时用 measureElement 动态测量
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 110, // 卡片（标题 + line-clamp-3 内容 + 元信息行）典型高度
+    overscan: 6
+  })
 
-  async function handleDelete(entry: KnowledgeEntry) {
-    const ok = await dialog.confirm(`确定删除「${entry.title}」？`)
-    if (!ok) return
-    try {
-      await window.Memora.knowledge.delete(entry.id)
-      setEntries((prev) => prev.filter((e) => e.id !== entry.id))
-      if (counts) setCounts({ ...counts, total: counts.total - 1 })
-    } catch (e) {
-      dialog.alert(e instanceof Error ? e.message : String(e))
-    }
-  }
+  // 卡片操作回调 useCallback 化：保持传给 memo 化 KnowledgeCard 的 props 引用稳定（参数传 entry/id，不用闭包捕获）
+  const handleEdit = useCallback((entry: KnowledgeEntry) => {
+    setEditing(entry)
+  }, [])
+
+  const handleToggleTask = useCallback(
+    async (entry: KnowledgeEntry) => {
+      try {
+        const updated = await window.Memora.knowledge.toggleTask(entry.id)
+        if (!updated) {
+          dialog.alert('更新失败：服务端返回空结果')
+          return
+        }
+        setEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
+        setCounts((c) =>
+          c ? { ...c, openTask: updated.status === 'done' ? c.openTask - 1 : c.openTask + 1 } : c
+        )
+      } catch (e) {
+        dialog.alert(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [dialog]
+  )
+
+  const handleDelete = useCallback(
+    async (entry: KnowledgeEntry) => {
+      const ok = await dialog.confirm(`确定删除「${entry.title}」？`)
+      if (!ok) return
+      try {
+        await window.Memora.knowledge.delete(entry.id)
+        setEntries((prev) => prev.filter((e) => e.id !== entry.id))
+        setCounts((c) => (c ? { ...c, total: c.total - 1 } : c))
+      } catch (e) {
+        dialog.alert(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [dialog]
+  )
 
   async function handleExtractFromSession() {
     if (!activeSessionId) {
@@ -152,12 +176,15 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
     }
   }
 
-  async function handleOpenSource(sessionId: string) {
-    setActiveSession(sessionId)
-    const session = await window.Memora.session.get(sessionId, false)
-    setActiveSessionData(session)
-    onClose()
-  }
+  const handleOpenSource = useCallback(
+    async (sessionId: string) => {
+      setActiveSession(sessionId)
+      const session = await window.Memora.session.get(sessionId, false)
+      setActiveSessionData(session)
+      onClose()
+    },
+    [setActiveSession, setActiveSessionData, onClose]
+  )
 
   function handleSaved(updated: KnowledgeEntry) {
     setEntries((prev) => {
@@ -278,55 +305,86 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
       {viewMode === 'graph' ? (
         <KnowledgeGraph
           workspaceId={currentWsId}
-          onEntryClick={(entry) => setEditing(entry)}
+          onEntryClick={handleEdit}
         />
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-5 py-4 space-y-2.5">
+        <div className="flex-1 overflow-y-auto" ref={scrollRef}>
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-fg-secondary py-8 justify-center">
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span>加载中...</span>
+            <div className="max-w-3xl mx-auto px-5 py-4">
+              <div className="flex items-center gap-2 text-sm text-fg-secondary py-8 justify-center">
+                <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                <span>加载中...</span>
+              </div>
             </div>
           )}
 
           {!loading && filtered.length === 0 && (
-            <div className="text-center py-16">
-              <div className="mb-3 flex justify-center opacity-30 text-accent">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>
+            <div className="max-w-3xl mx-auto px-5 py-4">
+              <div className="text-center py-16">
+                <div className="mb-3 flex justify-center opacity-30 text-accent">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>
+                </div>
+                <p className="text-sm text-fg-secondary mb-1">
+                  {searchQuery.trim() ? '未找到匹配的知识条目' : '这个工作区还没有知识条目'}
+                </p>
+                <p className="text-xs text-fg-muted mb-4">
+                  {searchQuery.trim()
+                    ? '试试更换关键词，或清空搜索'
+                    : '先对对话做「记忆蒸馏」，再点「从当前对话提炼」即可生成'}
+                </p>
+                {!searchQuery.trim() && (
+                  <button
+                    onClick={() => setCreating(true)}
+                    className="Memora-btn Memora-btn-primary text-xs"
+                  >
+                    + 手动新建
+                  </button>
+                )}
               </div>
-              <p className="text-sm text-fg-secondary mb-1">
-                {searchQuery.trim() ? '未找到匹配的知识条目' : '这个工作区还没有知识条目'}
-              </p>
-              <p className="text-xs text-fg-muted mb-4">
-                {searchQuery.trim()
-                  ? '试试更换关键词，或清空搜索'
-                  : '先对对话做「记忆蒸馏」，再点「从当前对话提炼」即可生成'}
-              </p>
-              {!searchQuery.trim() && (
-                <button
-                  onClick={() => setCreating(true)}
-                  className="Memora-btn Memora-btn-primary text-xs"
-                >
-                  + 手动新建
-                </button>
-              )}
             </div>
           )}
 
-          {!loading &&
-            filtered.map((entry) => (
-              <KnowledgeCard
-                key={entry.id}
-                entry={entry}
-                onEdit={() => setEditing(entry)}
-                onDelete={() => handleDelete(entry)}
-                onToggleTask={() => handleToggleTask(entry)}
-                onOpenSource={handleOpenSource}
-              />
-            ))}
+          {!loading && filtered.length > 0 && (
+            <div className="max-w-3xl mx-auto px-5 py-4">
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative'
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualItem) => {
+                  const entry = filtered[virtualItem.index]
+                  return (
+                    <div
+                      key={entry.id}
+                      data-index={virtualItem.index}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualItem.start}px)`
+                      }}
+                    >
+                      {/* 原 space-y-2.5 改为 pb：margin 不计入 measureElement 测量高度，会导致条目重叠 */}
+                      <div className="pb-2.5">
+                        <KnowledgeCard
+                          entry={entry}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          onToggleTask={handleToggleTask}
+                          onOpenSource={handleOpenSource}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
       )}
 
       {/* 编辑/新建弹层 */}
@@ -348,7 +406,8 @@ export function KnowledgePanel({ onClose }: KnowledgePanelProps) {
   )
 }
 
-function KnowledgeCard({
+// memo + 回调参数化（传 entry/id 而非闭包捕获），父列表重渲染时未变化的卡片可直接复用
+const KnowledgeCard = memo(function KnowledgeCard({
   entry,
   onEdit,
   onDelete,
@@ -356,9 +415,9 @@ function KnowledgeCard({
   onOpenSource
 }: {
   entry: KnowledgeEntry
-  onEdit: () => void
-  onDelete: () => void
-  onToggleTask: () => void
+  onEdit: (entry: KnowledgeEntry) => void
+  onDelete: (entry: KnowledgeEntry) => void
+  onToggleTask: (entry: KnowledgeEntry) => void
   onOpenSource: (sessionId: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -377,7 +436,7 @@ function KnowledgeCard({
         {/* 类型图标 / 任务勾选 */}
         {isTask ? (
           <button
-            onClick={onToggleTask}
+            onClick={() => onToggleTask(entry)}
             className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center text-xs flex-shrink-0 transition-colors ${
               isDone
                 ? 'bg-emerald-500 border-emerald-500 text-white'
@@ -402,14 +461,14 @@ function KnowledgeCard({
             </h3>
             <div className="flex items-center gap-0.5 flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity">
               <button
-                onClick={onEdit}
+                onClick={() => onEdit(entry)}
                 className="text-fg-muted hover:text-accent text-xs px-1 py-0.5"
                 title="编辑"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
               </button>
               <button
-                onClick={onDelete}
+                onClick={() => onDelete(entry)}
                 className="text-fg-muted hover:text-red-500 text-xs px-1 py-0.5"
                 title="删除"
               >
@@ -460,7 +519,7 @@ function KnowledgeCard({
       </div>
     </div>
   )
-}
+})
 
 function EntryEditor({
   entry,

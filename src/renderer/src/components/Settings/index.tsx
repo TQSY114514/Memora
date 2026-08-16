@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useT, useI18nStore, LANGUAGES } from '../../i18n'
 import { useThemeStore } from '../../stores/themeStore'
 import { useBgImportStore } from '../../stores/backgroundImportStore'
@@ -40,8 +41,21 @@ export function Settings({
   onOpenSecurityCenter
 }: SettingsProps) {
   const t = useT()
-  const { lang, setLang } = useI18nStore()
-  const { mode, setMode, backgroundImage, setBackgroundImage, blur, setBlur, opacity, setOpacity } = useThemeStore()
+  // selector 订阅：数据字段 useShallow 组合订阅；action 引用稳定单独取
+  const lang = useI18nStore((s) => s.lang)
+  const setLang = useI18nStore((s) => s.setLang)
+  const { mode, backgroundImage, blur, opacity } = useThemeStore(
+    useShallow((s) => ({
+      mode: s.mode,
+      backgroundImage: s.backgroundImage,
+      blur: s.blur,
+      opacity: s.opacity
+    }))
+  )
+  const setMode = useThemeStore((s) => s.setMode)
+  const setBackgroundImage = useThemeStore((s) => s.setBackgroundImage)
+  const setBlur = useThemeStore((s) => s.setBlur)
+  const setOpacity = useThemeStore((s) => s.setOpacity)
 
   function handleOpenAiSettings() {
     onClose()
@@ -476,7 +490,14 @@ function FeatureButton({ title, tip, onClick }: { title: string; tip: string; on
 
 /** 后台静默导入设置分区 */
 function BackgroundImportSection() {
-  const { config, status, loadConfig, loadStatus, setConfig, runOnce } = useBgImportStore()
+  // selector 订阅：数据字段 useShallow 组合订阅；action 引用稳定单独取
+  const { config, status } = useBgImportStore(
+    useShallow((s) => ({ config: s.config, status: s.status }))
+  )
+  const loadConfig = useBgImportStore((s) => s.loadConfig)
+  const loadStatus = useBgImportStore((s) => s.loadStatus)
+  const setConfig = useBgImportStore((s) => s.setConfig)
+  const runOnce = useBgImportStore((s) => s.runOnce)
   const [folders, setFolders] = useState<Folder[]>([])
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
 

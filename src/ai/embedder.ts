@@ -66,36 +66,46 @@ export async function embedSession(
   const BATCH_SIZE = 32
   let embedded = 0
 
-  for (let i = 0; i < embeddable.length; i += BATCH_SIZE) {
-    const batch = embeddable.slice(i, i + BATCH_SIZE)
-    const inputs = batch.map((m) => truncate(m.content))
-    const vectors = await embedBatch(config, inputs)
+  // try/finally：中途某批失败（API 报错/维度不匹配）时，前面批次已写入 DB，
+  // 必须仍然通知 worker 缓存失效，否则 worker 内存缓存与 DB 不一致
+  try {
+    for (let i = 0; i < embeddable.length; i += BATCH_SIZE) {
+      const batch = embeddable.slice(i, i + BATCH_SIZE)
+      const inputs = batch.map((m) => truncate(m.content))
+      const vectors = await embedBatch(config, inputs)
 
-    if (vectors.length !== batch.length) {
-      throw new Error(`向量数量不匹配: 期望 ${batch.length}, 实际 ${vectors.length}`)
-    }
-
-    // 维度校验
-    for (const v of vectors) {
-      if (v.length !== config.embeddingDim) {
-        throw new Error(
-          `向量维度不匹配: 期望 ${config.embeddingDim}, 实际 ${v.length}。请检查 AiConfig.embeddingDim。`
-        )
+      if (vectors.length !== batch.length) {
+        throw new Error(`向量数量不匹配: 期望 ${batch.length}, 实际 ${vectors.length}`)
       }
-    }
 
-    upsertEmbeddings(
-      batch.map((m, idx) => ({
-        messageId: m.id,
-        sessionId,
-        embedding: vectors[idx],
-        model: config.embeddingModel
-      }))
-    )
-    embedded += batch.length
+      // 维度校验
+      for (const v of vectors) {
+        if (v.length !== config.embeddingDim) {
+          throw new Error(
+            `向量维度不匹配: 期望 ${config.embeddingDim}, 实际 ${v.length}。请检查 AiConfig.embeddingDim。`
+          )
+        }
+      }
+
+      upsertEmbeddings(
+        batch.map((m, idx) => ({
+          messageId: m.id,
+          sessionId,
+          embedding: vectors[idx],
+          model: config.embeddingModel
+        }))
+      )
+      embedded += batch.length
+    }
+  } finally {
+    try {
+      invalidateEmbeddingCache()
+    } catch (err) {
+      // 缓存失效失败不影响主流程：不遮蔽 embedSession 的原始结果/错误（worker 可能已终止，postMessage 会抛）
+      console.warn('[embedder] 通知语义缓存失效失败（忽略）:', err)
+    }
   }
 
-  invalidateEmbeddingCache()
   return {
     total: session.messages.length,
     embedded,

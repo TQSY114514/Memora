@@ -25,7 +25,12 @@
   --shadow-sm: 0 1px 2px rgba(64, 54, 38, 0.05);
   --shadow-md: 0 2px 10px rgba(64, 54, 38, 0.07);
   --shadow-lg: 0 10px 30px rgba(64, 54, 38, 0.1);
+  --shadow-card: 0 1px 3px rgba(64, 54, 38, 0.06), 0 1px 2px rgba(64, 54, 38, 0.04);
+  --shadow-popup: 0 4px 16px -2px rgba(64, 54, 38, 0.12), 0 1px 4px rgba(64, 54, 38, 0.06);
+  --shadow-popup-lg: 0 16px 48px -8px rgba(64, 54, 38, 0.18), 0 4px 12px rgba(64, 54, 38, 0.08);
+  --focus-ring: color-mix(in srgb, var(--accent) 50%, transparent);
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  color-scheme: light;
 }
 
 .dark {
@@ -45,6 +50,11 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-popup: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-popup-lg: 0 16px 48px -8px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --focus-ring: color-mix(in srgb, var(--accent) 50%, transparent);
+  color-scheme: dark;
 }
 
 * {
@@ -71,20 +81,105 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 滚动条样式 */
+/* 滚动条样式：纤细胶囊形，跟随主题边框色，hover 加深（暗色下提亮增强对比） */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 4px;
+  background-color: color-mix(in srgb, var(--border-strong) 85%, transparent);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--fg-muted);
+  background-color: var(--fg-muted);
+}
+
+/* ============================================================
+   全局交互与无障碍增强（纯视觉层，不改布局与既有类语义）
+   ============================================================ */
+
+/* 键盘焦点环：仅 Tab 导航（:focus-visible）出现，鼠标点击不触发；
+   颜色取主题强调色 50% 透明度，亮暗主题各自解析 */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* 文本选区：强调色淡化（输入框 / 可选中文本区域生效） */
+::selection {
+  background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+/* 统一短过渡（150ms ease）：元素级低特异性，
+   不覆盖任何 Tailwind transition-* / duration-* 工具类与 .Memora-btn 等既有规则 */
+button,
+a,
+[role='button'] {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.12s ease;
+}
+
+/* 已带 hover: 工具类的元素（卡片、可点击行等）：零特异性补底过渡，
+   元素自身已有 transition 工具类时以工具类为准 */
+:where([class*='hover:']) {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* 按压反馈：细微下沉 1px；零特异性，任何显式 transform 声明优先于此 */
+:where(button:not(:disabled):active) {
+  transform: translateY(1px);
+}
+
+/* 禁用态统一：opacity 0.5 + not-allowed；
+   .export-row:disabled（进行中）等更高特异性规则不受影响 */
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 弹层 / 面板进入动画：keyframes + 工具类（.anim-fade-in / .anim-slide-up 备用挂载点） */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+.anim-slide-up {
+  animation: slide-up 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 减少动态偏好：关闭上方新增的动画与过渡（既有业务动画不受影响） */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-in,
+  .anim-slide-up {
+    animation: none;
+  }
+  :where(button, a, [role='button'], [class*='hover:']) {
+    transition: none;
+  }
 }
 
 /* ============================================================

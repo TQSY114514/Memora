@@ -62,11 +62,13 @@ function loadCache(): number {
   return cache.length
 }
 
-parentPort!.on('message', (msg: { type: string; dbPath?: string; queryVec?: number[]; limit?: number; threshold?: number }) => {
+parentPort!.on('message', (msg: { type: string; reqId?: number; dbPath?: string; queryVec?: number[]; limit?: number; threshold?: number }) => {
   if (msg.type === 'init') {
     dbPath = msg.dbPath!
     parentPort!.postMessage({ type: 'ready' })
   } else if (msg.type === 'search') {
+    // 回包带同一 reqId，主进程按 reqId 路由到对应请求（并发安全）
+    const reqId = msg.reqId
     try {
       if (!cache) {
         const n = loadCache()
@@ -80,7 +82,7 @@ parentPort!.on('message', (msg: { type: string; dbPath?: string; queryVec?: numb
       // 预计算查询向量范数
       const queryNorm = precomputeNorm(queryVec)
       if (queryNorm === 0) {
-        parentPort!.postMessage({ type: 'result', data: [] })
+        parentPort!.postMessage({ type: 'result', reqId, data: [] })
         return
       }
 
@@ -116,9 +118,9 @@ parentPort!.on('message', (msg: { type: string; dbPath?: string; queryVec?: numb
       while (heap.size > 0) top.push(heap.pop())
       top.reverse()
 
-      parentPort!.postMessage({ type: 'result', data: top })
+      parentPort!.postMessage({ type: 'result', reqId, data: top })
     } catch (err) {
-      parentPort!.postMessage({ type: 'error', error: (err as Error).message || String(err) })
+      parentPort!.postMessage({ type: 'error', reqId, error: (err as Error).message || String(err) })
     }
   } else if (msg.type === 'invalidate') {
     cache = null

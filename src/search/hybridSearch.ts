@@ -14,9 +14,9 @@ import { getDatabase } from '../database/connection'
 import { getSessionsByIds } from '../database/repositories/sessionRepo'
 import { listFolders } from '../database/repositories/folderRepo'
 import { segmentQuery } from './segmenter'
-import { semanticSearch } from './semantic'
+import { semanticSearch, SearchTimeoutError } from './semantic'
 import { rerank, type RerankOptions } from './reranker'
-import type { AiConfig, SearchResult } from '@shared/types'
+import type { AiConfig, SearchResult, SemanticSearchResult } from '@shared/types'
 
 export interface HybridSearchOptions {
   limit?: number
@@ -149,65 +149,162 @@ function normalizeFtsScore(rank: number): number {
   return 1 / (1 + rank)
 }
 
-/** 计算图谱 boost（会话关联的知识条目与关系越多得分越高，最多 +0.1） */
-export function computeGraphBoost(sessionId: string): number {
+/** IN 查询单批参数上限（SQLite 变量上限 999，同一列表出现两次时保守取 400） */
+const IN_CHUNK_SIZE = 400
+
+/** 数组分批 */
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size))
+  }
+  return chunks
+}
+
+/**
+ * 批量计算图谱 boost（会话关联的知识条目与关系越多得分越高，最多 +0.1）
+ *
+ * 一次分组查询拿到所有会话的计数，替代逐会话 2 条 SQL 的 N+1 模式。
+ * boost 公式与逐会话版本完全一致：min((entryCount + relCount) / 20, 1) * 0.1
+ *
+ * @returns Map<sessionId, boost>（查询失败时所有会话返回 0，与原单会话版 catch 行为一致）
+ */
+export function computeGraphBoost(sessionIds: string[]): Map<string, number> {
+  const unique = [...new Set(sessionIds)]
+  const result = new Map<string, number>()
+  if (unique.length === 0) return result
+
+  const counts = new Map<string, { entries: number; rels: number }>()
+  for (const id of unique) counts.set(id, { entries: 0, rels: 0 })
+
   try {
     const db = getDatabase()
-    // 该会话关联的知识条目数
-    const entryRow = db
-      .prepare(
-        `SELECT COUNT(*) as cnt FROM knowledge_entries WHERE session_id = ?`
-      )
-      .get(sessionId) as { cnt: number } | undefined
-    const entryCount = entryRow?.cnt ?? 0
-    // 这些知识条目之间的关联关系数（1 跳图连接）
-    const relRow = db
-      .prepare(
-        `SELECT COUNT(*) as cnt FROM knowledge_relations r
-         JOIN knowledge_entries e1 ON r.from_id = e1.id
-         JOIN knowledge_entries e2 ON r.to_id = e2.id
-         WHERE e1.session_id = ? OR e2.session_id = ?`
-      )
-      .get(sessionId, sessionId) as { cnt: number } | undefined
-    const relCount = relRow?.cnt ?? 0
-    // 知识条目 + 关系共同构成图谱连接度，最多 +0.1
-    return Math.min((entryCount + relCount) / 20, 1) * 0.1
+    // 跨 chunk 全局去重：一条关系行可能在多个 chunk 的查询中同时命中
+    // （WHERE 两端任一端 IN 当前 chunk），必须只计一次，否则每端会话各 +2
+    const seen = new Set<string>()
+    for (const chunk of chunkArray(unique, IN_CHUNK_SIZE)) {
+      const ph = chunk.map(() => '?').join(',')
+
+      // 各会话关联的知识条目数（一次 GROUP BY 拿全）
+      const entryRows = db
+        .prepare(
+          `SELECT session_id, COUNT(*) as cnt FROM knowledge_entries
+           WHERE session_id IN (${ph}) GROUP BY session_id`
+        )
+        .all(...chunk) as Array<{ session_id: string; cnt: number }>
+      for (const r of entryRows) {
+        const c = counts.get(r.session_id)
+        if (c) c.entries = r.cnt
+      }
+
+      // 各会话条目参与的关联关系数（1 跳图连接），取回端点会话在内存按行统计：
+      // 一条关系两端属于同一会话时只计 1 次（与单会话 COUNT(*) 语义一致）；
+      // 关系行以 (from_id, to_id, relation) 主键去重，跨 chunk 的同一条关系行只计一次
+      const relRows = db
+        .prepare(
+          `SELECT r.from_id, r.to_id, r.relation,
+                  e1.session_id as from_session, e2.session_id as to_session
+           FROM knowledge_relations r
+           JOIN knowledge_entries e1 ON r.from_id = e1.id
+           JOIN knowledge_entries e2 ON r.to_id = e2.id
+           WHERE e1.session_id IN (${ph}) OR e2.session_id IN (${ph})`
+        )
+        .all(...chunk, ...chunk) as Array<{
+          from_id: string
+          to_id: string
+          relation: string
+          from_session: string | null
+          to_session: string | null
+        }>
+      for (const row of relRows) {
+        const key = `${row.from_id}\u0000${row.to_id}\u0000${row.relation}`
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        const targets = new Set<string>()
+        if (row.from_session && counts.has(row.from_session)) targets.add(row.from_session)
+        if (row.to_session && counts.has(row.to_session)) targets.add(row.to_session)
+        for (const sid of targets) counts.get(sid)!.rels++
+      }
+    }
+
+    for (const [sid, c] of counts) {
+      result.set(sid, Math.min((c.entries + c.rels) / 20, 1) * 0.1)
+    }
+    return result
   } catch {
-    return 0
+    for (const sid of unique) result.set(sid, 0)
+    return result
   }
 }
 
 /**
- * 计算实体链接 boost（借鉴 mem0 的实体抽取与跨记忆关联）
+ * 批量计算实体链接 boost（借鉴 mem0 的实体抽取与跨记忆关联）
  *
  * 会话关联的知识条目若与工作区内其他知识条目存在显式关系（knowledge_relations），
  * 说明该会话处于知识网络的关键节点，具备更强的关联价值 → 得分加成。
  *
- * @returns 实体关联得分（0 ~ 0.15）
+ * boost 公式与逐会话版本完全一致：无条目 → 0；有条目 → min(linkCount / 4, 1) * 0.15
+ *
+ * @returns Map<sessionId, boost>（查询失败时所有会话返回 0，与原单会话版 catch 行为一致）
  */
-export function computeEntityBoost(sessionId: string): number {
+export function computeEntityBoost(sessionIds: string[]): Map<string, number> {
+  const unique = [...new Set(sessionIds)]
+  const result = new Map<string, number>()
+  if (unique.length === 0) return result
+  for (const sid of unique) result.set(sid, 0)
+
   try {
     const db = getDatabase()
-    // 该会话的知识条目 id
-    const entryRows = db
-      .prepare(`SELECT id FROM knowledge_entries WHERE session_id = ?`)
-      .all(sessionId) as Array<{ id: string }>
-    if (entryRows.length === 0) return 0
 
-    // 统计这些条目作为端点对外建立的显式关系数量（跨条目实体链接）
-    const ids = entryRows.map((e) => e.id)
-    const placeholders = ids.map(() => '?').join(',')
-    const linkRow = db
-      .prepare(
-        `SELECT COUNT(*) as cnt FROM knowledge_relations
-         WHERE from_id IN (${placeholders}) OR to_id IN (${placeholders})`
-      )
-      .get(...ids, ...ids) as { cnt: number } | undefined
-    const linkCount = linkRow?.cnt ?? 0
-    // 实体链接越多，关联价值越高，最多 +0.15
-    return Math.min(linkCount / 4, 1) * 0.15
+    // 1. 批量取各会话的知识条目 id（entryId → 归属会话）
+    const entryOwner = new Map<string, string>()
+    for (const chunk of chunkArray(unique, IN_CHUNK_SIZE)) {
+      const ph = chunk.map(() => '?').join(',')
+      const rows = db
+        .prepare(`SELECT id, session_id FROM knowledge_entries WHERE session_id IN (${ph})`)
+        .all(...chunk) as Array<{ id: string; session_id: string }>
+      for (const r of rows) entryOwner.set(r.id, r.session_id)
+    }
+    if (entryOwner.size === 0) return result
+
+    // 2. 批量取这些条目作为端点的显式关系，在内存按归属会话计数。
+    //    按 (from_id, to_id, relation) 去重：同一关系行只计一次（有意行为，
+    //    与旧 COUNT(*) 对重复关系行重复计数不同，差异已接受——重复行本不该加分）。
+    //    一条关系两端属于同一会话时该会话只计 1 次
+    const entryIds = [...entryOwner.keys()]
+    const seen = new Set<string>()
+    const linkCounts = new Map<string, number>()
+    for (const chunk of chunkArray(entryIds, IN_CHUNK_SIZE)) {
+      const ph = chunk.map(() => '?').join(',')
+      const rows = db
+        .prepare(
+          `SELECT from_id, to_id, relation FROM knowledge_relations
+           WHERE from_id IN (${ph}) OR to_id IN (${ph})`
+        )
+        .all(...chunk, ...chunk) as Array<{ from_id: string; to_id: string; relation: string }>
+      for (const r of rows) {
+        const key = `${r.from_id}\u0000${r.to_id}\u0000${r.relation}`
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        const owners = new Set<string>()
+        const fromOwner = entryOwner.get(r.from_id)
+        if (fromOwner) owners.add(fromOwner)
+        const toOwner = entryOwner.get(r.to_id)
+        if (toOwner) owners.add(toOwner)
+        for (const sid of owners) linkCounts.set(sid, (linkCounts.get(sid) ?? 0) + 1)
+      }
+    }
+
+    for (const sid of unique) {
+      const linkCount = linkCounts.get(sid) ?? 0
+      result.set(sid, Math.min(linkCount / 4, 1) * 0.15)
+    }
+    return result
   } catch {
-    return 0
+    for (const sid of unique) result.set(sid, 0)
+    return result
   }
 }
 
@@ -249,6 +346,8 @@ export async function hybridSearch(
 
   const resultMap = new Map<string, HybridSearchResult>()
 
+  // 先收集通过全部过滤的候选行，再对候选会话批量计算 boost（消除逐会话 2 条 SQL 的 N+1）
+  const filtered: Array<{ row: FtsHitRow; session: SearchResult['session'] }> = []
   for (const row of rows) {
     const session = sessionMap.get(row.session_id)
     if (!session) continue
@@ -277,10 +376,17 @@ export async function hybridSearch(
       continue
     }
 
+    filtered.push({ row, session })
+  }
+
+  const graphBoosts = computeGraphBoost([...new Set(filtered.map((f) => f.row.session_id))])
+  const entityBoosts = computeEntityBoost([...new Set(filtered.map((f) => f.row.session_id))])
+
+  for (const { row, session } of filtered) {
     const ftsScore = normalizeFtsScore(row.rank)
     const timeDecay = computeTimeDecay(session.updatedAt, now)
-    const graphBoost = computeGraphBoost(row.session_id)
-    const entityBoost = computeEntityBoost(row.session_id)
+    const graphBoost = graphBoosts.get(row.session_id) ?? 0
+    const entityBoost = entityBoosts.get(row.session_id) ?? 0
     const favoriteBonus = session.isFavorite ? 0.1 : 0
 
     const total = ftsScore * 0.4 + timeDecay * 0.15 + graphBoost + entityBoost + favoriteBonus
@@ -326,11 +432,40 @@ export async function hybridSearch(
   }
 
   // 3. 语义召回（可选）：与本文件的 FTS 结果按会话去重合并
+  let semanticResults: SemanticSearchResult[] = []
   if (options?.semantic && config) {
-    const semanticResults = await semanticSearch(query, config, {
-      limit,
-      threshold: options.semanticThreshold
-    })
+    try {
+      semanticResults = await semanticSearch(query, config, {
+        limit,
+        threshold: options.semanticThreshold
+      })
+    } catch (err) {
+      if (err instanceof SearchTimeoutError) {
+        // 语义搜索超时（worker 计算超过 30s）：跳过语义召回，仅返回 FTS 结果，
+        // 避免 UI 长时间挂起；不降级为主进程同步扫描（大库会冻结 Electron 主进程）
+        console.warn('[hybridSearch] semantic search timed out, returning FTS-only results:', err.message)
+        semanticResults = []
+      } else {
+        throw err
+      }
+    }
+
+    // 语义命中会话的 boost 批量计算（FTS 阶段已算过的会话不重复查询）
+    const missingIds = [
+      ...new Set(
+        semanticResults
+          .filter((sr) => passesScope(sr.session, scopeFilters))
+          .map((sr) => sr.session.id)
+      )
+    ].filter((id) => !graphBoosts.has(id))
+    if (missingIds.length > 0) {
+      const g = computeGraphBoost(missingIds)
+      const e = computeEntityBoost(missingIds)
+      for (const id of missingIds) {
+        graphBoosts.set(id, g.get(id) ?? 0)
+        entityBoosts.set(id, e.get(id) ?? 0)
+      }
+    }
 
     for (const sr of semanticResults) {
       // 结构化检索范围过滤（借鉴 MemPalace）
@@ -342,8 +477,8 @@ export async function hybridSearch(
         // 更新现有条目的 vectorScore（取最高分）
         const fb = existing.scoreBreakdown.favoriteBonus
         const timeDecay = computeTimeDecay(sr.session.updatedAt, now)
-        const graphBoost = computeGraphBoost(sr.session.id)
-        const entityBoost = computeEntityBoost(sr.session.id)
+        const graphBoost = graphBoosts.get(sr.session.id) ?? 0
+        const entityBoost = entityBoosts.get(sr.session.id) ?? 0
         const vectorScore = Math.max(existing.scoreBreakdown.vectorScore, sr.score)
         const total = existing.scoreBreakdown.ftsScore * 0.4 +
           vectorScore * 0.3 + timeDecay * 0.15 + graphBoost + entityBoost + fb
@@ -356,8 +491,8 @@ export async function hybridSearch(
       } else {
         // 语义召回但 FTS 未命中的会话：新增条目
         const timeDecay = computeTimeDecay(sr.session.updatedAt, now)
-        const graphBoost = computeGraphBoost(sr.session.id)
-        const entityBoost = computeEntityBoost(sr.session.id)
+        const graphBoost = graphBoosts.get(sr.session.id) ?? 0
+        const entityBoost = entityBoosts.get(sr.session.id) ?? 0
         const favoriteBonus = sr.session.isFavorite ? 0.1 : 0
         const total = sr.score * 0.3 + timeDecay * 0.15 + graphBoost + entityBoost + favoriteBonus
         resultMap.set(sr.session.id, {

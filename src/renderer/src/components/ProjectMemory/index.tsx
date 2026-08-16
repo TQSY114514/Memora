@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useAiConfigStore, isAiConfigured, getActiveAiConfig } from '../../stores/aiConfigStore'
 import { useStore } from '../../stores/appStore'
 import { PROVIDER_META } from '@shared/constants'
 import type { Provider, ProjectMemoryAnswer } from '@shared/types'
+
+// Heavy markdown pipeline (react-markdown + remark-gfm, ~370KB) is code-split out of first paint.
+const MarkdownMessage = lazy(() => import('../ChatViewer/MarkdownMessage'))
 
 interface ProjectMemoryPanelProps {
   onClose: () => void
@@ -16,7 +18,12 @@ interface ProjectMemoryPanelProps {
  */
 export function ProjectMemoryPanel({ onClose }: ProjectMemoryPanelProps) {
   const { config } = useAiConfigStore()
-  const { setActiveSession, setActiveSessionData } = useStore()
+  const { setActiveSession, setActiveSessionData } = useStore(
+    useShallow((s) => ({
+      setActiveSession: s.setActiveSession,
+      setActiveSessionData: s.setActiveSessionData
+    }))
+  )
   const aiConfigured = isAiConfigured(config)
 
   const [question, setQuestion] = useState('')
@@ -203,7 +210,9 @@ function AnswerCard({
           )}
         </div>
         <div className="Memora-md">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.answer}</ReactMarkdown>
+          <Suspense fallback={<p className="whitespace-pre-wrap">{answer.answer}</p>}>
+            <MarkdownMessage content={answer.answer} />
+          </Suspense>
         </div>
       </div>
 

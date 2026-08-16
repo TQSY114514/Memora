@@ -98,6 +98,11 @@ const migrations: Migration[] = [
     version: 13,
     description: '时间感知记忆 + 结构化记忆块：preferences 加 valid_at/invalid_at/temporal_type，chat_sessions 加 session_type/expires_at，建 memory_blocks/memory_block_history 表',
     up: (db) => migrateToTimeAwareMemory(db)
+  },
+  {
+    version: 14,
+    description: 'message_embeddings.message_id 唯一索引（每条消息最多一个向量，支持 INSERT ... ON CONFLICT(message_id) 原子 upsert）',
+    up: (db) => addUniqueIndexOnEmbeddingMessage(db)
   }
 ]
 
@@ -613,6 +618,44 @@ function migrateToTimeAwareMemory(db: Database.Database): void {
     )
   `)
   db.exec('CREATE INDEX IF NOT EXISTS idx_memory_block_history_block ON memory_block_history(block_id)')
+}
+
+/**
+ * v14：message_embeddings.message_id 唯一索引
+ * - 语义上每条消息只应有一个向量，唯一索引是 INSERT ... ON CONFLICT(message_id) 原子 upsert 的前提
+ * - 建索引前先清理历史重复行（保留 created_at 最新的一条，rowid 大者胜），避免建索引失败
+ * - 唯一索引覆盖原 idx_embeddings_message 的查询场景，旧非唯一索引删除
+ */
+function addUniqueIndexOnEmbeddingMessage(db: Database.Database): void {
+  const dupCount = db
+    .prepare(
+      `SELECT COUNT(*) as n FROM (
+         SELECT message_id FROM message_embeddings
+         GROUP BY message_id HAVING COUNT(*) > 1
+       )`
+    )
+    .get() as { n: number }
+
+  if (dupCount.n > 0) {
+    db.exec(
+      `DELETE FROM message_embeddings WHERE id IN (
+         SELECT id FROM (
+           SELECT id,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY message_id
+                    ORDER BY created_at DESC, rowid DESC
+                  ) AS rn
+           FROM message_embeddings
+         ) WHERE rn > 1
+       )`
+    )
+    console.log(`[db] v14 清理 ${dupCount.n} 组重复 message_id 向量（保留每组最新一条）`)
+  }
+
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_embeddings_message_unique ON message_embeddings(message_id)'
+  )
+  db.exec('DROP INDEX IF EXISTS idx_embeddings_message')
 }
 
 /** 读取当前已应用的最高版本（无记录返回 0） */

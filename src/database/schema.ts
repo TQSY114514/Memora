@@ -126,7 +126,9 @@ CREATE TABLE IF NOT EXISTS message_embeddings (
   dim          INTEGER NOT NULL,    -- 向量维度
   created_at   TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_embeddings_message ON message_embeddings(message_id);
+-- 注意：不再在此创建 idx_embeddings_message（非唯一 message_id 索引）。
+-- v14 迁移会将其 DROP 并创建唯一索引 idx_embeddings_message_unique（覆盖同查询场景）；
+-- 若此处重建，老库每次启动都会"复活"该冗余索引且永远不会再被 DROP（迁移只跑一次）。
 CREATE INDEX IF NOT EXISTS idx_embeddings_session ON message_embeddings(session_id);
 
 INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (2, datetime('now'));

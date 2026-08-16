@@ -49,13 +49,33 @@ describe('embeddingRepo', () => {
     expect(() => upsertEmbedding('m1', 's1', new Array(8193).fill(0), 'model')).toThrowError(/Invalid embedding dimension/)
   })
 
+  it('upsertEmbeddings throws with v14 hint when unique index is missing', () => {
+    // 必须排在最前：guard 成功校验后会在模块级缓存结果，此用例需先于成功路径执行
+    // PRAGMA 返回空 → 无唯一索引 → 抛带 v14 迁移说明的错误
+    stmtResults.set("PRAGMA index_list('message_embeddings')", { all: [] })
+    expect(() =>
+      upsertEmbeddings([{ messageId: 'm1', sessionId: 's1', embedding: [1], model: 'm' }])
+    ).toThrow(/v14/)
+  })
+
   it('upsertEmbeddings runs in a transaction', () => {
+    stmtResults.set("PRAGMA index_list('message_embeddings')", {
+      all: [{ name: 'idx_embeddings_message_unique', unique: 1 }]
+    })
     stmtResults.set('SELECT id FROM message_embeddings WHERE message_id = ?', { get: undefined })
     upsertEmbeddings([
       { messageId: 'm1', sessionId: 's1', embedding: [1], model: 'm' },
       { messageId: 'm2', sessionId: 's1', embedding: [2], model: 'm' }
     ])
     expect(db.transaction).toHaveBeenCalled()
+  })
+
+  it('upsertEmbeddings uses a single ON CONFLICT upsert statement', () => {
+    stmtResults.set("PRAGMA index_list('message_embeddings')", {
+      all: [{ name: 'idx_embeddings_message_unique', unique: 1 }]
+    })
+    upsertEmbeddings([{ messageId: 'm1', sessionId: 's1', embedding: [1], model: 'm' }])
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT(message_id) DO UPDATE'))
   })
 
   it('deleteSessionEmbeddings runs a DELETE', () => {
@@ -111,13 +131,15 @@ describe('embeddingRepo', () => {
     expect(getSessionEmbeddings('s1')[0].embedding).toEqual([])
   })
 
-  it('getAllEmbeddings maps all rows', () => {
+  it('getAllEmbeddings maps all rows (embedding as zero-copy Float32Array)', () => {
     stmtResults.set('SELECT * FROM message_embeddings', {
       all: [{ message_id: 'm1', session_id: 's1', embedding: validFloat32, model: 'm', dim: 3, created_at: 'x', id: 'e1' }]
     })
     const rows = getAllEmbeddings()
     expect(rows).toHaveLength(1)
     expect(rows[0].sessionId).toBe('s1')
+    expect(rows[0].embedding).toBeInstanceOf(Float32Array)
+    expect(Array.from(rows[0].embedding)).toEqual([1, 2, 3])
   })
 
   it('getMessagesWithoutEmbeddings maps messages without embeddings', () => {

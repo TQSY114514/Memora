@@ -3,6 +3,7 @@ import { join } from 'path'
 import { createHash } from 'crypto'
 import { getDbPath } from '../database/connection'
 import { getSession } from '../database/repositories/sessionRepo'
+import { getAllEmbeddings } from '../database/repositories/embeddingRepo'
 import { getDatabase } from '../database/connection'
 import { embedQuery } from '../ai/apiClient'
 import { cosineSimilarity } from '@shared/math'
@@ -58,23 +59,75 @@ let worker: Worker | null = null
 let workerReady = false
 let useFallback = false
 
+/** 待处理搜索请求的 resolver，按 reqId 索引（并发请求路由，避免串扰） */
+const pendingSearches = new Map<
+  number,
+  { resolve: (v: WorkerSearchResult[]) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
+>()
+let nextReqId = 1
+
+/** 单次搜索超时时间（超时后 reject 并清理 pending，防止泄漏） */
+const SEARCH_TIMEOUT_MS = 30_000
+
+/**
+ * 搜索超时错误：worker 线程仍在计算，本次搜索放弃。
+ * 调用方应捕获该错误并跳过语义召回（如混合搜索仅返回 FTS 结果），
+ * 切勿降级为主进程同步扫描——大库全量加载向量 + 余弦扫描会冻结 Electron 主进程。
+ */
+export class SearchTimeoutError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SearchTimeoutError'
+  }
+}
+
+/** reject 所有 pending 请求（worker 级别错误/终止时调用） */
+function rejectAllPending(err: Error): void {
+  for (const [, p] of pendingSearches) {
+    clearTimeout(p.timer)
+    p.reject(err)
+  }
+  pendingSearches.clear()
+}
+
 /** 初始化 worker（失败则 fallback 到主进程同步计算） */
 function initWorker(): void {
   if (worker || useFallback) return
   try {
     // 独立 worker 文件，消除 eval:true 安全隐患
     worker = new Worker(join(__dirname, 'semantic.worker.js'))
-    worker.on('message', (msg: { type: string; error?: string }) => {
+    worker.on('message', (msg: { type: string; reqId?: number; data?: WorkerSearchResult[]; error?: string }) => {
       if (msg.type === 'ready') {
         workerReady = true
-      } else if (msg.type === 'error' && !workerReady) {
-        console.warn('[semantic] worker init failed, fallback to sync:', msg.error)
-        useFallback = true
+      } else if (msg.type === 'result' || msg.type === 'error') {
+        // 带 reqId 的响应：路由到对应的 pending 请求（并发安全）
+        if (msg.reqId !== undefined) {
+          const p = pendingSearches.get(msg.reqId)
+          if (p) {
+            pendingSearches.delete(msg.reqId)
+            clearTimeout(p.timer)
+            if (msg.type === 'result') {
+              p.resolve(msg.data ?? [])
+            } else {
+              p.reject(new Error(msg.error ?? 'worker search failed'))
+            }
+          }
+          return
+        }
+        // 无 reqId 的 error：worker 级别错误（初始化失败），拒绝所有 pending
+        if (msg.type === 'error') {
+          if (!workerReady) {
+            console.warn('[semantic] worker init failed, fallback to sync:', msg.error)
+            useFallback = true
+          }
+          rejectAllPending(new Error(msg.error ?? 'worker error'))
+        }
       }
     })
     worker.on('error', (err) => {
       console.warn('[semantic] worker error, fallback to sync:', err.message)
       useFallback = true
+      rejectAllPending(new Error(err.message))
     })
     worker.postMessage({ type: 'init', dbPath: getDbPath() })
   } catch (err) {
@@ -95,6 +148,8 @@ export function shutdownSemanticWorker(): void {
     worker = null
     workerReady = false
   }
+  // worker 已终止，pending 请求不会再有响应
+  rejectAllPending(new Error('semantic worker terminated'))
 }
 
 export function invalidateEmbeddingCache(): void {
@@ -103,7 +158,7 @@ export function invalidateEmbeddingCache(): void {
   }
 }
 
-/** 通过 worker 搜索（异步，不阻塞主进程） */
+/** 通过 worker 搜索（异步，不阻塞主进程）。reqId 路由，支持并发调用 */
 function searchViaWorker(
   queryVec: number[],
   limit: number,
@@ -114,17 +169,18 @@ function searchViaWorker(
       reject(new Error('worker not initialized'))
       return
     }
-    const handler = (msg: { type: string; data?: WorkerSearchResult[]; error?: string }) => {
-      if (msg.type === 'result') {
-        worker!.off('message', handler)
-        resolve(msg.data ?? [])
-      } else if (msg.type === 'error') {
-        worker!.off('message', handler)
-        reject(new Error(msg.error ?? 'worker search failed'))
-      }
-    }
-    worker.on('message', handler)
-    worker.postMessage({ type: 'search', queryVec, limit, threshold })
+    const reqId = nextReqId++
+    const timer = setTimeout(() => {
+      // 超时清理：移出 pending 表，防止泄漏与迟到响应误路由。
+      // 注意：worker 此时可能仍在计算，这里不尝试取消（worker 内为同步 better-sqlite3
+      // 查询，无法中断；超时后返回的迟到结果会被上面的 reqId 路由忽略），由调用方决定重试。
+      pendingSearches.delete(reqId)
+      reject(
+        new SearchTimeoutError(`worker search timeout (reqId=${reqId}, exceeded ${SEARCH_TIMEOUT_MS}ms)`)
+      )
+    }, SEARCH_TIMEOUT_MS)
+    pendingSearches.set(reqId, { resolve, reject, timer })
+    worker.postMessage({ type: 'search', reqId, queryVec, limit, threshold })
   })
 }
 
@@ -133,25 +189,13 @@ function searchViaWorker(
 interface FallbackRow {
   messageId: string
   sessionId: string
-  embedding: number[]
+  embedding: Float32Array
   model: string
 }
 
 function getAllEmbeddingsSync(): FallbackRow[] {
-  const db = getDatabase()
-  const rows = db
-    .prepare('SELECT message_id, session_id, embedding, model FROM message_embeddings')
-    .all() as Array<{ message_id: string; session_id: string; embedding: Buffer; model: string }>
-  return rows
-    .filter((r) => r.embedding.byteLength > 0 && r.embedding.byteLength % 4 === 0)
-    .map((r) => ({
-      messageId: r.message_id,
-      sessionId: r.session_id,
-      embedding: Array.from(
-        new Float32Array(r.embedding.buffer, r.embedding.byteOffset, r.embedding.byteLength / 4)
-      ),
-      model: r.model
-    }))
+  // 复用 repo 的零拷贝加载（Float32Array 视图），过滤损坏的 buffer（空向量）
+  return getAllEmbeddings().filter((r) => r.embedding.length > 0)
 }
 
 function searchFallback(
@@ -211,6 +255,10 @@ export async function semanticSearch(
     try {
       top = await searchViaWorker(queryVec, limit, threshold)
     } catch (err) {
+      if (err instanceof SearchTimeoutError) {
+        // 超时不降级：worker 可能仍在计算，但绝不在主进程做全库同步扫描（大库会冻结 Electron 主进程）
+        throw err
+      }
       console.warn('[semantic] worker search failed, fallback:', err)
       top = searchFallback(queryVec, limit, threshold)
     }
