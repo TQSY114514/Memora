@@ -31,9 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 门禁：存在 high/critical 漏洞时 CI 失败，防止依赖回退引入安全问题
+      # 门禁：存在 high/critical 漏洞时 CI 失败，防止依赖回退引入安全问题。
+      # 已知无修复版本的传递依赖 CVE（如 extract-zip）在白名单内放行，
+      # 见 .github/scripts/audit-check.mjs 的 ALLOWLIST。
       - name: Audit (high+critical gate)
-        run: npm audit --audit-level=high --omit=optional
+        run: node .github/scripts/audit-check.mjs
 
   typecheck:
     name: Typecheck
