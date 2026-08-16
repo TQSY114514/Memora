@@ -98,7 +98,12 @@ export async function embedSession(
       embedded += batch.length
     }
   } finally {
-    invalidateEmbeddingCache()
+    try {
+      invalidateEmbeddingCache()
+    } catch (err) {
+      // 缓存失效失败不影响主流程：不遮蔽 embedSession 的原始结果/错误（worker 可能已终止，postMessage 会抛）
+      console.warn('[embedder] 通知语义缓存失效失败（忽略）:', err)
+    }
   }
 
   return {

@@ -14,9 +14,9 @@ import { getDatabase } from '../database/connection'
 import { getSessionsByIds } from '../database/repositories/sessionRepo'
 import { listFolders } from '../database/repositories/folderRepo'
 import { segmentQuery } from './segmenter'
-import { semanticSearch } from './semantic'
+import { semanticSearch, SearchTimeoutError } from './semantic'
 import { rerank, type RerankOptions } from './reranker'
-import type { AiConfig, SearchResult } from '@shared/types'
+import type { AiConfig, SearchResult, SemanticSearchResult } from '@shared/types'
 
 export interface HybridSearchOptions {
   limit?: number
@@ -179,6 +179,9 @@ export function computeGraphBoost(sessionIds: string[]): Map<string, number> {
 
   try {
     const db = getDatabase()
+    // 跨 chunk 全局去重：一条关系行可能在多个 chunk 的查询中同时命中
+    // （WHERE 两端任一端 IN 当前 chunk），必须只计一次，否则每端会话各 +2
+    const seen = new Set<string>()
     for (const chunk of chunkArray(unique, IN_CHUNK_SIZE)) {
       const ph = chunk.map(() => '?').join(',')
 
@@ -195,17 +198,29 @@ export function computeGraphBoost(sessionIds: string[]): Map<string, number> {
       }
 
       // 各会话条目参与的关联关系数（1 跳图连接），取回端点会话在内存按行统计：
-      // 一条关系两端属于同一会话时只计 1 次（与单会话 COUNT(*) 语义一致）
+      // 一条关系两端属于同一会话时只计 1 次（与单会话 COUNT(*) 语义一致）；
+      // 关系行以 (from_id, to_id, relation) 主键去重，跨 chunk 的同一条关系行只计一次
       const relRows = db
         .prepare(
-          `SELECT e1.session_id as from_session, e2.session_id as to_session
+          `SELECT r.from_id, r.to_id, r.relation,
+                  e1.session_id as from_session, e2.session_id as to_session
            FROM knowledge_relations r
            JOIN knowledge_entries e1 ON r.from_id = e1.id
            JOIN knowledge_entries e2 ON r.to_id = e2.id
            WHERE e1.session_id IN (${ph}) OR e2.session_id IN (${ph})`
         )
-        .all(...chunk, ...chunk) as Array<{ from_session: string | null; to_session: string | null }>
+        .all(...chunk, ...chunk) as Array<{
+          from_id: string
+          to_id: string
+          relation: string
+          from_session: string | null
+          to_session: string | null
+        }>
       for (const row of relRows) {
+        const key = `${row.from_id}\u0000${row.to_id}\u0000${row.relation}`
+        if (seen.has(key)) continue
+        seen.add(key)
+
         const targets = new Set<string>()
         if (row.from_session && counts.has(row.from_session)) targets.add(row.from_session)
         if (row.to_session && counts.has(row.to_session)) targets.add(row.to_session)
@@ -254,7 +269,8 @@ export function computeEntityBoost(sessionIds: string[]): Map<string, number> {
     if (entryOwner.size === 0) return result
 
     // 2. 批量取这些条目作为端点的显式关系，在内存按归属会话计数。
-    //    跨批次用 (from, to, relation) 主键去重，保证与单会话 COUNT(*) 语义一致：
+    //    按 (from_id, to_id, relation) 去重：同一关系行只计一次（有意行为，
+    //    与旧 COUNT(*) 对重复关系行重复计数不同，差异已接受——重复行本不该加分）。
     //    一条关系两端属于同一会话时该会话只计 1 次
     const entryIds = [...entryOwner.keys()]
     const seen = new Set<string>()
@@ -416,11 +432,23 @@ export async function hybridSearch(
   }
 
   // 3. 语义召回（可选）：与本文件的 FTS 结果按会话去重合并
+  let semanticResults: SemanticSearchResult[] = []
   if (options?.semantic && config) {
-    const semanticResults = await semanticSearch(query, config, {
-      limit,
-      threshold: options.semanticThreshold
-    })
+    try {
+      semanticResults = await semanticSearch(query, config, {
+        limit,
+        threshold: options.semanticThreshold
+      })
+    } catch (err) {
+      if (err instanceof SearchTimeoutError) {
+        // 语义搜索超时（worker 计算超过 30s）：跳过语义召回，仅返回 FTS 结果，
+        // 避免 UI 长时间挂起；不降级为主进程同步扫描（大库会冻结 Electron 主进程）
+        console.warn('[hybridSearch] semantic search timed out, returning FTS-only results:', err.message)
+        semanticResults = []
+      } else {
+        throw err
+      }
+    }
 
     // 语义命中会话的 boost 批量计算（FTS 阶段已算过的会话不重复查询）
     const missingIds = [

@@ -67,11 +67,33 @@ export function upsertEmbedding(
   ).run(uuidv4(), messageId, sessionId, buf, model, dim, now)
 }
 
+/** 校验 v14 唯一索引是否就绪（upsertEmbeddings 的 ON CONFLICT(message_id) 依赖它）。
+ *  首次校验成功后缓存结果，避免每次 upsert 都跑一次 PRAGMA；校验失败则每次都抛，
+ *  直到迁移补齐索引为止。 */
+let messageUniqueIndexVerified = false
+function ensureMessageUniqueIndex(): void {
+  if (messageUniqueIndexVerified) return
+  const db = getDatabase()
+  const indexes = db
+    .prepare(`PRAGMA index_list('message_embeddings')`)
+    .all() as Array<{ name: string; unique: number }>
+  const ok = indexes.some((i) => i.name === 'idx_embeddings_message_unique' && i.unique === 1)
+  if (!ok) {
+    throw new Error(
+      'message_embeddings 缺少 message_id 唯一索引（idx_embeddings_message_unique）：批量向量写入依赖该索引执行原子 upsert。' +
+        '请先运行 v14 数据库迁移（应用启动时自动执行），或手动执行 ' +
+        'CREATE UNIQUE INDEX idx_embeddings_message_unique ON message_embeddings(message_id)'
+    )
+  }
+  messageUniqueIndexVerified = true
+}
+
 /** 批量写入向量（事务 + 单条预编译 ON CONFLICT upsert）
  *  依赖 migration v14 的 message_id 唯一索引，原子完成"存在则覆盖"，消除逐行 SELECT 探测 */
 export function upsertEmbeddings(
   rows: Array<{ messageId: string; sessionId: string; embedding: number[]; model: string }>
 ): void {
+  ensureMessageUniqueIndex()
   const db = getDatabase()
   const stmt = db.prepare(
     `INSERT INTO message_embeddings (id, message_id, session_id, embedding, model, dim, created_at)

@@ -69,6 +69,18 @@ let nextReqId = 1
 /** 单次搜索超时时间（超时后 reject 并清理 pending，防止泄漏） */
 const SEARCH_TIMEOUT_MS = 30_000
 
+/**
+ * 搜索超时错误：worker 线程仍在计算，本次搜索放弃。
+ * 调用方应捕获该错误并跳过语义召回（如混合搜索仅返回 FTS 结果），
+ * 切勿降级为主进程同步扫描——大库全量加载向量 + 余弦扫描会冻结 Electron 主进程。
+ */
+export class SearchTimeoutError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SearchTimeoutError'
+  }
+}
+
 /** reject 所有 pending 请求（worker 级别错误/终止时调用） */
 function rejectAllPending(err: Error): void {
   for (const [, p] of pendingSearches) {
@@ -159,9 +171,13 @@ function searchViaWorker(
     }
     const reqId = nextReqId++
     const timer = setTimeout(() => {
-      // 超时清理：移出 pending 表，防止泄漏与迟到响应误路由
+      // 超时清理：移出 pending 表，防止泄漏与迟到响应误路由。
+      // 注意：worker 此时可能仍在计算，这里不尝试取消（worker 内为同步 better-sqlite3
+      // 查询，无法中断；超时后返回的迟到结果会被上面的 reqId 路由忽略），由调用方决定重试。
       pendingSearches.delete(reqId)
-      reject(new Error('worker search timeout'))
+      reject(
+        new SearchTimeoutError(`worker search timeout (reqId=${reqId}, exceeded ${SEARCH_TIMEOUT_MS}ms)`)
+      )
     }, SEARCH_TIMEOUT_MS)
     pendingSearches.set(reqId, { resolve, reject, timer })
     worker.postMessage({ type: 'search', reqId, queryVec, limit, threshold })
@@ -239,6 +255,10 @@ export async function semanticSearch(
     try {
       top = await searchViaWorker(queryVec, limit, threshold)
     } catch (err) {
+      if (err instanceof SearchTimeoutError) {
+        // 超时不降级：worker 可能仍在计算，但绝不在主进程做全库同步扫描（大库会冻结 Electron 主进程）
+        throw err
+      }
       console.warn('[semantic] worker search failed, fallback:', err)
       top = searchFallback(queryVec, limit, threshold)
     }
