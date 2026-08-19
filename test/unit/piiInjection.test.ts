@@ -33,7 +33,14 @@ describe('piiDetector.detectPii', () => {
   })
 
   it('detects a JWT token', () => {
-    const result = detectPii('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U')
+    const jwt =
+      process.env.TEST_JWT_TOKEN ??
+      [
+        Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url'),
+        Buffer.from(JSON.stringify({ sub: 'test-fixture' })).toString('base64url'),
+        Buffer.from('test-signature').toString('base64url')
+      ].join('.')
+    const result = detectPii(jwt)
     expect(result.hasPii).toBe(true)
     expect(result.matches.some((m) => m.type === 'jwt')).toBe(true)
   })
