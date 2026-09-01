@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
-    "@commitlint/config-conventional": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
